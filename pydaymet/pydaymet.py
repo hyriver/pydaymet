@@ -1,23 +1,22 @@
-"""Base classes for """
-from typing import Dict, List, Optional, Tuple, Union, Iterable
-from pygeoogc import RetrySession, ServiceURL, MatchCRS
-import pygeoogc as ogc
-import py3dep
-import pygeoutils as geoutils
+"""Access the Daymet database for both single single pixel and gridded queries."""
+from typing import Dict, Iterable, List, Optional, Tuple, Union
+
 import numpy as np
+import pandas as pd
+import py3dep
+import pygeoogc as ogc
+import pygeoutils as geoutils
 import xarray as xr
+from pygeoogc import MatchCRS, RetrySession, ServiceURL
 from shapely.geometry import Polygon
 
 from .exceptions import (
     InvalidInputRange,
     InvalidInputType,
     InvalidInputValue,
+    MissingInputs,
     MissingItems,
-    MissingInputs
 )
-
-import pandas as pd
-
 
 
 class Daymet:
@@ -151,7 +150,10 @@ class Daymet:
         clm_df["tmean (deg c)"] = 0.5 * (clm_df["tmax (deg c)"] + clm_df["tmin (deg c)"])
         Delta = (
             4098
-            * (0.6108 * np.exp(17.27 * clm_df["tmean (deg c)"] / (clm_df["tmean (deg c)"] + 237.3),))
+            * (
+                0.6108
+                * np.exp(17.27 * clm_df["tmean (deg c)"] / (clm_df["tmean (deg c)"] + 237.3),)
+            )
             / ((clm_df["tmean (deg c)"] + 237.3) ** 2)
         )
         elevation = py3dep.elevation_byloc(lon, lat)
@@ -191,14 +193,18 @@ class Daymet:
         R_ns = (1.0 - alb) * R_s
         R_nl = (
             4.903e-9
-            * (((clm_df["tmax (deg c)"] + 273.16) ** 4 + (clm_df["tmin (deg c)"] + 273.16) ** 4) * 0.5)
+            * (
+                ((clm_df["tmax (deg c)"] + 273.16) ** 4 + (clm_df["tmin (deg c)"] + 273.16) ** 4)
+                * 0.5
+            )
             * (0.34 - 0.14 * np.sqrt(clm_df["vp (Pa)"]))
             * ((1.35 * R_s / R_so) - 0.35)
         )
         R_n = R_ns - R_nl
 
         clm_df["pet (mm/day)"] = (
-            0.408 * Delta * (R_n - G) + gamma * 900.0 / (clm_df["tmean (deg c)"] + 273.0) * u_2 * e_def
+            0.408 * Delta * (R_n - G)
+            + gamma * 900.0 / (clm_df["tmean (deg c)"] + 273.0) * u_2 * e_def
         ) / (Delta + gamma * (1 + 0.34 * u_2))
         clm_df["vp (Pa)"] = clm_df["vp (Pa)"] * 1.0e3
 
@@ -243,7 +249,9 @@ class Daymet:
         res = clm_ds.res[0] * 1000
         elev = py3dep.elevation_bygrid(gridxy, clm_ds.crs, res)
         clm_ds = xr.merge([clm_ds, elev], combine_attrs="override")
-        clm_ds["elevation"] = clm_ds.elevation.where(~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True)
+        clm_ds["elevation"] = clm_ds.elevation.where(
+            ~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True
+        )
 
         P = 101.3 * ((293.0 - 0.0065 * clm_ds["elevation"]) / 293.0) ** 5.26
         clm_ds["gamma"] = P * 0.665e-3
@@ -531,4 +539,3 @@ def _check_requirements(reqs: Iterable, cols: List[str]) -> None:
     missing = [r for r in reqs if r not in cols]
     if missing:
         raise MissingItems(missing)
-

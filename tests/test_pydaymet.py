@@ -1,7 +1,8 @@
 """Tests for PyDaymet package."""
 import pytest
-import pydaymet as daymet
 from shapely import Polygon
+
+import pydaymet as daymet
 
 
 @pytest.fixture
