@@ -1,0 +1,16 @@
+name: pynhd-dev
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.8
+  - setuptools
+  - pygeoogc
+  - pygeoutils
+  - networkx
+
+  - setuptools_scm
+  - pytest-cov
+  - pytest-xdist
+  - pre-commit
+  - codecov
+  - coverage

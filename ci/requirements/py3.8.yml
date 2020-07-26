@@ -1,0 +1,9 @@
+name: pynhd
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - setuptools
+  - pygeoogc
+  - pygeoutils
+  - networkx
