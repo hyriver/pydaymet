@@ -1,6 +1,6 @@
 """Tests for PyDaymet package."""
 import pytest
-from shapely import Polygon
+from shapely.geometry import Polygon
 
 import pydaymet as daymet
 

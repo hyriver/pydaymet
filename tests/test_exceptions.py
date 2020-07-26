@@ -1,5 +1,4 @@
 import pytest
-
 from pynhd import InvalidInputType, InvalidInputValue, MissingItems, ZeroMatched
 
 
