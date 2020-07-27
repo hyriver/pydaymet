@@ -1,12 +1,6 @@
 import pytest
 
-from pydaymet import (
-    InvalidInputRange,
-    InvalidInputType,
-    InvalidInputValue,
-    MissingInputs,
-    MissingItems,
-)
+from pydaymet import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 
 
 def missing_items():
@@ -29,15 +23,6 @@ def test_invalid_value():
 
 def invalid_type():
     raise InvalidInputType("coords", "tuple", "(lon, lat)")
-
-
-def missing_input():
-    raise MissingInputs("Either coords or station_id should be provided.")
-
-
-def test_missing_input():
-    with pytest.raises(MissingInputs):
-        missing_input()
 
 
 def test_invalid_type():

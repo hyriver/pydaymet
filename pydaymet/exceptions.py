@@ -71,7 +71,3 @@ class MissingItems(Exception):
 
     def __str__(self) -> str:
         return self.message
-
-
-class MissingInputs(ValueError):
-    """Exception raised when there are missing function arguments."""

@@ -10,13 +10,9 @@ import xarray as xr
 from pygeoogc import MatchCRS, RetrySession, ServiceURL
 from shapely.geometry import Polygon
 
-from .exceptions import (
-    InvalidInputRange,
-    InvalidInputType,
-    InvalidInputValue,
-    MissingInputs,
-    MissingItems,
-)
+from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
+
+DEF_CRS = "epsg:4326"
 
 
 class Daymet:
@@ -122,7 +118,7 @@ class Daymet:
 
     @staticmethod
     def pet_byloc(
-        clm_df: pd.DataFrame, coords: Tuple[float, float], crs: str = "epsg:4326"
+        clm_df: pd.DataFrame, coords: Tuple[float, float], crs: str = DEF_CRS
     ) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using Daymet dataset for a single location.
 
@@ -146,70 +142,71 @@ class Daymet:
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``
         """
-        reqs = ["tmin (deg c)", "tmax (deg c)", "vp (Pa)", "srad (W/m^2)", "dayl (s)"]
+        va_pa = "vp (Pa)"
+        tmin_c = "tmin (deg c)"
+        tmax_c = "tmax (deg c)"
+        srad_wm2 = "srad (W/m^2)"
+        dayl_s = "dayl (s)"
+        tmean_c = "tmean (deg c)"
+
+        reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
 
         _check_requirements(reqs, clm_df)
 
-        clm_df["tmean (deg c)"] = 0.5 * (clm_df["tmax (deg c)"] + clm_df["tmin (deg c)"])
-        Delta = (
+        clm_df[tmean_c] = 0.5 * (clm_df[tmax_c] + clm_df[tmin_c])
+        delta_v = (
             4098
-            * (
-                0.6108
-                * np.exp(17.27 * clm_df["tmean (deg c)"] / (clm_df["tmean (deg c)"] + 237.3),)
-            )
-            / ((clm_df["tmean (deg c)"] + 237.3) ** 2)
+            * (0.6108 * np.exp(17.27 * clm_df[tmean_c] / (clm_df[tmean_c] + 237.3),))
+            / ((clm_df[tmean_c] + 237.3) ** 2)
         )
         elevation = py3dep.elevation_byloc(coords, crs)
 
-        P = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
-        gamma = P * 0.665e-3
+        pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
+        gamma = pa * 0.665e-3
 
-        G = 0.0  # recommended for daily data
-        clm_df["vp (Pa)"] = clm_df["vp (Pa)"] * 1e-3
+        rho_s = 0.0  # recommended for daily data
+        clm_df[va_pa] = clm_df[va_pa] * 1e-3
 
-        e_max = 0.6108 * np.exp(17.27 * clm_df["tmax (deg c)"] / (clm_df["tmax (deg c)"] + 237.3))
-        e_min = 0.6108 * np.exp(17.27 * clm_df["tmin (deg c)"] / (clm_df["tmin (deg c)"] + 237.3))
+        e_max = 0.6108 * np.exp(17.27 * clm_df[tmax_c] / (clm_df[tmax_c] + 237.3))
+        e_min = 0.6108 * np.exp(17.27 * clm_df[tmin_c] / (clm_df[tmin_c] + 237.3))
         e_s = (e_max + e_min) * 0.5
-        e_def = e_s - clm_df["vp (Pa)"]
+        e_def = e_s - clm_df[va_pa]
 
-        u_2 = 2.0  # recommended when no data is available
+        u_2m = 2.0  # recommended when no data is available
 
         jday = clm_df.index.dayofyear
-        R_s = clm_df["srad (W/m^2)"] * clm_df["dayl (s)"] * 1e-6
+        r_surf = clm_df[srad_wm2] * clm_df[dayl_s] * 1e-6
 
         alb = 0.23
 
         jp = 2.0 * np.pi * jday / 365.0
         d_r = 1.0 + 0.033 * np.cos(jp)
-        delta = 0.409 * np.sin(jp - 1.39)
+        delta_r = 0.409 * np.sin(jp - 1.39)
         phi = coords[1] * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta))
-        R_a = (
+        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+        r_aero = (
             24.0
             * 60.0
             / np.pi
             * 0.082
             * d_r
-            * (w_s * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(w_s))
+            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
         )
-        R_so = (0.75 + 2e-5 * elevation) * R_a
-        R_ns = (1.0 - alb) * R_s
-        R_nl = (
+        rad_s = (0.75 + 2e-5 * elevation) * r_aero
+        rad_ns = (1.0 - alb) * r_surf
+        rad_nl = (
             4.903e-9
-            * (
-                ((clm_df["tmax (deg c)"] + 273.16) ** 4 + (clm_df["tmin (deg c)"] + 273.16) ** 4)
-                * 0.5
-            )
-            * (0.34 - 0.14 * np.sqrt(clm_df["vp (Pa)"]))
-            * ((1.35 * R_s / R_so) - 0.35)
+            * (((clm_df[tmax_c] + 273.16) ** 4 + (clm_df[tmin_c] + 273.16) ** 4) * 0.5)
+            * (0.34 - 0.14 * np.sqrt(clm_df[va_pa]))
+            * ((1.35 * r_surf / rad_s) - 0.35)
         )
-        R_n = R_ns - R_nl
+        rad_n = rad_ns - rad_nl
 
         clm_df["pet (mm/day)"] = (
-            0.408 * Delta * (R_n - G)
-            + gamma * 900.0 / (clm_df["tmean (deg c)"] + 273.0) * u_2 * e_def
-        ) / (Delta + gamma * (1 + 0.34 * u_2))
-        clm_df["vp (Pa)"] = clm_df["vp (Pa)"] * 1.0e3
+            0.408 * delta_v * (rad_n - rho_s)
+            + gamma * 900.0 / (clm_df[tmean_c] + 273.0) * u_2m * e_def
+        ) / (delta_v + gamma * (1 + 0.34 * u_2m))
+        clm_df[va_pa] = clm_df[va_pa] * 1.0e3
 
         return clm_df
 
@@ -242,7 +239,7 @@ class Daymet:
         dates = clm_ds["time"]
         clm_ds["tmean"] = 0.5 * (clm_ds["tmax"] + clm_ds["tmin"])
         clm_ds["tmean"].attrs["units"] = "degree C"
-        clm_ds["delta"] = (
+        clm_ds["delta_r"] = (
             4098
             * (0.6108 * np.exp(17.27 * clm_ds["tmean"] / (clm_ds["tmean"] + 237.3)))
             / ((clm_ds["tmean"] + 237.3) ** 2)
@@ -256,10 +253,10 @@ class Daymet:
             ~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True
         )
 
-        P = 101.3 * ((293.0 - 0.0065 * clm_ds["elevation"]) / 293.0) ** 5.26
-        clm_ds["gamma"] = P * 0.665e-3
+        pa = 101.3 * ((293.0 - 0.0065 * clm_ds["elevation"]) / 293.0) ** 5.26
+        clm_ds["gamma"] = pa * 0.665e-3
 
-        G = 0.0  # recommended for daily data
+        rho_s = 0.0  # recommended for daily data
         clm_ds["vp"] *= 1e-3
 
         e_max = 0.6108 * np.exp(17.27 * clm_ds["tmax"] / (clm_ds["tmax"] + 237.3))
@@ -267,57 +264,57 @@ class Daymet:
         e_s = (e_max + e_min) * 0.5
         clm_ds["e_def"] = e_s - clm_ds["vp"]
 
-        u_2 = 2.0  # recommended when no wind data is available
+        u_2m = 2.0  # recommended when no wind data is available
 
         lat = clm_ds.sel(time=clm_ds["time"][0]).lat
         clm_ds["time"] = pd.to_datetime(clm_ds.time.values).dayofyear.astype(dtype)
-        R_s = clm_ds["srad"] * clm_ds["dayl"] * 1e-6
+        r_surf = clm_ds["srad"] * clm_ds["dayl"] * 1e-6
 
         alb = 0.23
 
         jp = 2.0 * np.pi * clm_ds["time"] / 365.0
         d_r = 1.0 + 0.033 * np.cos(jp)
-        delta = 0.409 * np.sin(jp - 1.39)
+        delta_r = 0.409 * np.sin(jp - 1.39)
         phi = lat * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta))
-        R_a = (
+        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+        r_aero = (
             24.0
             * 60.0
             / np.pi
             * 0.082
             * d_r
-            * (w_s * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(w_s))
+            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
         )
-        R_so = (0.75 + 2e-5 * clm_ds["elevation"]) * R_a
-        R_ns = (1.0 - alb) * R_s
-        R_nl = (
+        rad_s = (0.75 + 2e-5 * clm_ds["elevation"]) * r_aero
+        rad_ns = (1.0 - alb) * r_surf
+        rad_nl = (
             4.903e-9
             * (((clm_ds["tmax"] + 273.16) ** 4 + (clm_ds["tmin"] + 273.16) ** 4) * 0.5)
             * (0.34 - 0.14 * np.sqrt(clm_ds["vp"]))
-            * ((1.35 * R_s / R_so) - 0.35)
+            * ((1.35 * r_surf / rad_s) - 0.35)
         )
-        clm_ds["R_n"] = R_ns - R_nl
+        clm_ds["rad_n"] = rad_ns - rad_nl
 
         clm_ds["pet"] = (
-            0.408 * clm_ds["delta"] * (clm_ds["R_n"] - G)
-            + clm_ds["gamma"] * 900.0 / (clm_ds["tmean"] + 273.0) * u_2 * clm_ds["e_def"]
-        ) / (clm_ds["delta"] + clm_ds["gamma"] * (1 + 0.34 * u_2))
+            0.408 * clm_ds["delta_r"] * (clm_ds["rad_n"] - rho_s)
+            + clm_ds["gamma"] * 900.0 / (clm_ds["tmean"] + 273.0) * u_2m * clm_ds["e_def"]
+        ) / (clm_ds["delta_r"] + clm_ds["gamma"] * (1 + 0.34 * u_2m))
         clm_ds["pet"].attrs["units"] = "mm/day"
 
         clm_ds["time"] = dates
         clm_ds["vp"] *= 1.0e3
 
-        clm_ds = clm_ds.drop_vars(["delta", "gamma", "e_def", "R_n"])
+        clm_ds = clm_ds.drop_vars(["delta_r", "gamma", "e_def", "rad_n"])
 
         return clm_ds
 
 
 def get_byloc(
     coords: Tuple[float, float],
-    crs: str = "epsg:4326",
-    dates: Optional[Tuple[str, str]] = None,
-    years: Optional[Union[List[int], int]] = None,
+    dates: Union[Union[List[int], int], Tuple[str, str]],
+    crs: str = DEF_CRS,
     variables: Optional[Union[List[str], str]] = None,
+    years: bool = False,
     pet: bool = False,
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
@@ -326,17 +323,18 @@ def get_byloc(
     ----------
     coords : tuple
         Longitude and latitude of the location of interest as a tuple (lon, lat)
+    dates : tuple or list
+        Either a tuple (start, end) or a list of years [YYYY, ...].
     crs :  str, optional
         The spatial reference of the input coordinates, defaults to epsg:4326
-    dates : tuple, optional
-        Start and end dates as a tuple (start, end), default to None.
-    years : int or list or tuple, optional
-        List of year(s), default to None.
     variables : str or list or tuple, optional
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
         Defaults to None i.e., all the variables are downloaded.
+    years : bool, optional
+        Whether the input dates is a list of years of a tuple of start and end dates,
+        defaults to False i.e., start and end dates.
     pet : bool, optional
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
@@ -349,16 +347,13 @@ def get_byloc(
     """
     daymet = Daymet(variables, pet)
 
-    if (years is None and dates is None) or (years is not None and dates is not None):
-        raise MissingInputs("Either years or dates arguments should be provided.")
-
-    if dates is not None:
-        date_dict = daymet.dates_todict(dates)
+    if years:
+        date_dict = daymet.years_todict(dates)  # type: ignore
     else:
-        date_dict = daymet.years_todict(years)  # type: ignore
+        date_dict = daymet.dates_todict(dates)  # type: ignore
 
     if isinstance(coords, tuple) and len(coords) == 2:
-        _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, "epsg:4326")
+        _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
         lon, lat = (_coords[0][0], _coords[1][0])
     else:
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
@@ -391,13 +386,12 @@ def get_byloc(
 
 def get_bygeom(
     geometry: Union[Polygon, Tuple[float, float, float, float]],
-    geo_crs: str = "epsg:4326",
-    dates: Optional[Tuple[str, str]] = None,
-    years: Optional[List[int]] = None,
+    dates: Union[Union[List[int], int], Tuple[str, str]],
+    geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
+    years: bool = False,
     pet: bool = False,
     fill_holes: bool = False,
-    n_threads: int = 8,
 ) -> xr.Dataset:
     """Gridded data from the Daymet database at 1-km resolution.
 
@@ -407,24 +401,22 @@ def get_bygeom(
     ----------
     geometry : shapely.geometry.Polygon or bbox
         The geometry of the region of interest.
+    dates : tuple or list
+        Either a tuple (start, end) or a list of years [YYYY, ...].
     geo_crs : str, optional
         The CRS of the input geometry, defaults to epsg:4326.
-    dates : tuple, optional
-        Start and end dates as a tuple (start, end), default to None.
-    years : list
-        List of years
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
+    years : bool
+        List of years
     pet : bool
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
     fill_holes : bool, optional
         Whether to fill the holes in the geometry's interior, defaults to False.
-    n_threads : int, optional
-        Number of threads for simultaneous download, defaults to 8.
 
     Returns
     -------
@@ -433,19 +425,16 @@ def get_bygeom(
     """
     daymet = Daymet(variables, pet)
 
-    if (years is None and dates is None) or (years is not None and dates is not None):
-        raise MissingInputs("Either years or dates arguments should be provided.")
-
-    if dates is not None:
-        dates_itr = daymet.dates_tolist(dates)
+    if years:
+        dates_itr = daymet.years_tolist(dates)  # type: ignore
     else:
-        dates_itr = daymet.years_tolist(years)  # type: ignore
+        dates_itr = daymet.dates_tolist(dates)  # type: ignore
 
     if isinstance(geometry, Polygon):
         geometry = Polygon(geometry.exterior) if fill_holes else geometry
-        bounds = MatchCRS.bounds(geometry.bounds, geo_crs, "epsg:4326")
+        bounds = MatchCRS.bounds(geometry.bounds, geo_crs, DEF_CRS)
     elif isinstance(geometry, tuple):
-        bounds = MatchCRS.bounds(geometry, geo_crs, "epsg:4326")  # type: ignore
+        bounds = MatchCRS.bounds(geometry, geo_crs, DEF_CRS)  # type: ignore
     else:
         raise InvalidInputType("geometry", "Polygon or bbox tuple")
 
@@ -479,7 +468,7 @@ def get_bygeom(
     def getter(url):
         return xr.open_dataset(daymet.session.get(url).content)
 
-    data = xr.merge(ogc.utils.threading(getter, urls, max_workers=n_threads))
+    data = xr.merge(ogc.utils.threading(getter, urls, max_workers=8))
 
     for k, v in daymet.units.items():
         if k in daymet.variables:

@@ -23,11 +23,12 @@ def variables():
 
 
 def test_byloc(dates, variables):
-    coords = (-118.47, 34.16)
+    coords = (-1431147.7928, 318483.4618)
+    crs = "epsg:3542"
 
-    st_p = daymet.get_byloc(coords, dates=dates)
-    st_p = daymet.get_byloc(coords, dates=dates, variables=variables, pet=True)
-    yr_p = daymet.get_byloc(coords, years=2010, variables=variables)
+    daymet.get_byloc(coords, dates, crs=crs)
+    st_p = daymet.get_byloc(coords, dates, crs=crs, variables=variables, pet=True)
+    yr_p = daymet.get_byloc(coords, 2010, crs=crs, years=True, variables=variables)
     assert (
         abs(st_p.iloc[10]["pet (mm/day)"] - 2.393) < 1e-3
         and abs(yr_p.iloc[10]["tmin (deg c)"] - 11.5) < 1e-1
@@ -35,10 +36,10 @@ def test_byloc(dates, variables):
 
 
 def test_bygeom(geometry, dates, variables):
-    st_g = daymet.get_bygeom(geometry, dates=dates, fill_holes=True)
-    st_g = daymet.get_bygeom(geometry.bounds, dates=dates)
-    st_g = daymet.get_bygeom(geometry, dates=dates, variables=variables, pet=True)
-    yr_g = daymet.get_bygeom(geometry, years=2010, variables=variables)
+    daymet.get_bygeom(geometry, dates, fill_holes=True)
+    daymet.get_bygeom(geometry.bounds, dates)
+    st_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
+    yr_g = daymet.get_bygeom(geometry, 2010, years=True, variables=variables)
     assert (
         abs(st_g.isel(time=10, x=5, y=10).pet.values.item() - 0.596) < 1e-3
         and abs(yr_g.isel(time=10, x=5, y=10).tmin.values.item() - (-18.0)) < 1e-1
