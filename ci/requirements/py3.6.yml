@@ -4,8 +4,6 @@ channels:
 dependencies:
   - python=3.6
   - setuptools
-  - pygeoogc
-  - pygeoutils
   - py3dep
   - lxml
 
