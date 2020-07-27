@@ -7,6 +7,7 @@ dependencies:
   - pygeoogc
   - pygeoutils
   - py3dep
+  - lxml
 
   - setuptools_scm
   - pytest-cov

@@ -7,4 +7,5 @@ dependencies:
   - pygeoogc
   - pygeoutils
   - py3dep
+  - lxml
 
