@@ -53,7 +53,7 @@ lint: ## check style with flake8
 	pre-commit run --all-files
 
 test: ## run tests quickly with the default Python
-	pytest --cov=pydaymet -n 2 -v
+	pytest -n 2 -v
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source pydaymet -m pytest -v
