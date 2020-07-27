@@ -121,7 +121,9 @@ class Daymet:
         return list(zip(start_list, end_list))
 
     @staticmethod
-    def pet_byloc(clm_df: pd.DataFrame, coords: Tuple[float, float]) -> pd.DataFrame:
+    def pet_byloc(
+        clm_df: pd.DataFrame, coords: Tuple[float, float], crs: str = "epsg:4326"
+    ) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using Daymet dataset for a single location.
 
         The method is based on `FAO-56 <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
@@ -136,13 +138,14 @@ class Daymet:
             ``tmin (deg c)``, ``tmax (deg c)``, ``vp (Pa)``, ``srad (W/m^2)``, ``dayl (s)``
         coords : tuple of floats
             Coordinates of the daymet data location as a tuple, (x, y).
+        crs : str, optional
+            The spatial reference of the input coordinate, defaults to epsg:4326
 
         Returns
         -------
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``
         """
-        lon, lat = coords
         reqs = ["tmin (deg c)", "tmax (deg c)", "vp (Pa)", "srad (W/m^2)", "dayl (s)"]
 
         _check_requirements(reqs, clm_df)
@@ -156,7 +159,7 @@ class Daymet:
             )
             / ((clm_df["tmean (deg c)"] + 237.3) ** 2)
         )
-        elevation = py3dep.elevation_byloc(lon, lat)
+        elevation = py3dep.elevation_byloc(coords, crs)
 
         P = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
         gamma = P * 0.665e-3
@@ -179,7 +182,7 @@ class Daymet:
         jp = 2.0 * np.pi * jday / 365.0
         d_r = 1.0 + 0.033 * np.cos(jp)
         delta = 0.409 * np.sin(jp - 1.39)
-        phi = lat * np.pi / 180.0
+        phi = coords[1] * np.pi / 180.0
         w_s = np.arccos(-np.tan(phi) * np.tan(delta))
         R_a = (
             24.0
@@ -311,6 +314,7 @@ class Daymet:
 
 def get_byloc(
     coords: Tuple[float, float],
+    crs: str = "epsg:4326",
     dates: Optional[Tuple[str, str]] = None,
     years: Optional[Union[List[int], int]] = None,
     variables: Optional[Union[List[str], str]] = None,
@@ -322,6 +326,8 @@ def get_byloc(
     ----------
     coords : tuple
         Longitude and latitude of the location of interest as a tuple (lon, lat)
+    crs :  str, optional
+        The spatial reference of the input coordinates, defaults to epsg:4326
     dates : tuple, optional
         Start and end dates as a tuple (start, end), default to None.
     years : int or list or tuple, optional
@@ -352,7 +358,8 @@ def get_byloc(
         date_dict = daymet.years_todict(years)  # type: ignore
 
     if isinstance(coords, tuple) and len(coords) == 2:
-        lon, lat = coords
+        _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, "epsg:4326")
+        lon, lat = (_coords[0][0], _coords[1][0])
     else:
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
@@ -378,7 +385,7 @@ def get_byloc(
     clm = clm.drop(["year", "yday"], axis=1)
 
     if pet:
-        clm = daymet.pet_byloc(clm, coords)
+        clm = daymet.pet_byloc(clm, (lon, lat))
     return clm
 
 
@@ -472,7 +479,7 @@ def get_bygeom(
     def getter(url):
         return xr.open_dataset(daymet.session.get(url).content)
 
-    data = xr.merge(ogc.threading(getter, urls, max_workers=n_threads))
+    data = xr.merge(ogc.utils.threading(getter, urls, max_workers=n_threads))
 
     for k, v in daymet.units.items():
         if k in daymet.variables:

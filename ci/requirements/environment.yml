@@ -1,4 +1,4 @@
-name: pynhd-dev
+name: pydaymet-dev
 channels:
   - conda-forge
 dependencies:
@@ -6,7 +6,7 @@ dependencies:
   - setuptools
   - pygeoogc
   - pygeoutils
-  - networkx
+  - py3dep
 
   - setuptools_scm
   - pytest-cov

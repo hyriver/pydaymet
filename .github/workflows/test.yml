@@ -16,13 +16,13 @@ jobs:
       - name: Setup Miniconda
         uses: goanpeca/setup-miniconda@v1.6.0
         with:
-          activate-environment: pynhd
+          activate-environment: pydaymet
           python-version: ${{ matrix.python-version }}
           environment-file: ci/requirements/py${{ matrix.python-version }}.yml
           auto-update-conda: true
           auto-activate-base: false
 
-      - name: Install pynhd
+      - name: Install pydaymet
         shell: bash -l {0}
         run: |
           conda info
@@ -32,7 +32,7 @@ jobs:
 
       - name: Run tests
         shell: bash -l {0}
-        run: pytest --cov=pynhd --cov-report term-missing --cov-report xml --verbose --color=yes
+        run: pytest --cov=pydaymet --cov-report term-missing --cov-report xml --verbose --color=yes
 
       - name: Run codecov
         uses: codecov/codecov-action@v1.0.10

@@ -1,5 +1,12 @@
 import pytest
-from pynhd import InvalidInputType, InvalidInputValue, MissingItems, ZeroMatched
+
+from pydaymet import (
+    InvalidInputRange,
+    InvalidInputType,
+    InvalidInputValue,
+    MissingInputs,
+    MissingItems,
+)
 
 
 def missing_items():
@@ -9,15 +16,6 @@ def missing_items():
 def test_missing_items():
     with pytest.raises(MissingItems):
         missing_items()
-
-
-def zero_matched():
-    raise ZeroMatched("Query returned no matched objects.")
-
-
-def test_zero_matched():
-    with pytest.raises(ZeroMatched):
-        zero_matched()
 
 
 def invalid_value():
@@ -33,6 +31,24 @@ def invalid_type():
     raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
 
+def missing_input():
+    raise MissingInputs("Either coords or station_id should be provided.")
+
+
+def test_missing_input():
+    with pytest.raises(MissingInputs):
+        missing_input()
+
+
 def test_invalid_type():
     with pytest.raises(InvalidInputType):
         invalid_type()
+
+
+def invalid_range():
+    raise InvalidInputRange("Input is out of range.")
+
+
+def test_invalid_range():
+    with pytest.raises(InvalidInputRange):
+        invalid_range()

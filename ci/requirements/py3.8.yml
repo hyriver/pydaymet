@@ -1,4 +1,4 @@
-name: pynhd
+name: pydaymet
 channels:
   - conda-forge
 dependencies:
@@ -6,4 +6,5 @@ dependencies:
   - setuptools
   - pygeoogc
   - pygeoutils
-  - networkx
+  - py3dep
+

@@ -53,10 +53,10 @@ lint: ## check style with flake8
 	pre-commit run --all-files
 
 test: ## run tests quickly with the default Python
-	pytest --cov=pynhd -n 2 -v
+	pytest --cov=pydaymet -n 2 -v
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source pynhd -m pytest -v
+	coverage run --source pydaymet -m pytest -v
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
@@ -67,11 +67,11 @@ docs: apidocs ## generate Sphinx HTML documentation, including API docs
 	$(BROWSER) docs/_build/html/index.html
 
 apidocs: ## generate API docs
-	rm -f docs/pynhd.rst
+	rm -f docs/pydaymet.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ pynhd
-	sed -i '0,/pynhd/{s/pynhd/Modules/}' docs/modules.rst
-	sed -i '0,/pynhd/{s/pynhd package/pynhd Package/}' docs/pynhd.rst
+	sphinx-apidoc -o docs/ pydaymet
+	sed -i '0,/pydaymet/{s/pydaymet/Modules/}' docs/modules.rst
+	sed -i '0,/pydaymet/{s/pydaymet package/pydaymet Package/}' docs/pydaymet.rst
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
