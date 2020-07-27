@@ -13,6 +13,7 @@ from shapely.geometry import Polygon
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 
 DEF_CRS = "epsg:4326"
+DATE_FMT = "%Y-%m-%d"
 
 
 class Daymet:
@@ -66,8 +67,8 @@ class Daymet:
             raise InvalidInputRange("Daymet database ranges from 1980 to 2019.")
 
         return {
-            "start": start.strftime("%Y-%m-%d"),
-            "end": end.strftime("%Y-%m-%d"),
+            "start": start.strftime(DATE_FMT),
+            "end": end.strftime(DATE_FMT),
         }
 
     @staticmethod
@@ -91,7 +92,7 @@ class Daymet:
 
         period = pd.date_range(start, end)
         nl = period[~period.is_leap_year]
-        lp = period[(period.is_leap_year) & (~period.strftime("%Y-%m-%d").str.endswith("12-31"))]
+        lp = period[(period.is_leap_year) & (~period.strftime(DATE_FMT).str.endswith("12-31"))]
         _period = period[(period.isin(nl)) | (period.isin(lp))]
         years = [_period[_period.year == y] for y in _period.year.unique()]
         return [(y[0], y[-1]) for y in years]
