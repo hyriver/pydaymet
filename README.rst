@@ -118,5 +118,5 @@ file for instructions.
 
 Credits
 -------
-
-- `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__
+Credits to `Koen Hufkens <https://github.com/khufkens>`__ for his implementation of
+Daymet in `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__ package.
