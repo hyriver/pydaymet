@@ -267,7 +267,7 @@ class Daymet:
 
         u_2m = 2.0  # recommended when no wind data is available
 
-        lat = clm_ds.sel(time=clm_ds["time"][0]).lat
+        lat = clm_ds.isel(time=0).lat
         clm_ds["time"] = pd.to_datetime(clm_ds.time.values).dayofyear.astype(dtype)
         r_surf = clm_ds["srad"] * clm_ds["dayl"] * 1e-6
 
