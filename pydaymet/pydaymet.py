@@ -52,7 +52,7 @@ class Daymet:
 
             if pet:
                 reqs = ("tmin", "tmax", "vp", "srad", "dayl")
-                self.variables = list(set(reqs) | set(variables))
+                self.variables = list(set(reqs) | set(self.variables))
 
     @staticmethod
     def dates_todict(dates: Tuple[str, str]) -> Dict[str, str]:
