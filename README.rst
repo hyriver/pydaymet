@@ -46,11 +46,11 @@ Features
 --------
 
 PyDaymet is a part of `Hydrodata <https://github.com/cheginit/hydrodata>`__ software stack
-and provides an interface to access daily climate data through the
+and provides an interface to access to daily climate data through the
 `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single pixel and gridded data
-can be requested which are returned as ``pandas.DataFrame`` for single pixel and
-``xarray.Dataset`` for gridded data. Additionally, it can compute Potential EvapoTranspiration
-(PET) using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
+can be requested which are returned as ``pandas.DataFrame`` for single pixel requests and
+``xarray.Dataset`` for gridded data requests. Additionally, it can compute Potential
+EvapoTranspiration (PET) using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
 method for both single pixel and gridded data.
 
 
@@ -64,14 +64,14 @@ Moreover, requests for additional functionalities can be submitted via
 Installation
 ------------
 
-You can install pydaymet using ``pip`` after installing ``libgdal`` on your system
+You can install PyDaymet using ``pip`` after installing ``libgdal`` on your system
 (for example, in Ubuntu run ``sudo apt install libgdal-dev``):
 
 .. code-block:: console
 
     $ pip install pydaymet
 
-Alternatively, pydaymet can be installed from the ``conda-forge`` repository
+Alternatively, PyDaymet can be installed from the ``conda-forge`` repository
 using `Conda <https://docs.conda.io/en/latest/>`__:
 
 .. code-block:: console
@@ -82,10 +82,10 @@ Quickstart
 ----------
 
 PyDaymet offers two functions for getting climate data; ``get_byloc`` and ``get_bygeom``.
-The arguments of these function are identical except that the first argument of the latter
-should be polygon and the former a coordinate (a tuple of length two as in (x, y)). The input
-geometry or coordinates can be any valid CRS and by default EPSG:4326 is considered as the
-input CRS. It is noted that both functions have a ``pet`` flag for computing PET.
+The arguments of these functions are identical except the first argument where the latter
+should be polygon and the former should be a coordinate (a tuple of length two as in (x, y)).
+The input geometry or coordinate can be in any valid CRS (defaults to EPSG:4326).
+It is noted that both functions have a ``pet`` flag for computing PET.
 
 .. code-block:: python
 
@@ -119,4 +119,4 @@ file for instructions.
 Credits
 -------
 Credits to `Koen Hufkens <https://github.com/khufkens>`__ for his implementation of
-Daymet in `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__ package.
+accessing Daymet in the `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__ package.
