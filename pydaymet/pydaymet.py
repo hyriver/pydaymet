@@ -249,7 +249,9 @@ class Daymet:
         gridxy = (clm_ds.x.values, clm_ds.y.values)
         res = clm_ds.res[0] * 1000
         elev = py3dep.elevation_bygrid(gridxy, clm_ds.crs, res)
-        clm_ds = xr.merge([clm_ds, elev], combine_attrs="override")
+        attrs = clm_ds.attrs
+        clm_ds = xr.merge([clm_ds, elev])
+        clm_ds.attrs = attrs
         clm_ds["elevation"] = clm_ds.elevation.where(
             ~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True
         )
@@ -467,12 +469,12 @@ def get_bygeom(
             )
 
     def getter(url):
-        return xr.open_dataset(daymet.session.get(url).content)
+        return xr.load_dataset(daymet.session.get(url).content)
 
     data = xr.merge(ogc.utils.threading(getter, urls, max_workers=8))
 
     for k, v in daymet.units.items():
-        if k in daymet.variables:
+        if k in data.variables:
             data[k].attrs["units"] = v
 
     data = data.drop_vars(["lambert_conformal_conic"])
