@@ -433,15 +433,10 @@ def get_bygeom(
     else:
         dates_itr = daymet.dates_tolist(dates)  # type: ignore
 
-    if isinstance(geometry, Polygon):
-        geometry = Polygon(geometry.exterior) if fill_holes else geometry
-        bounds = MatchCRS.bounds(geometry.bounds, geo_crs, DEF_CRS)
-    elif isinstance(geometry, tuple):
-        bounds = MatchCRS.bounds(geometry, geo_crs, DEF_CRS)  # type: ignore
-    else:
-        raise InvalidInputType("geometry", "Polygon or bbox tuple")
+    _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
+    _geometry = Polygon(_geometry.exterior) if fill_holes else _geometry
 
-    west, south, east, north = bounds
+    west, south, east, north = _geometry.bounds
     base_url = ServiceURL().restful.daymet_grid
     urls = []
 
@@ -519,7 +514,7 @@ def get_bygeom(
     if pet:
         data = daymet.pet_bygrid(data)
 
-    return geoutils.xarray_geomask(data, geometry, geo_crs)
+    return geoutils.xarray_geomask(data, _geometry, DEF_CRS)
 
 
 def _check_requirements(reqs: Iterable, cols: List[str]) -> None:
