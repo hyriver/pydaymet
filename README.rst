@@ -98,8 +98,8 @@ using `Conda <https://docs.conda.io/en/latest/>`__:
 
     $ conda install -c conda-forge pydaymet
 
-Quickstart
-----------
+Quick start
+-----------
 
 PyDaymet offers two functions for getting climate data; ``get_byloc`` and ``get_bygeom``.
 The arguments of these functions are identical except the first argument where the latter
