@@ -314,10 +314,9 @@ class Daymet:
 
 def get_byloc(
     coords: Tuple[float, float],
-    dates: Union[Union[List[int], int], Tuple[str, str]],
+    dates: Union[Tuple[str, str], Union[int, List[int]]],
     crs: str = DEF_CRS,
     variables: Optional[Union[List[str], str]] = None,
-    years: bool = False,
     pet: bool = False,
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
@@ -335,9 +334,6 @@ def get_byloc(
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
         Defaults to None i.e., all the variables are downloaded.
-    years : bool, optional
-        Whether the input dates is a list of years of a tuple of start and end dates,
-        defaults to False i.e., start and end dates.
     pet : bool, optional
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
@@ -350,10 +346,12 @@ def get_byloc(
     """
     daymet = Daymet(variables, pet)
 
-    if years:
-        date_dict = daymet.years_todict(dates)  # type: ignore
+    if isinstance(dates, tuple) and len(dates) == 2:
+        dates_dict = daymet.dates_todict(dates)
+    elif isinstance(dates, (list, int)):
+        dates_dict = daymet.years_todict(dates)
     else:
-        date_dict = daymet.dates_todict(dates)  # type: ignore
+        raise InvalidInputType("dates", "tuple or list", "(start, end) or [2001, 2010, ...]")
 
     if isinstance(coords, tuple) and len(coords) == 2:
         _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
@@ -373,7 +371,7 @@ def get_byloc(
         "lon": f"{lon:.6f}",
         "vars": ",".join(daymet.variables),
         "format": "json",
-        **date_dict,
+        **dates_dict,
     }
 
     r = daymet.session.get(ServiceURL().restful.daymet_point, payload)
@@ -389,10 +387,9 @@ def get_byloc(
 
 def get_bygeom(
     geometry: Union[Polygon, Tuple[float, float, float, float]],
-    dates: Union[Union[List[int], int], Tuple[str, str]],
+    dates: Union[Tuple[str, str], Union[int, List[int]]],
     geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
-    years: bool = False,
     pet: bool = False,
     fill_holes: bool = False,
 ) -> xr.Dataset:
@@ -404,16 +401,14 @@ def get_bygeom(
     ----------
     geometry : shapely.geometry.Polygon or bbox
         The geometry of the region of interest.
-    dates : tuple or list
-        Either a tuple (start, end) or a list of years [YYYY, ...].
+    dates : tuple or list, optional
+        Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
     geo_crs : str, optional
         The CRS of the input geometry, defaults to epsg:4326.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
-    years : bool
-        List of years
     pet : bool
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
@@ -428,10 +423,12 @@ def get_bygeom(
     """
     daymet = Daymet(variables, pet)
 
-    if years:
-        dates_itr = daymet.years_tolist(dates)  # type: ignore
+    if isinstance(dates, tuple) and len(dates) == 2:
+        dates_itr = daymet.dates_tolist(dates)
+    elif isinstance(dates, (list, int)):
+        dates_itr = daymet.years_tolist(dates)
     else:
-        dates_itr = daymet.dates_tolist(dates)  # type: ignore
+        raise InvalidInputType("dates", "tuple or list", "(start, end) or [2001, 2010, ...]")
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
     _geometry = Polygon(_geometry.exterior) if fill_holes else _geometry

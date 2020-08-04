@@ -84,8 +84,9 @@ Quickstart
 PyDaymet offers two functions for getting climate data; ``get_byloc`` and ``get_bygeom``.
 The arguments of these functions are identical except the first argument where the latter
 should be polygon and the former should be a coordinate (a tuple of length two as in (x, y)).
-The input geometry or coordinate can be in any valid CRS (defaults to EPSG:4326).
-It is noted that both functions have a ``pet`` flag for computing PET.
+The input geometry or coordinate can be in any valid CRS (defaults to EPSG:4326). The ``dates``
+argument can be either a tuple of length two like ``(start_str, end_str)`` or a list of years
+like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for computing PET.
 
 .. code-block:: python
 
@@ -96,11 +97,11 @@ It is noted that both functions have a ``pet`` flag for computing PET.
     variables = ["prcp", "tmin"]
 
     geometry = NLDI.getfeature_byid("nwissite", "USGS-01031500", basin=True).geometry[0]
-    clm_g = daymet.get_bygeom(geometry, dates=dates, variables=variables, pet=True)
+    clm_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
 
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
-    clm_p = daymet.get_byloc(coords, crs=crs, dates=dates, variables=variables, pet=True)
+    clm_p = daymet.get_byloc(coords, dates, crs=crs, variables=variables, pet=True)
 
 Some example plots are shown below:
 
