@@ -4,6 +4,27 @@
 
 |
 
+=========== ===========================================================================
+Package     Description
+=========== ===========================================================================
+Hydrodata_  Access NWIS, HCDN 2009, NLCD, and SSEBop databases
+PyGeoOGC_   Query data from any ArcGIS RESTful-, WMS-, and WFS-based services
+PyGeoUtils_ Convert responses from PyGeoOGC's supported web services to datasets
+PyNHD_      Access NLDI and WaterData web services for navigating the NHDPlus database
+Py3DEP_     Access topographic data through the 3D Elevation Program (3DEP) web service
+PyDaymet_   Access the Daymet database for daily climate data
+=========== ===========================================================================
+
+.. _Hydrodata: https://github.com/cheginit/hydrodata
+.. _PyGeoOGC: https://github.com/cheginit/pygeoogc
+.. _PyGeoUtils: https://github.com/cheginit/pygeoutils
+.. _PyNHD: https://github.com/cheginit/pynhd
+.. _Py3DEP: https://github.com/cheginit/py3dep
+.. _PyDaymet: https://github.com/cheginit/pydaymet
+
+PyDaymet: Daily climate data through Daymet
+-------------------------------------------
+
 .. image:: https://img.shields.io/pypi/v/pydaymet.svg
     :target: https://pypi.python.org/pypi/pydaymet
     :alt: PyPi
@@ -45,33 +66,12 @@
 Features
 --------
 
-Hydrodata is a stack of Python libraries designed to aid in watershed analysis through
-web services. Currently, it only includes hydrology and climatology data within the US.
-Hydrodata software stack is shown in the table below.
-
-=========== ===========================================================================
-Package     Description
-=========== ===========================================================================
-Hydrodata_  Access NWIS, HCDN 2009, NLCD, and SSEBop databases
-PyGeoOGC_   Query data from any ArcGIS RESTful-, WMS-, and WFS-based services
-PyGeoUtils_ Convert responses from PyGeoOGC's supported web services to datasets
-PyNHD_      Access NLDI and WaterData web services for navigating the NHDPlus database
-Py3DEP_     Access topographic data through the 3D Elevation Program (3DEP) web service
-PyDaymet_   Access the Daymet database for daily climate data
-=========== ===========================================================================
-
-.. _Hydrodata: https://github.com/cheginit/hydrodata
-.. _PyGeoOGC: https://github.com/cheginit/pygeoogc
-.. _PyGeoUtils: https://github.com/cheginit/pygeoutils
-.. _PyNHD: https://github.com/cheginit/pynhd
-.. _Py3DEP: https://github.com/cheginit/py3dep
-.. _PyDaymet: https://github.com/cheginit/pydaymet
-
-PyDaymet provides an interface to access to daily climate data through the
-`Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single pixel and gridded data
-can be requested which are returned as ``pandas.DataFrame`` for single pixel requests and
-``xarray.Dataset`` for gridded data requests. Additionally, it can compute Potential
-EvapoTranspiration (PET) using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
+PyDaymet is a part of Hydrodata software stack and provides an interface to access to daily
+climate data through the `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single
+pixel and gridded data can be requested which are returned as ``pandas.DataFrame`` for
+single pixel requests and ``xarray.Dataset`` for gridded data requests. Additionally, it
+can compute Potential EvapoTranspiration (PET) using
+`UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
 method for both single pixel and gridded data.
 
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
