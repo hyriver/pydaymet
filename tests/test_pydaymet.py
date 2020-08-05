@@ -1,4 +1,6 @@
 """Tests for PyDaymet package."""
+import io
+
 import pytest
 from shapely.geometry import Polygon
 
@@ -44,3 +46,9 @@ def test_bygeom(geometry, dates, variables):
         abs(st_g.isel(time=10, x=5, y=10).pet.values.item() - 0.596) < 1e-3
         and abs(yr_g.isel(time=10, x=5, y=10).tmin.values.item() - (-18.0)) < 1e-1
     )
+
+
+def test_show_versions():
+    f = io.StringIO()
+    daymet.show_versions(file=f)
+    assert "INSTALLED VERSIONS" in f.getvalue()
