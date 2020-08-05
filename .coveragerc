@@ -3,3 +3,4 @@ omit =
     setup.py
     tests/*
     pydaymet/__init__.py
+    pydaymet/print_versions.py
