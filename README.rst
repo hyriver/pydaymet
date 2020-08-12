@@ -1,4 +1,4 @@
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/develop/docs/_static/pydaymet_logo.png
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pydaymet_logo.png
     :target: https://github.com/cheginit/pydaymet
     :align: center
 
@@ -42,7 +42,7 @@ PyDaymet: Daily climate data through Daymet
     :alt: Github Actions
 
 .. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/cheginit/hydrodata/develop
+    :target: https://mybinder.org/v2/gh/cheginit/hydrodata/master
     :alt: Binder
 
 |
@@ -125,8 +125,8 @@ like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for c
 
 Some example plots are shown below:
 
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/develop/docs/_static/example_plots_pydaymet.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/develop/docs/_static/example_plots_pydaymet.png
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/example_plots_pydaymet.png
+    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/example_plots_pydaymet.png
     :width: 600
     :align: center
 
