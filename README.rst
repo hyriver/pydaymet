@@ -140,4 +140,4 @@ file for instructions.
 Credits
 -------
 Credits to `Koen Hufkens <https://github.com/khufkens>`__ for his implementation of
-accessing the Daymet in the `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__ package.
+accessing the Daymet RESTful service, `daymetpy <https://github.com/bluegreen-labs/daymetpy>`__.
