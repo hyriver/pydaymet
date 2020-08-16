@@ -4,7 +4,7 @@ channels:
 dependencies:
   - python>=3.8
   - setuptools
-  - py3dep
+  - pip
   - lxml
 
   - setuptools_scm
@@ -13,3 +13,5 @@ dependencies:
   - pre-commit
   - codecov
   - coverage
+  - pip:
+    - git+https://github.com/cheginit/py3dep.git
