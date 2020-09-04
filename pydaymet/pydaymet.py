@@ -33,7 +33,9 @@ class Daymet:
     """
 
     def __init__(
-        self, variables: Optional[Union[List[str], str]] = None, pet: bool = False,
+        self,
+        variables: Optional[Union[List[str], str]] = None,
+        pet: bool = False,
     ) -> None:
         self.session = RetrySession()
 
@@ -157,7 +159,12 @@ class Daymet:
         clm_df[tmean_c] = 0.5 * (clm_df[tmax_c] + clm_df[tmin_c])
         delta_v = (
             4098
-            * (0.6108 * np.exp(17.27 * clm_df[tmean_c] / (clm_df[tmean_c] + 237.3),))
+            * (
+                0.6108
+                * np.exp(
+                    17.27 * clm_df[tmean_c] / (clm_df[tmean_c] + 237.3),
+                )
+            )
             / ((clm_df[tmean_c] + 237.3) ** 2)
         )
         elevation = py3dep.elevation_byloc(coords, crs)
