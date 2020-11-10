@@ -314,7 +314,7 @@ class Daymet:
         clm_ds["time"] = dates
         clm_ds["vp"] *= 1.0e3
 
-        clm_ds = clm_ds.drop_vars(["delta_r", "gamma", "e_def", "rad_n"])
+        clm_ds = clm_ds.drop_vars(["delta_r", "gamma", "e_def", "rad_n", "tmean"])
 
         return clm_ds
 
@@ -493,6 +493,7 @@ def get_bygeom(
         ]
     )
     data.attrs["crs"] = crs
+    data.attrs["nodatavals"] = (0.0,)
 
     x_res, y_res = data.x.diff("x").min().item(), data.y.diff("y").min().item()
     # PixelAsArea Convention
@@ -517,6 +518,11 @@ def get_bygeom(
 
     if pet:
         data = daymet.pet_bygrid(data)
+
+    if isinstance(data, xr.Dataset):
+        for v in data:
+            data[v].attrs["crs"] = crs
+            data[v].attrs["nodatavals"] = (0.0,)
 
     return geoutils.xarray_geomask(data, _geometry, DEF_CRS)
 
