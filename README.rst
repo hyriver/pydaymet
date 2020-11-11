@@ -61,10 +61,6 @@ PyDaymet: Daily climate data through Daymet
     :target: https://codecov.io/gh/cheginit/pydaymet
     :alt: CodeCov
 
-.. image:: https://github.com/cheginit/pydaymet/workflows/build/badge.svg
-    :target: https://github.com/cheginit/pydaymet/workflows/build
-    :alt: Github Actions
-
 .. image:: https://mybinder.org/badge_logo.svg
     :target: https://mybinder.org/v2/gh/cheginit/hydrodata/master?filepath=docs%2Fexamples
     :alt: Binder
