@@ -38,7 +38,7 @@ def test_byloc(dates, variables):
 
 
 def test_bygeom(geometry, dates, variables):
-    daymet.get_bygeom(geometry, dates, fill_holes=True)
+    daymet.get_bygeom(geometry, dates)
     daymet.get_bygeom(geometry.bounds, dates)
     st_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
     yr_g = daymet.get_bygeom(geometry, 2010, variables=variables)

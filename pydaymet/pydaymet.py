@@ -398,7 +398,6 @@ def get_bygeom(
     geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
     pet: bool = False,
-    fill_holes: bool = False,
 ) -> xr.Dataset:
     """Gridded data from the Daymet database at 1-km resolution.
 
@@ -420,8 +419,6 @@ def get_bygeom(
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
-    fill_holes : bool, optional
-        Whether to fill the holes in the geometry's interior, defaults to False.
 
     Returns
     -------
@@ -438,7 +435,6 @@ def get_bygeom(
         raise InvalidInputType("dates", "tuple or list", "(start, end) or [2001, 2010, ...]")
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
-    _geometry = Polygon(_geometry.exterior) if fill_holes else _geometry
 
     west, south, east, north = _geometry.bounds
     base_url = ServiceURL().restful.daymet_grid
