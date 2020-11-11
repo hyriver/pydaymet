@@ -8,7 +8,7 @@ import pygeoogc as ogc
 import pygeoutils as geoutils
 import xarray as xr
 from pygeoogc import MatchCRS, RetrySession, ServiceURL
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 
@@ -393,7 +393,7 @@ def get_byloc(
 
 
 def get_bygeom(
-    geometry: Union[Polygon, Tuple[float, float, float, float]],
+    geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
@@ -405,7 +405,7 @@ def get_bygeom(
 
     Parameters
     ----------
-    geometry : shapely.geometry.Polygon or bbox
+    geometry : Polygon, MultiPolygon, or bbox
         The geometry of the region of interest.
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].

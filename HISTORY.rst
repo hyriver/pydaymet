@@ -2,6 +2,12 @@
 History
 =======
 
+0.1.4 (unreleased)
+------------------
+
+- Add support for multipolygon.
+- Remove the ``fill_hole`` argument.
+
 0.1.3 (2020-08-18)
 ------------------
 
