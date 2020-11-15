@@ -246,7 +246,6 @@ class Daymet:
         dtype = clm_ds.tmin.dtype
         dates = clm_ds["time"]
         clm_ds["tmean"] = 0.5 * (clm_ds["tmax"] + clm_ds["tmin"])
-        clm_ds["tmean"].attrs["units"] = "degree C"
         clm_ds["delta_r"] = (
             4098
             * (0.6108 * np.exp(17.27 * clm_ds["tmean"] / (clm_ds["tmean"] + 237.3)))
@@ -446,8 +445,7 @@ def get_bygeom(
                 base_url
                 + "&".join(
                     [
-                        f"{s.year}/daymet_v3_{v}_{s.year}_na.nc4?var=lat",
-                        "var=lon",
+                        f"{s.year}/daymet_v3_{v}_{s.year}_na.nc4?",
                         f"var={v}",
                         f"north={north}",
                         f"west={west}",
@@ -458,6 +456,7 @@ def get_bygeom(
                         f'time_start={s.strftime("%Y-%m-%dT%H:%M:%SZ")}',
                         f'time_end={e.strftime("%Y-%m-%dT%H:%M:%SZ")}',
                         "timeStride=1",
+                        "addLatLon=true",
                         "accept=netcdf",
                     ]
                 )
