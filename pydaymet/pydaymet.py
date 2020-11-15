@@ -6,6 +6,7 @@ import pandas as pd
 import py3dep
 import pygeoogc as ogc
 import pygeoutils as geoutils
+import rasterio.transform as rio_transform
 import xarray as xr
 from pygeoogc import MatchCRS, RetrySession, ServiceURL
 from shapely.geometry import MultiPolygon, Polygon
@@ -484,32 +485,28 @@ def get_bygeom(
             "+y_0=0",
             "+ellps=WGS84",
             "+units=km",
-            "+no_defs",
         ]
     )
     data.attrs["crs"] = crs
     data.attrs["nodatavals"] = (0.0,)
 
-    x_res, y_res = data.x.diff("x").min().item(), data.y.diff("y").min().item()
-    # PixelAsArea Convention
-    x_origin = data.x.values[0] - x_res / 2.0
-    y_origin = data.y.values[0] - y_res / 2.0
+    xdim, ydim = "x", "y"
+    height, width = data.sizes[ydim], data.sizes[xdim]
 
-    transform = (x_res, 0, x_origin, 0, y_res, y_origin)
+    left, right = data[xdim].min().item(), data[xdim].max().item()
+    bottom, top = data[ydim].min().item(), data[ydim].max().item()
 
-    x_end = x_origin + data.dims["x"] * x_res
-    y_end = y_origin + data.dims["y"] * y_res
-    x_options = np.array([x_origin, x_end])
-    y_options = np.array([y_origin, y_end])
+    x_res = abs(left - right) / (width - 1)
+    y_res = abs(top - bottom) / (height - 1)
 
-    data.attrs["transform"] = transform
+    left -= x_res * 0.5
+    right += x_res * 0.5
+    top += y_res * 0.5
+    bottom -= y_res * 0.5
+
+    data.attrs["transform"] = rio_transform.from_bounds(left, bottom, right, top, width, height)
     data.attrs["res"] = (x_res, y_res)
-    data.attrs["bounds"] = (
-        x_options.min(),
-        y_options.min(),
-        x_options.max(),
-        y_options.max(),
-    )
+    data.attrs["bounds"] = (left, bottom, right, top)
 
     if pet:
         data = daymet.pet_bygrid(data)
@@ -519,7 +516,7 @@ def get_bygeom(
             data[v].attrs["crs"] = crs
             data[v].attrs["nodatavals"] = (0.0,)
 
-    return geoutils.xarray_geomask(data, _geometry, DEF_CRS)
+    return geoutils.xarray_geomask(data, geometry, geo_crs)
 
 
 def _check_requirements(reqs: Iterable, cols: List[str]) -> None:

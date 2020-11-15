@@ -7,6 +7,7 @@ History
 
 - Add support for multipolygon.
 - Remove the ``fill_hole`` argument.
+- Improve masking by geometry.
 
 0.1.3 (2020-08-18)
 ------------------
