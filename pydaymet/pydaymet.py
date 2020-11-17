@@ -466,7 +466,7 @@ def get_bygeom(
     def getter(url):
         return xr.load_dataset(daymet.session.get(url).content)
 
-    data = xr.merge(ogc.utils.threading(getter, urls, max_workers=8))
+    data = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
 
     for k, v in daymet.units.items():
         if k in data.variables:

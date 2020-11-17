@@ -8,6 +8,8 @@ History
 - Add support for multipolygon.
 - Remove the ``fill_hole`` argument.
 - Improve masking by geometry.
+- Use the newly added ``async_requests`` function from ``pygeoogc`` for getting
+  datymet data to increase the performace (almost 2x faster)
 
 0.1.3 (2020-08-18)
 ------------------
