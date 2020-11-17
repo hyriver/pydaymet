@@ -7,5 +7,7 @@ dependencies:
   - pip
   - lxml
   - pip:
+    - git+https://github.com/cheginit/pygeoogc.git
+    - git+https://github.com/cheginit/pygeoutils.git
     - git+https://github.com/cheginit/py3dep.git
 
