@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup miniconda
-        uses: goanpeca/setup-miniconda@v1
+        uses: goanpeca/setup-miniconda@master
         with:
           activate-environment: pydaymet
           python-version: ${{ matrix.python-version }}
@@ -35,4 +35,4 @@ jobs:
         run: pytest --cov=pydaymet --cov-report term-missing --cov-report xml --verbose --color=yes
 
       - name: Run codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@master
