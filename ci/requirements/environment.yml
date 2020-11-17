@@ -6,6 +6,7 @@ dependencies:
   - setuptools
   - pip
   - lxml
+  - dask
 
   - setuptools_scm
   - pytest-cov
