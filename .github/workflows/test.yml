@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup miniconda
-        uses: goanpeca/setup-miniconda@master
+        uses: conda-incubator/setup-miniconda@master
         with:
           activate-environment: pydaymet
           python-version: ${{ matrix.python-version }}
