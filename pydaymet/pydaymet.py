@@ -253,9 +253,8 @@ class Daymet:
             / ((clm_ds["tmean"] + 237.3) ** 2)
         )
 
-        gridxy = (clm_ds.x.values, clm_ds.y.values)
         res = clm_ds.res[0] * 1000
-        elev = py3dep.elevation_bygrid(gridxy, clm_ds.crs, res)
+        elev = py3dep.elevation_bygrid(clm_ds.x.values, clm_ds.y.values, clm_ds.crs, res)
         attrs = clm_ds.attrs
         clm_ds = xr.merge([clm_ds, elev])
         clm_ds.attrs = attrs
@@ -462,9 +461,6 @@ def get_bygeom(
                     ]
                 )
             )
-
-    def getter(url):
-        return xr.load_dataset(daymet.session.get(url).content)
 
     data = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
 
