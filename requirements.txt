@@ -13,7 +13,7 @@ nest-asyncio
 netCDF4
 orjson
 owslib
-pydaymet
+py3dep
 pygeoogc
 pygeoutils
 pyproj
