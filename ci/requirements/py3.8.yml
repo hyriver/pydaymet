@@ -15,6 +15,7 @@ dependencies:
   - brotlipy
   - nest-asyncio
   - xarray
+  - scipy
   - netCDF4
   - geopandas
   - rasterio

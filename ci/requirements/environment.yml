@@ -1,8 +1,9 @@
-name: py3dep-dev
+name: pydaymet-dev
 channels:
   - conda-forge
 dependencies:
   - python>=3.8
+  - pip
   - setuptools
   - owslib
   - pyproj
@@ -14,11 +15,14 @@ dependencies:
   - brotlipy
   - nest-asyncio
   - xarray
+  - scipy
   - netCDF4
   - geopandas
   - rasterio
   - shapely
   - orjson
+  - lxml
+  - dask
 
   - setuptools_scm
   - pytest-cov
@@ -26,7 +30,7 @@ dependencies:
   - pre-commit
   - codecov
   - coverage
-  - pip
   - pip:
     - git+https://github.com/cheginit/pygeoogc.git
     - git+https://github.com/cheginit/pygeoutils.git
+    - git+https://github.com/cheginit/py3dep.git
