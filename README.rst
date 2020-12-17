@@ -136,7 +136,7 @@ like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for c
     dates = ("2000-01-01", "2000-06-12")
     variables = ["prcp", "tmin"]
 
-    geometry = NLDI.getfeature_byid("nwissite", "USGS-01031500", basin=True).geometry[0]
+    geometry = NLDI().get_basins("01031500").geometry[0]
     clm_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
 
     coords = (-1431147.7928, 318483.4618)
