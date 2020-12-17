@@ -32,7 +32,7 @@ def test_byloc(dates, variables):
     st_p = daymet.get_byloc(coords, dates, crs=crs, variables=variables, pet=True)
     yr_p = daymet.get_byloc(coords, 2010, crs=crs, variables=variables)
     assert (
-        abs(st_p.iloc[10]["pet (mm/day)"] - 2.393) < 1e-3
+        abs(st_p.iloc[10]["pet (mm/day)"] - 2.368) < 1e-3
         and abs(yr_p.iloc[10]["tmin (deg c)"] - 11.5) < 1e-1
     )
 
