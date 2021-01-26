@@ -350,20 +350,26 @@ def get_byloc(
     pandas.DataFrame
         Daily climate data for a location
     """
+    if not isinstance(dates, (tuple, list, int)):
+        raise InvalidInputType(
+            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
+        )
     daymet = Daymet(variables, pet)
 
-    if isinstance(dates, tuple) and len(dates) == 2:
+    if isinstance(dates, tuple):
+        if len(dates) != 2:
+            raise InvalidInputType(
+                "dates", "Start and end should be passed as a tuple of length 2."
+            )
         dates_dict = daymet.dates_todict(dates)
-    elif isinstance(dates, (list, int)):
+    else:
         dates_dict = daymet.years_todict(dates)
-    else:
-        raise InvalidInputType("dates", "tuple or list", "(start, end) or [2001, 2010, ...]")
 
-    if isinstance(coords, tuple) and len(coords) == 2:
-        _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
-        lon, lat = (_coords[0][0], _coords[1][0])
-    else:
+    if not isinstance(coords, tuple) and len(coords) != 2:
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
+
+    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
+    lon, lat = (_coords[0][0], _coords[1][0])
 
     if not ((14.5 < lat < 52.0) or (-131.0 < lon < -53.0)):
         raise InvalidInputRange(
@@ -424,14 +430,20 @@ def get_bygeom(
     xarray.Dataset
         Daily climate data within a geometry
     """
+    if not isinstance(dates, (tuple, list, int)):
+        raise InvalidInputType(
+            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
+        )
     daymet = Daymet(variables, pet)
 
-    if isinstance(dates, tuple) and len(dates) == 2:
+    if isinstance(dates, tuple):
+        if len(dates) != 2:
+            raise InvalidInputType(
+                "dates", "Start and end should be passed as a tuple of length 2."
+            )
         dates_itr = daymet.dates_tolist(dates)
-    elif isinstance(dates, (list, int)):
-        dates_itr = daymet.years_tolist(dates)
     else:
-        raise InvalidInputType("dates", "tuple or list", "(start, end) or [2001, 2010, ...]")
+        dates_itr = daymet.years_tolist(dates)
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
 
