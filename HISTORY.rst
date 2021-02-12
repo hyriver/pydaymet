@@ -2,6 +2,12 @@
 History
 =======
 
+0.2.1 (unreleased)
+------------------
+
+- Update to version 4 of Daymet database. You can check the release information
+  `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
+
 0.2.0 (2020-12-06)
 ------------------
 

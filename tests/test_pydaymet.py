@@ -43,8 +43,8 @@ def test_bygeom(geometry, dates, variables):
     st_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
     yr_g = daymet.get_bygeom(geometry, 2010, variables=variables)
     assert (
-        abs(st_g.isel(time=10, x=5, y=10).pet.values.item() - 0.596) < 1e-3
-        and abs(yr_g.isel(time=10, x=5, y=10).tmin.values.item() - (-18.0)) < 1e-1
+        abs(st_g.isel(time=10, x=5, y=10).pet.values.item() - 0.6898) < 1e-3
+        and abs(yr_g.isel(time=10, x=5, y=10).tmin.values.item() - (-17.53)) < 1e-3
     )
 
 

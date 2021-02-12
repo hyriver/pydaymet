@@ -1,4 +1,5 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+from itertools import product
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -168,7 +169,7 @@ class Daymet:
             )
             / ((clm_df[tmean_c] + 237.3) ** 2)
         )
-        elevation = py3dep.elevation_byloc(coords, crs)
+        elevation = py3dep.elevation_bycoords([coords], crs)[0]
 
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
         gamma = pa * 0.665e-3
@@ -253,7 +254,7 @@ class Daymet:
             / ((clm_ds["tmean"] + 237.3) ** 2)
         )
 
-        res = clm_ds.res[0] * 1000
+        res = clm_ds.res[0] * 1.0e3
         elev = py3dep.elevation_bygrid(clm_ds.x.values, clm_ds.y.values, clm_ds.crs, res)
         attrs = clm_ds.attrs
         clm_ds = xr.merge([clm_ds, elev])
@@ -448,31 +449,31 @@ def get_bygeom(
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
 
     west, south, east, north = _geometry.bounds
-    base_url = ServiceURL().restful.daymet_grid
-    urls = []
-
-    for s, e in dates_itr:
-        for v in daymet.variables:
-            urls.append(
-                base_url
-                + "&".join(
-                    [
-                        f"{s.year}/daymet_v3_{v}_{s.year}_na.nc4?",
-                        f"var={v}",
-                        f"north={north}",
-                        f"west={west}",
-                        f"east={east}",
-                        f"south={south}",
-                        "disableProjSubset=on",
-                        "horizStride=1",
-                        f'time_start={s.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-                        f'time_end={e.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-                        "timeStride=1",
-                        "addLatLon=true",
-                        "accept=netcdf",
-                    ]
-                )
-            )
+    base_url = f"{ServiceURL().restful.daymet_grid}/"
+    urls = (
+        (
+            base_url
+            + "&".join(
+                [
+                    f"daymet_v4_daily_na_{v}_{s.year}.nc?",
+                    f"var={v}",
+                    f"north={north}",
+                    f"west={west}",
+                    f"east={east}",
+                    f"south={south}",
+                    "disableProjSubset=on",
+                    "horizStride=1",
+                    f'time_start={s.strftime("%Y-%m-%dT%H:%M:%SZ")}',
+                    f'time_end={e.strftime("%Y-%m-%dT%H:%M:%SZ")}',
+                    "timeStride=1",
+                    "addLatLon=true",
+                    "accept=netcdf",
+                ]
+            ),
+            None,
+        )
+        for v, (s, e) in product(daymet.variables, dates_itr)
+    )
 
     data = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
 
@@ -493,6 +494,7 @@ def get_bygeom(
             "+y_0=0",
             "+ellps=WGS84",
             "+units=km",
+            "+no_defs",
         ]
     )
     data.attrs["crs"] = crs
