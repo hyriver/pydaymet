@@ -22,4 +22,5 @@ requests
 scipy
 setuptools
 shapely
+simplejson
 xarray

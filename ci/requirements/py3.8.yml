@@ -21,6 +21,7 @@ dependencies:
   - rasterio
   - shapely
   - orjson
+  - simplejson
   - lxml
   - dask
   - pip:
