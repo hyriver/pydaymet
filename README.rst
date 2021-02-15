@@ -154,14 +154,14 @@ by default is set to daily.
     var = ["prcp", "tmin"]
 
     geometry = NLDI().get_basins("01031500").geometry[0]
-    
+
     daily = daymet.get_bygeom(geometry, dates, variables=var, pet=True)
     monthly = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="monthly")
     annual = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="annual")
 
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
-    
+
     daily = daymet.get_bycoords(coords, dates, variables=var, loc_crs=crs, pet=True)
     monthly = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="monthly")
     annual = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="annual")
