@@ -6,45 +6,49 @@ from shapely.geometry import Polygon
 
 import pydaymet as daymet
 
-
-@pytest.fixture
-def geometry():
-    return Polygon(
-        [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
-    )
-
-
-@pytest.fixture
-def dates():
-    return ("2000-01-01", "2000-01-12")
+GEOM = Polygon(
+    [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
+)
+DAY = ("2000-01-01", "2000-01-12")
+YEAR = 2010
+VAR = "tmin"
 
 
-@pytest.fixture
-def variables():
-    return ["tmin"]
-
-
-def test_byloc(dates, variables):
+def test_byloc():
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
 
-    daymet.get_byloc(coords, dates, crs=crs)
-    st_p = daymet.get_byloc(coords, dates, crs=crs, variables=variables, pet=True)
-    yr_p = daymet.get_byloc(coords, 2010, crs=crs, variables=variables)
+    pet = daymet.get_byloc(coords, DAY, crs=crs, pet=True)
+    st_p = daymet.get_byloc(coords, DAY, crs=crs, variables=VAR)
+    yr_p = daymet.get_byloc(coords, YEAR, crs=crs, variables=VAR)
+
+    daily = daymet.get_bycoords(coords, DAY, variables=VAR, loc_crs=crs)
+    monthly = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=crs, time_scale="monthly")
+    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=crs, time_scale="annual")
+
     assert (
-        abs(st_p.iloc[10]["pet (mm/day)"] - 2.368) < 1e-3
-        and abs(yr_p.iloc[10]["tmin (deg c)"] - 11.5) < 1e-1
+        abs(pet["pet (mm/day)"].mean() - 2.286) < 1e-3
+        and abs(st_p["tmin (deg c)"].mean() - 6.917) < 1e-3
+        and abs(yr_p["tmin (deg c)"].mean() - 11.458) < 1e-3
+        and abs(daily["tmin (degrees C)"].mean() - 6.917) < 1e-3
+        and abs(monthly["tmin (degrees C)"].mean() - 11.435) < 1e-3
+        and abs(annual["tmin (degrees C)"].mean() - 11.458) < 1e-3
     )
 
 
-def test_bygeom(geometry, dates, variables):
-    daymet.get_bygeom(geometry, dates)
-    daymet.get_bygeom(geometry.bounds, dates)
-    st_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
-    yr_g = daymet.get_bygeom(geometry, 2010, variables=variables)
+def test_bygeom():
+    pet = daymet.get_bygeom(GEOM, DAY, pet=True)
+    bounds = daymet.get_bygeom(GEOM.bounds, DAY)
+    daily = daymet.get_bygeom(GEOM, DAY, variables=VAR)
+    monthly = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly")
+    annual = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
+
     assert (
-        abs(st_g.isel(time=10, x=5, y=10).pet.values.item() - 0.6898) < 1e-3
-        and abs(yr_g.isel(time=10, x=5, y=10).tmin.values.item() - (-17.53)) < 1e-3
+        abs(pet.pet.mean().values - 0.629) < 1e-3
+        and abs(bounds.tmin.mean().values - (-9.433)) < 1e-3
+        and abs(daily.tmin.mean().values - (-9.421)) < 1e-3
+        and abs(monthly.tmin.mean().values - 1.311) < 1e-3
+        and abs(annual.tmin.mean().values - 1.361) < 1e-3
     )
 
 

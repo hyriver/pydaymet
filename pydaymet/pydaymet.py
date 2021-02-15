@@ -1,6 +1,7 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+import io
 from itertools import product
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -32,18 +33,29 @@ class Daymet:
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
+    time_scale : str, optional
+        Data time scale which can be daily, monthly (monthly summaries),
+        or annual (annual summaries). Defaults to daily.
     """
 
     def __init__(
         self,
         variables: Optional[Union[List[str], str]] = None,
         pet: bool = False,
+        time_scale: str = "daily",
     ) -> None:
         self.session = RetrySession()
 
         vars_table = pd.read_html("https://daymet.ornl.gov/overview")[1]
 
         self.units = dict(zip(vars_table["Abbr"], vars_table["Units"]))
+
+        valid_times = ["daily", "monthly", "annual"]
+        if time_scale not in valid_times:
+            raise InvalidInputValue("time_scale", valid_times)
+
+        self.time_scale = time_scale
+        self.code = {"daily": 1840, "monthly": 1855, "annual": 1852}
 
         valid_variables = vars_table.Abbr.to_list()
         if variables is None:
@@ -123,7 +135,10 @@ class Daymet:
 
     @staticmethod
     def pet_byloc(
-        clm_df: pd.DataFrame, coords: Tuple[float, float], crs: str = DEF_CRS
+        clm_df: pd.DataFrame,
+        coords: Tuple[float, float],
+        crs: str = DEF_CRS,
+        alt_unit: bool = False,
     ) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using Daymet dataset for a single location.
 
@@ -141,17 +156,26 @@ class Daymet:
             Coordinates of the daymet data location as a tuple, (x, y).
         crs : str, optional
             The spatial reference of the input coordinate, defaults to epsg:4326
+        alt_unit : str, optional
+            Whether to use alternative units rather than the official ones, defaults to False.
 
         Returns
         -------
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``
         """
+        units = {
+            "dayl": ("s/day", "s"),
+            "srad": ("W/m2", "W/m^2"),
+            "tmax": ("degrees C", "deg c"),
+            "tmin": ("degrees C", "deg c"),
+        }
+
         va_pa = "vp (Pa)"
-        tmin_c = "tmin (deg c)"
-        tmax_c = "tmax (deg c)"
-        srad_wm2 = "srad (W/m^2)"
-        dayl_s = "dayl (s)"
+        tmin_c = f"tmin ({units['tmin'][alt_unit]})"
+        tmax_c = f"tmax ({units['tmax'][alt_unit]})"
+        srad_wm2 = f"srad ({units['srad'][alt_unit]})"
+        dayl_s = f"dayl ({units['dayl'][alt_unit]})"
         tmean_c = "tmean (deg c)"
 
         reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
@@ -218,7 +242,7 @@ class Daymet:
         ) / (delta_v + gamma * (1 + 0.34 * u_2m))
         clm_df[va_pa] = clm_df[va_pa] * 1.0e3
 
-        return clm_df
+        return clm_df.drop(columns=tmean_c)
 
     @staticmethod
     def pet_bygrid(clm_ds: xr.Dataset) -> xr.Dataset:
@@ -328,6 +352,10 @@ def get_byloc(
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
 
+    This function uses Daymet's RESTful service to get the daily
+    climate data and does not support monthly and annual summaries.
+    If you want to get the summaries directly use get_bycoords function.
+
     Parameters
     ----------
     coords : tuple
@@ -394,7 +422,80 @@ def get_byloc(
     clm = clm.drop(["year", "yday"], axis=1)
 
     if pet:
-        clm = daymet.pet_byloc(clm, (lon, lat))
+        clm = daymet.pet_byloc(clm, (lon, lat), alt_unit=True)
+    return clm
+
+
+def get_bycoords(
+    coords: Tuple[float, float],
+    dates: Union[Tuple[str, str], Union[int, List[int]]],
+    loc_crs: str = DEF_CRS,
+    variables: Optional[List[str]] = None,
+    pet: bool = False,
+    time_scale: str = "daily",
+) -> xr.Dataset:
+    """Get point-data from the Daymet database at 1-km resolution.
+
+    This function uses THREDDS data service to get the coordinates
+    and supports getting monthly and annual summaries of the climate
+    data directly from the server.
+
+    Parameters
+    ----------
+    coords : tuple
+        Coordinates of the location of interest as a tuple (lon, lat)
+    dates : tuple or list, optional
+        Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
+    loc_crs : str, optional
+        The CRS of the input geometry, defaults to epsg:4326.
+    variables : str or list
+        List of variables to be downloaded. The acceptable variables are:
+        ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
+        Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
+    pet : bool
+        Whether to compute evapotranspiration based on
+        `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
+        The default is False
+    time_scale : str, optional
+        Data time scale which can be daily, monthly (monthly summaries),
+        or annual (annual summaries). Defaults to daily.
+
+    Returns
+    -------
+    xarray.Dataset
+        Daily climate data within a geometry
+    """
+    if not isinstance(dates, (tuple, list, int)):
+        raise InvalidInputType(
+            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
+        )
+    daymet = Daymet(variables, pet, time_scale)
+
+    if isinstance(dates, tuple):
+        if len(dates) != 2:
+            raise InvalidInputType(
+                "dates", "Start and end should be passed as a tuple of length 2."
+            )
+        dates_itr = daymet.dates_tolist(dates)
+    else:
+        dates_itr = daymet.years_tolist(dates)
+
+    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), loc_crs, DEF_CRS)
+    coords = (_coords[0][0], _coords[1][0])
+    urls = coord_urls(daymet.code[time_scale], coords, daymet.variables, dates_itr)
+
+    clm = pd.concat(
+        (
+            pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+            for r in ogc.async_requests(urls, "binary", max_workers=8)
+        ),
+        axis=1,
+    )
+    clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
+    clm.index = pd.to_datetime(clm.index.strftime("%Y-%m-%d"))
+
+    if pet:
+        clm = daymet.pet_byloc(clm, coords, alt_unit=False)
     return clm
 
 
@@ -404,10 +505,9 @@ def get_bygeom(
     geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
     pet: bool = False,
+    time_scale: str = "daily",
 ) -> xr.Dataset:
-    """Gridded data from the Daymet database at 1-km resolution.
-
-    The data is clipped using NetCDF Subset Service.
+    """Get gridded data from the Daymet database at 1-km resolution.
 
     Parameters
     ----------
@@ -425,6 +525,9 @@ def get_bygeom(
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
+    time_scale : str, optional
+        Data time scale which can be daily, monthly (monthly average),
+        or annual (annual average). Defaults to daily.
 
     Returns
     -------
@@ -435,7 +538,7 @@ def get_bygeom(
         raise InvalidInputType(
             "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
         )
-    daymet = Daymet(variables, pet)
+    daymet = Daymet(variables, pet, time_scale)
 
     if isinstance(dates, tuple):
         if len(dates) != 2:
@@ -447,33 +550,7 @@ def get_bygeom(
         dates_itr = daymet.years_tolist(dates)
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
-
-    west, south, east, north = _geometry.bounds
-    base_url = f"{ServiceURL().restful.daymet_grid}/"
-    urls = (
-        (
-            base_url
-            + "&".join(
-                [
-                    f"daymet_v4_daily_na_{v}_{s.year}.nc?",
-                    f"var={v}",
-                    f"north={north}",
-                    f"west={west}",
-                    f"east={east}",
-                    f"south={south}",
-                    "disableProjSubset=on",
-                    "horizStride=1",
-                    f'time_start={s.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-                    f'time_end={e.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-                    "timeStride=1",
-                    "addLatLon=true",
-                    "accept=netcdf",
-                ]
-            ),
-            None,
-        )
-        for v, (s, e) in product(daymet.variables, dates_itr)
-    )
+    urls = gridded_urls(daymet.code[time_scale], _geometry.bounds, daymet.variables, dates_itr)
 
     data = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
 
@@ -527,6 +604,120 @@ def get_bygeom(
             data[v].attrs["nodatavals"] = (0.0,)
 
     return geoutils.xarray_geomask(data, geometry, geo_crs)
+
+
+def coord_urls(
+    code: int,
+    coord: Tuple[float, float],
+    variables: List[str],
+    dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
+) -> Iterator[Tuple[str, Dict[str, str]]]:
+    """Generate an iterable URL list for downloading Daymet data.
+
+    Parameters
+    ----------
+    code : int
+        Endpoint code which should be one of the following:
+        * 1840: Daily
+        * 1855: Monthly average
+        * 1852: Annual average
+    coord : tuple of length 2
+        Coordinates in EPSG:4326 CRS (lon, lat)
+    variables : list
+        A list of Daymet variables
+    date : list
+        A list of dates
+
+    Returns
+    -------
+    generator
+        An iterator of generated URLs.
+    """
+    valid_codes = [1840, 1855, 1852]
+    if code not in valid_codes:
+        raise InvalidInputValue("code", valid_codes)
+    time_scale = {
+        1840: lambda v: f"daily_na_{v}",
+        1855: lambda v: f"{v}_monavg_na",
+        1852: lambda v: f"{v}_annavg_na",
+    }
+
+    lon, lat = coord
+    base_url = f"{ServiceURL().restful.daymet}/{code}"
+    return (
+        (
+            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+            {
+                "var": v,
+                "longitude": f"{lon}",
+                "latitude": f"{lat}",
+                "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "accept": "csv",
+            },
+        )
+        for v, (s, e) in product(variables, dates)
+    )
+
+
+def gridded_urls(
+    code: int,
+    bounds: Tuple[float, float, float, float],
+    variables: List[str],
+    dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
+) -> Iterator[Tuple[str, Dict[str, str]]]:
+    """Generate an iterable URL list for downloading Daymet data.
+
+    Parameters
+    ----------
+    code : int
+        Endpoint code which should be one of the following:
+        * 1840: Daily
+        * 1855: Monthly average
+        * 1852: Annual average
+    bounds : tuple of length 4
+        Bounding box (west, south, east, north)
+    variables : list
+        A list of Daymet variables
+    date : list
+        A list of dates
+
+    Returns
+    -------
+    generator
+        An iterator of generated URLs.
+    """
+    valid_codes = [1840, 1855, 1852]
+    if code not in valid_codes:
+        raise InvalidInputValue("code", valid_codes)
+    time_scale = {
+        1840: lambda v: f"daily_na_{v}",
+        1855: lambda v: f"{v}_monavg_na",
+        1852: lambda v: f"{v}_annavg_na",
+    }
+
+    west, south, east, north = bounds
+    base_url = f"{ServiceURL().restful.daymet}/{code}"
+    return (
+        (
+            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+            {
+                "var": v,
+                "north": f"{north}",
+                "west": f"{west}",
+                "east": f"{east}",
+                "south": f"{south}",
+                "disableProjSubset": "on",
+                "horizStride": "1",
+                "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "timeStride": "1",
+                "addLatLon": "true",
+                "accept": "netcdf",
+            },
+        )
+        for v, (s, e) in product(variables, dates)
+    )
 
 
 def _check_requirements(reqs: Iterable, cols: List[str]) -> None:
