@@ -81,8 +81,6 @@ PyDaymet: Daily climate data through Daymet
 
 |
 
-🚨 **This package is under heavy development and breaking changes are likely to happen.** 🚨
-
 Features
 --------
 
@@ -94,9 +92,26 @@ can compute Potential EvapoTranspiration (PET) using
 `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
 method for both single pixel and gridded data.
 
+Note that starting from version ``0.9.0``, the recently released version of Daymet database
+is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
+Moreover, there's a new function called ``get_bycoords`` that is an alternative to ``get_byloc``
+for getting climate data at a single pixel. This new function uses THREDDS data server
+with NetCDF Subset Service (NCSS), and supports getting monthly and annual averages directly
+from the server. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
+to ``get_bygeom`` or ``get_bycoords`` functions to download the respective summaries.
+``get_bycoords`` will replace ``get_byloc`` in  the future.
+So, please consider migrating your code by replacing ``get_byloc`` with ``get_bycoords``. The
+input arguments of ``get_bycoords`` is very similar to ``get_bygeom``. Another difference
+between ``get_byloc`` and ``get_bycoords`` is column names where ``get_bycoords`` uses
+the units that are return by NCSS server.
+
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
 below the PyDaymet banner. A Jupyter notebook instance with the Hydrodata software stack
 pre-installed will be launched in your web browser and you can start coding!
+
+Please note that since Hydrodata is in early development stages, while the provided
+functionaities should be stable, changes in APIs are possible in new releases. But we
+appreciate it if you give this project a try and provide feedback. Contributions are most welcome.
 
 Moreover, requests for additional functionalities can be submitted via
 `issue tracker <https://github.com/cheginit/pydaymet/issues>`__.
@@ -121,12 +136,14 @@ using `Conda <https://docs.conda.io/en/latest/>`__:
 Quick start
 -----------
 
-PyDaymet offers two functions for getting climate data; ``get_byloc`` and ``get_bygeom``.
+PyDaymet offers two functions for getting climate data; ``get_bycoords`` and ``get_bygeom``.
 The arguments of these functions are identical except the first argument where the latter
 should be polygon and the former should be a coordinate (a tuple of length two as in (x, y)).
 The input geometry or coordinate can be in any valid CRS (defaults to EPSG:4326). The ``dates``
 argument can be either a tuple of length two like ``(start_str, end_str)`` or a list of years
 like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for computing PET.
+Additionally, we can pass ``time_scale`` to get daily, monthly or annual averages. This flag
+by default is set to daily.
 
 .. code-block:: python
 
@@ -134,14 +151,20 @@ like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for c
     import pydaymet as daymet
 
     dates = ("2000-01-01", "2000-06-12")
-    variables = ["prcp", "tmin"]
+    var = ["prcp", "tmin"]
 
     geometry = NLDI().get_basins("01031500").geometry[0]
-    clm_g = daymet.get_bygeom(geometry, dates, variables=variables, pet=True)
+    
+    daily = daymet.get_bygeom(geometry, dates, variables=var, pet=True)
+    monthly = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="monthly")
+    annual = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="annual")
 
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
-    clm_p = daymet.get_byloc(coords, dates, crs=crs, variables=variables, pet=True)
+    
+    daily = daymet.get_bycoords(coords, dates, variables=var, loc_crs=crs, pet=True)
+    monthly = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="monthly")
+    annual = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="annual")
 
 Some example plots are shown below:
 

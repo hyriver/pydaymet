@@ -2,11 +2,23 @@
 History
 =======
 
-0.2.1 (unreleased)
+0.9.0 (2021-02-14)
 ------------------
 
+- Bump version to the same version as Hydrodata.
 - Update to version 4 of Daymet database. You can check the release information
   `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
+- Add a new function called ``get_bycoords`` that provides an alternative to ``get_byloc``
+  for getting climate data at a single pixel. This new function uses THREDDS data server
+  with NetCDF Subset Service (NCSS), and supports getting monthly and annual averages directly
+  from the server. Note that this function will replace ``get_byloc`` in  the future.
+  So consider migrating your code by replacing ``get_byloc`` with ``get_bycoords``. The
+  input arguments of ``get_bycoords`` is very similar to ``get_bygeom``. Another difference
+  between ``get_byloc`` and ``get_bycoords`` is column names where ``get_bycoords`` uses
+  the units that are return by NCSS server.
+- Add support for downloading mothly and annual summaries in addition to the daily
+  time-scale. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
+  to ``get_bygeom`` or ``get_bycoords`` functions to download the respective summaries.
 
 0.2.0 (2020-12-06)
 ------------------
