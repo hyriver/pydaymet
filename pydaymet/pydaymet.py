@@ -1,7 +1,7 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 import io
 from itertools import product
-from typing import Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -432,6 +432,7 @@ def get_bycoords(
     loc_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
     pet: bool = False,
+    region: str = "na",
     time_scale: str = "daily",
 ) -> xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
@@ -456,6 +457,11 @@ def get_bycoords(
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
+    region : str, optional
+        Region in the US, defaults to na. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -482,16 +488,23 @@ def get_bycoords(
 
     _coords = MatchCRS.coords(((coords[0],), (coords[1],)), loc_crs, DEF_CRS)
     coords = (_coords[0][0], _coords[1][0])
-    urls = coord_urls(daymet.code[time_scale], coords, daymet.variables, dates_itr)
+    urls = coord_urls(daymet.code[time_scale], coords, region, daymet.variables, dates_itr)
 
     clm = pd.concat(
         (
-            pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-            for r in ogc.async_requests(urls, "binary", max_workers=8)
+            pd.concat(
+                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                for r in ogc.async_requests(u, "binary", max_workers=8)
+            )
+            for u in urls
         ),
         axis=1,
     )
     clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
+
+    if "prcp (mm)" in clm:
+        clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
+
     clm.index = pd.to_datetime(clm.index.strftime("%Y-%m-%d"))
 
     if pet:
@@ -505,6 +518,7 @@ def get_bygeom(
     geo_crs: str = DEF_CRS,
     variables: Optional[List[str]] = None,
     pet: bool = False,
+    region: str = "na",
     time_scale: str = "daily",
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
@@ -525,6 +539,11 @@ def get_bygeom(
         Whether to compute evapotranspiration based on
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
+    region : str, optional
+        Region in the US, defaults to na. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly average),
         or annual (annual average). Defaults to daily.
@@ -550,15 +569,17 @@ def get_bygeom(
         dates_itr = daymet.years_tolist(dates)
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
-    urls = gridded_urls(daymet.code[time_scale], _geometry.bounds, daymet.variables, dates_itr)
+    urls = gridded_urls(
+        daymet.code[time_scale], _geometry.bounds, region, daymet.variables, dates_itr
+    )
 
-    data = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
+    clm = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
 
     for k, v in daymet.units.items():
-        if k in data.variables:
-            data[k].attrs["units"] = v
+        if k in clm.variables:
+            clm[k].attrs["units"] = v
 
-    data = data.drop_vars(["lambert_conformal_conic"])
+    clm = clm.drop_vars(["lambert_conformal_conic"])
 
     crs = " ".join(
         [
@@ -574,14 +595,14 @@ def get_bygeom(
             "+no_defs",
         ]
     )
-    data.attrs["crs"] = crs
-    data.attrs["nodatavals"] = (0.0,)
+    clm.attrs["crs"] = crs
+    clm.attrs["nodatavals"] = (0.0,)
 
     xdim, ydim = "x", "y"
-    height, width = data.sizes[ydim], data.sizes[xdim]
+    height, width = clm.sizes[ydim], clm.sizes[xdim]
 
-    left, right = data[xdim].min().item(), data[xdim].max().item()
-    bottom, top = data[ydim].min().item(), data[ydim].max().item()
+    left, right = clm[xdim].min().item(), clm[xdim].max().item()
+    bottom, top = clm[ydim].min().item(), clm[ydim].max().item()
 
     x_res = abs(left - right) / (width - 1)
     y_res = abs(top - bottom) / (height - 1)
@@ -591,27 +612,67 @@ def get_bygeom(
     top += y_res * 0.5
     bottom -= y_res * 0.5
 
-    data.attrs["transform"] = rio_transform.from_bounds(left, bottom, right, top, width, height)
-    data.attrs["res"] = (x_res, y_res)
-    data.attrs["bounds"] = (left, bottom, right, top)
+    clm.attrs["transform"] = rio_transform.from_bounds(left, bottom, right, top, width, height)
+    clm.attrs["res"] = (x_res, y_res)
+    clm.attrs["bounds"] = (left, bottom, right, top)
 
     if pet:
-        data = daymet.pet_bygrid(data)
+        clm = daymet.pet_bygrid(clm)
 
-    if isinstance(data, xr.Dataset):
-        for v in data:
-            data[v].attrs["crs"] = crs
-            data[v].attrs["nodatavals"] = (0.0,)
+    if isinstance(clm, xr.Dataset):
+        for v in clm:
+            clm[v].attrs["crs"] = crs
+            clm[v].attrs["nodatavals"] = (0.0,)
 
-    return geoutils.xarray_geomask(data, geometry, geo_crs)
+    return geoutils.xarray_geomask(clm, geometry, geo_crs)
+
+
+def get_filename(
+    code: int,
+    region: str,
+) -> Dict[int, Callable[[str], str]]:
+    """Generate an iterable URL list for downloading Daymet data.
+
+    Parameters
+    ----------
+    code : int
+        Endpoint code which should be one of the following:
+        * 1840: Daily
+        * 1855: Monthly average
+        * 1852: Annual average
+    region : str
+        Region in the US. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
+
+    Returns
+    -------
+    generator
+        An iterator of generated URLs.
+    """
+    valid_regions = ["na", "hi", "pr"]
+    if region not in valid_regions:
+        raise InvalidInputValue("region", valid_regions)
+
+    valid_codes = [1840, 1855, 1852]
+    if code not in valid_codes:
+        raise InvalidInputValue("code", valid_codes)
+
+    return {
+        1840: lambda v: f"daily_{region}_{v}",
+        1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
+        1852: lambda v: f"{v}_annttl_{region}" if v == "prcp" else f"{v}_annavg_{region}",
+    }
 
 
 def coord_urls(
     code: int,
     coord: Tuple[float, float],
+    region: str,
     variables: List[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
-) -> Iterator[Tuple[str, Dict[str, str]]]:
+) -> Iterator[List[Tuple[str, Dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -623,6 +684,11 @@ def coord_urls(
         * 1852: Annual average
     coord : tuple of length 2
         Coordinates in EPSG:4326 CRS (lon, lat)
+    region : str
+        Region in the US. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
     variables : list
         A list of Daymet variables
     date : list
@@ -633,36 +699,33 @@ def coord_urls(
     generator
         An iterator of generated URLs.
     """
-    valid_codes = [1840, 1855, 1852]
-    if code not in valid_codes:
-        raise InvalidInputValue("code", valid_codes)
-    time_scale = {
-        1840: lambda v: f"daily_na_{v}",
-        1855: lambda v: f"{v}_monavg_na",
-        1852: lambda v: f"{v}_annavg_na",
-    }
+    time_scale = get_filename(code, region)
 
     lon, lat = coord
     base_url = f"{ServiceURL().restful.daymet}/{code}"
     return (
-        (
-            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
-            {
-                "var": v,
-                "longitude": f"{lon}",
-                "latitude": f"{lat}",
-                "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "accept": "csv",
-            },
-        )
-        for v, (s, e) in product(variables, dates)
+        [
+            (
+                f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+                {
+                    "var": v,
+                    "longitude": f"{lon}",
+                    "latitude": f"{lat}",
+                    "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "accept": "csv",
+                },
+            )
+            for s, e in dates
+        ]
+        for v in variables
     )
 
 
 def gridded_urls(
     code: int,
     bounds: Tuple[float, float, float, float],
+    region: str,
     variables: List[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
 ) -> Iterator[Tuple[str, Dict[str, str]]]:
@@ -677,6 +740,11 @@ def gridded_urls(
         * 1852: Annual average
     bounds : tuple of length 4
         Bounding box (west, south, east, north)
+    region : str
+        Region in the US. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
     variables : list
         A list of Daymet variables
     date : list
@@ -687,14 +755,7 @@ def gridded_urls(
     generator
         An iterator of generated URLs.
     """
-    valid_codes = [1840, 1855, 1852]
-    if code not in valid_codes:
-        raise InvalidInputValue("code", valid_codes)
-    time_scale = {
-        1840: lambda v: f"daily_na_{v}",
-        1855: lambda v: f"{v}_monavg_na",
-        1852: lambda v: f"{v}_annavg_na",
-    }
+    time_scale = get_filename(code, region)
 
     west, south, east, north = bounds
     base_url = f"{ServiceURL().restful.daymet}/{code}"

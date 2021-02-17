@@ -86,9 +86,9 @@ Features
 
 PyDaymet is a part of Hydrodata software stack and provides an interface to access to daily
 climate data through the `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single
-pixel and gridded data can be requested which are returned as ``pandas.DataFrame`` for
-single pixel requests and ``xarray.Dataset`` for gridded data requests. Additionally, it
-can compute Potential EvapoTranspiration (PET) using
+pixel and gridded data can be requested which are returned as ``pandas.DataFrame`` and
+``xarray.Dataset``, respectively. Climate data is avaiable for CONUS, Hawaii, and Puerto Rico.
+Additionally, PyDaymet can compute Potential EvapoTranspiration (PET) using
 `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
 method for both single pixel and gridded data.
 
@@ -96,14 +96,15 @@ Note that starting from version ``0.9.0``, the recently released version of Daym
 is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
 Moreover, there's a new function called ``get_bycoords`` that is an alternative to ``get_byloc``
 for getting climate data at a single pixel. This new function uses THREDDS data server
-with NetCDF Subset Service (NCSS), and supports getting monthly and annual averages directly
+with NetCDF Subset Service (NCSS), and supports getting monthly and annual summaries directly
 from the server. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
 to ``get_bygeom`` or ``get_bycoords`` functions to download the respective summaries.
 ``get_bycoords`` will replace ``get_byloc`` in  the future.
 So, please consider migrating your code by replacing ``get_byloc`` with ``get_bycoords``. The
-input arguments of ``get_bycoords`` is very similar to ``get_bygeom``. Another difference
+input arguments of ``get_bycoords`` is identical to ``get_bygeom``. Another difference
 between ``get_byloc`` and ``get_bycoords`` is column names where ``get_bycoords`` uses
-the units that are return by NCSS server.
+the units that are returned by NCSS server. Moreover, both ``get_bygeom`` and ``get_bycoords``
+accept an additional argument called ``region`` for passing the region of interest.
 
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
 below the PyDaymet banner. A Jupyter notebook instance with the Hydrodata software stack
@@ -142,7 +143,7 @@ should be polygon and the former should be a coordinate (a tuple of length two a
 The input geometry or coordinate can be in any valid CRS (defaults to EPSG:4326). The ``dates``
 argument can be either a tuple of length two like ``(start_str, end_str)`` or a list of years
 like ``[2000, 2005]``. It is noted that both functions have a ``pet`` flag for computing PET.
-Additionally, we can pass ``time_scale`` to get daily, monthly or annual averages. This flag
+Additionally, we can pass ``time_scale`` to get daily, monthly or annual summaries. This flag
 by default is set to daily.
 
 .. code-block:: python
@@ -150,28 +151,52 @@ by default is set to daily.
     from pynhd import NLDI
     import pydaymet as daymet
 
-    dates = ("2000-01-01", "2000-06-12")
-    var = ["prcp", "tmin"]
-
     geometry = NLDI().get_basins("01031500").geometry[0]
 
+    var = ["prcp", "tmin"]
+    dates = ("2000-01-01", "2000-06-30")
+
     daily = daymet.get_bygeom(geometry, dates, variables=var, pet=True)
-    monthly = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="monthly")
-    annual = daymet.get_bygeom(geometry, 2000, variables=var, time_scale="annual")
+    monthly = daymet.get_bygeom(geometry, dates, variables=var, time_scale="monthly")
+
+If the input geometry (or coordinate) is in a CRS other than EPSG:4326, we should pass
+it to the functions.
+
+.. code-block:: python
 
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
+    dates = ("2000-01-01", "2006-12-31")
+    annual = daymet.get_bycoords(
+        coords, dates, variables=var, loc_crs=crs, time_scale="annual"
+    )
 
-    daily = daymet.get_bycoords(coords, dates, variables=var, loc_crs=crs, pet=True)
-    monthly = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="monthly")
-    annual = daymet.get_bycoords(coords, 2000, variables=var, loc_crs=crs, time_scale="annual")
+Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
+
+.. code-block:: python
+
+    hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
+    pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
+    hi = daymet.get_bygeom(hi_ext, 2010, variables="prcp", region="hi", time_scale="annual")
+    pr = daymet.get_bygeom(pr_ext, 2010, variables="prcp", region="pr", time_scale="annual")
 
 Some example plots are shown below:
 
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/example_plots_pydaymet.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/example_plots_pydaymet.png
-    :width: 600
-    :align: center
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_grid.png
+    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_grid.png
+    :width: 45%
+
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_loc.png
+    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_loc.png
+    :width: 45%
+
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/hi.png
+    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/hi.png
+    :width: 45%
+
+.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pr.png
+    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pr.png
+    :width: 45%
 
 Contributing
 ------------

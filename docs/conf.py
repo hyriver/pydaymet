@@ -42,7 +42,7 @@ else:
     print("pip environment:")
     subprocess.run(["pip", "list"])
 
-print(f"Hydrodata: {pydaymet.__version__}, {pydaymet.__file__}")
+print(f"PyDaymet: {pydaymet.__version__}, {pydaymet.__file__}")
 
 with suppress(ImportError):
     import matplotlib
@@ -52,10 +52,10 @@ with suppress(ImportError):
 
 # -- Project information -----------------------------------------------------
 
-project = "Hydrodata"
+project = "PyDaymet"
 author = "Taher Chegini"
 copyright = f"2019-{datetime.datetime.now().year}, {author}"
-html_title = "Hydrodata"
+html_title = "PyDaymet"
 
 # The full version, including alpha/beta/rc tags
 release = LooseVersion(pydaymet.__version__).vstring
