@@ -17,6 +17,7 @@ from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, 
 
 DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
+DATE_REQ = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class Daymet:
@@ -69,6 +70,19 @@ class Daymet:
             if pet:
                 reqs = ("tmin", "tmax", "vp", "srad", "dayl")
                 self.variables = list(set(reqs) | set(self.variables))
+
+    @staticmethod
+    def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
+        """Check if input dates are in correct format and valid."""
+        if not isinstance(dates, (tuple, list, int)):
+            raise InvalidInputType(
+                "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
+            )
+
+        if isinstance(dates, tuple) and len(dates) != 2:
+            raise InvalidInputType(
+                "dates", "Start and end should be passed as a tuple of length 2."
+            )
 
     @staticmethod
     def dates_todict(dates: Tuple[str, str]) -> Dict[str, str]:
@@ -180,7 +194,7 @@ class Daymet:
 
         reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
 
-        _check_requirements(reqs, clm_df)
+        _check_requirements(reqs, clm_df.columns)
 
         clm_df[tmean_c] = 0.5 * (clm_df[tmax_c] + clm_df[tmin_c])
         delta_v = (
@@ -379,17 +393,10 @@ def get_byloc(
     pandas.DataFrame
         Daily climate data for a location
     """
-    if not isinstance(dates, (tuple, list, int)):
-        raise InvalidInputType(
-            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
-        )
     daymet = Daymet(variables, pet)
+    daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
-        if len(dates) != 2:
-            raise InvalidInputType(
-                "dates", "Start and end should be passed as a tuple of length 2."
-            )
         dates_dict = daymet.dates_todict(dates)
     else:
         dates_dict = daymet.years_todict(dates)
@@ -471,17 +478,10 @@ def get_bycoords(
     xarray.Dataset
         Daily climate data within a geometry
     """
-    if not isinstance(dates, (tuple, list, int)):
-        raise InvalidInputType(
-            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
-        )
     daymet = Daymet(variables, pet, time_scale)
+    daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
-        if len(dates) != 2:
-            raise InvalidInputType(
-                "dates", "Start and end should be passed as a tuple of length 2."
-            )
         dates_itr = daymet.dates_tolist(dates)
     else:
         dates_itr = daymet.years_tolist(dates)
@@ -553,17 +553,10 @@ def get_bygeom(
     xarray.Dataset
         Daily climate data within a geometry
     """
-    if not isinstance(dates, (tuple, list, int)):
-        raise InvalidInputType(
-            "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
-        )
     daymet = Daymet(variables, pet, time_scale)
+    daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
-        if len(dates) != 2:
-            raise InvalidInputType(
-                "dates", "Start and end should be passed as a tuple of length 2."
-            )
         dates_itr = daymet.dates_tolist(dates)
     else:
         dates_itr = daymet.years_tolist(dates)
@@ -711,8 +704,8 @@ def coord_urls(
                     "var": v,
                     "longitude": f"{lon}",
                     "latitude": f"{lat}",
-                    "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "time_start": s.strftime(DATE_REQ),
+                    "time_end": e.strftime(DATE_REQ),
                     "accept": "csv",
                 },
             )
@@ -770,8 +763,8 @@ def gridded_urls(
                 "south": f"{south}",
                 "disableProjSubset": "on",
                 "horizStride": "1",
-                "time_start": s.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "time_end": e.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "time_start": s.strftime(DATE_REQ),
+                "time_end": e.strftime(DATE_REQ),
                 "timeStride": "1",
                 "addLatLon": "true",
                 "accept": "netcdf",
