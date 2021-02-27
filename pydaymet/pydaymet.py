@@ -401,7 +401,7 @@ def get_byloc(
     else:
         dates_dict = daymet.years_todict(dates)
 
-    if not isinstance(coords, tuple) and len(coords) != 2:
+    if not (isinstance(coords, tuple) and len(coords) == 2):
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
     _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
