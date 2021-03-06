@@ -20,6 +20,7 @@ pygeoutils
 pyproj
 rasterio
 requests
+scipy
 setuptools
 shapely
 simplejson

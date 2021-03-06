@@ -26,8 +26,9 @@ dependencies:
   - xarray
 
   # pydaymet deps
-  - lxml
   - dask
+  - lxml
+  - scipy
 
   - pip
   - pip:
