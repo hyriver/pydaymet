@@ -1,11 +1,11 @@
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pydaymet_logo.png
-    :target: https://github.com/cheginit/pydaymet
-    :align: center
+.. .. image:: https://raw.githubusercontent.com/cheginit/pygeohydro/master/docs/_static/pydaymet_logo.png
+..     :target: https://github.com/cheginit/pydaymet
+..     :align: center
 
-|
+.. |
 
-.. |hydrodata| image:: https://github.com/cheginit/hydrodata/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/hydrodata/actions?query=workflow%3Apytest
+.. |pygeohydro| image:: https://github.com/cheginit/pygeohydro/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/cheginit/pygeohydro/actions?query=workflow%3Apytest
     :alt: Github Actions
 
 .. |pygeoogc| image:: https://github.com/cheginit/pygeoogc/actions/workflows/test.yml/badge.svg
@@ -31,7 +31,7 @@
 =========== ==================================================================== ============
 Package     Description                                                          Status
 =========== ==================================================================== ============
-Hydrodata_  Access NWIS, NID, HCDN 2009, NLCD, and SSEBop databases              |hydrodata|
+PyGeoHydro_ Access NWIS, NID, HCDN 2009, NLCD, and SSEBop databases              |pygeohydro|
 PyGeoOGC_   Send queries to any ArcGIS RESTful-, WMS-, and WFS-based services    |pygeoogc|
 PyGeoUtils_ Convert responses from PyGeoOGC's supported web services to datasets |pygeoutils|
 PyNHD_      Navigate and subset NHDPlus (MR and HR) using web services           |pynhd|
@@ -39,7 +39,7 @@ Py3DEP_     Access topographic data through National Map's 3DEP web service     
 PyDaymet_   Access Daymet for daily climate data both single pixel and gridded   |pydaymet|
 =========== ==================================================================== ============
 
-.. _Hydrodata: https://github.com/cheginit/hydrodata
+.. _PyGeoHydro: https://github.com/cheginit/pygeohydro
 .. _PyGeoOGC: https://github.com/cheginit/pygeoogc
 .. _PyGeoUtils: https://github.com/cheginit/pygeoutils
 .. _PyNHD: https://github.com/cheginit/pynhd
@@ -62,7 +62,7 @@ PyDaymet: Daily climate data through Daymet
     :alt: CodeCov
 
 .. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/cheginit/hydrodata/master?filepath=docs%2Fexamples
+    :target: https://mybinder.org/v2/gh/cheginit/pygeohydro/master?filepath=docs%2Fexamples
     :alt: Binder
 
 |
@@ -84,10 +84,11 @@ PyDaymet: Daily climate data through Daymet
 Features
 --------
 
-PyDaymet is a part of Hydrodata software stack and provides an interface to access to daily
+PyNHD is part of a software stack for retrieving and processing hydrology and climatology
+datasets. This package provides an interface to access to daily
 climate data through the `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single
 pixel and gridded data can be requested which are returned as ``pandas.DataFrame`` and
-``xarray.Dataset``, respectively. Climate data is avaiable for CONUS, Hawaii, and Puerto Rico.
+``xarray.Dataset``, respectively. Climate data is available for CONUS, Hawaii, and Puerto Rico.
 Additionally, PyDaymet can compute Potential EvapoTranspiration (PET) using
 `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
 method for both single pixel and gridded data.
@@ -107,11 +108,11 @@ the units that are returned by NCSS server. Moreover, both ``get_bygeom`` and ``
 accept an additional argument called ``region`` for passing the region of interest.
 
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
-below the PyDaymet banner. A Jupyter notebook instance with the Hydrodata software stack
+below the PyDaymet banner. A Jupyter notebook instance with the stack
 pre-installed will be launched in your web browser and you can start coding!
 
-Please note that since Hydrodata is in early development stages, while the provided
-functionaities should be stable, changes in APIs are possible in new releases. But we
+Please note that since this project is in early development stages, while the provided
+functionalities should be stable, changes in APIs are possible in new releases. But we
 appreciate it if you give this project a try and provide feedback. Contributions are most welcome.
 
 Moreover, requests for additional functionalities can be submitted via
@@ -159,6 +160,10 @@ by default is set to daily.
     daily = daymet.get_bygeom(geometry, dates, variables=var, pet=True)
     monthly = daymet.get_bygeom(geometry, dates, variables=var, time_scale="monthly")
 
+.. image:: https://raw.githubusercontent.com/cheginit/geohydrohub-examples/main/notebooks/_static/daymet_grid.png
+    :target: https://github.com/cheginit/geohydrohub-examples/blob/main/notebooks/daymet.ipynb
+    :width: 400
+
 If the input geometry (or coordinate) is in a CRS other than EPSG:4326, we should pass
 it to the functions.
 
@@ -171,6 +176,10 @@ it to the functions.
         coords, dates, variables=var, loc_crs=crs, time_scale="annual"
     )
 
+.. image:: https://raw.githubusercontent.com/cheginit/geohydrohub-examples/main/notebooks/_static/daymet_loc.png
+    :target: https://github.com/cheginit/geohydrohub-examples/blob/main/notebooks/daymet.ipynb
+    :width: 400
+
 Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
 .. code-block:: python
@@ -182,21 +191,13 @@ Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
 Some example plots are shown below:
 
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_grid.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_grid.png
-    :width: 45%
+.. image:: https://raw.githubusercontent.com/cheginit/geohydrohub-examples/main/notebooks/_static/hi.png
+    :target: https://github.com/cheginit/geohydrohub-examples/blob/main/notebooks/daymet.ipynb
+    :width: 400
 
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_loc.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/daymet_loc.png
-    :width: 45%
-
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/hi.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/hi.png
-    :width: 45%
-
-.. image:: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pr.png
-    :target: https://raw.githubusercontent.com/cheginit/hydrodata/master/docs/_static/pr.png
-    :width: 45%
+.. image:: https://raw.githubusercontent.com/cheginit/geohydrohub-examples/main/notebooks/_static/pr.png
+    :target: https://github.com/cheginit/geohydrohub-examples/blob/main/notebooks/daymet.ipynb
+    :width: 400
 
 Contributing
 ------------
