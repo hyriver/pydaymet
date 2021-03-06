@@ -5,6 +5,7 @@ aiodns
 aiohttp
 brotlipy
 chardet
+cytoolz
 dask
 defusedxml
 geopandas
@@ -19,7 +20,6 @@ pygeoutils
 pyproj
 rasterio
 requests
-scipy
 setuptools
 shapely
 simplejson
