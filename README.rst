@@ -1,4 +1,4 @@
-.. image:: https://raw.githubusercontent.com/cheginit/HydRiver-examples/main/notebooks/_static/pydaymet_logo.png
+.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pydaymet_logo.png
     :target: https://github.com/cheginit/pydaymet
 
 |
@@ -83,7 +83,7 @@ PyDaymet: Daily climate data through Daymet
 Features
 --------
 
-PyDaymet is a part of `HydRiver <https://github.com/cheginit/HydRiver>`__ software stack that
+PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
 is designed to aid in watershed analysis through web services. This package provides
 an interface to access to daily
 climate data through the `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single
@@ -160,8 +160,8 @@ by default is set to daily.
     daily = daymet.get_bygeom(geometry, dates, variables=var, pet=True)
     monthly = daymet.get_bygeom(geometry, dates, variables=var, time_scale="monthly")
 
-.. image:: https://raw.githubusercontent.com/cheginit/HydRiver-examples/main/notebooks/_static/daymet_grid.png
-    :target: https://github.com/cheginit/HydRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/daymet_grid.png
+    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
     :width: 400
 
 If the input geometry (or coordinate) is in a CRS other than EPSG:4326, we should pass
@@ -176,8 +176,8 @@ it to the functions.
         coords, dates, variables=var, loc_crs=crs, time_scale="annual"
     )
 
-.. image:: https://raw.githubusercontent.com/cheginit/HydRiver-examples/main/notebooks/_static/daymet_loc.png
-    :target: https://github.com/cheginit/HydRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/daymet_loc.png
+    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
     :width: 400
 
 Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
@@ -191,12 +191,12 @@ Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
 Some example plots are shown below:
 
-.. image:: https://raw.githubusercontent.com/cheginit/HydRiver-examples/main/notebooks/_static/hi.png
-    :target: https://github.com/cheginit/HydRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/hi.png
+    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
     :width: 400
 
-.. image:: https://raw.githubusercontent.com/cheginit/HydRiver-examples/main/notebooks/_static/pr.png
-    :target: https://github.com/cheginit/HydRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pr.png
+    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
     :width: 400
 
 Contributing
