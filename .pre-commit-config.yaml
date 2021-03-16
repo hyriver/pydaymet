@@ -33,15 +33,28 @@ repos:
     hooks:
     - id: shfmt
 
+  - repo: https://github.com/keewis/blackdoc
+    rev: v0.3.3
+    hooks:
+      - id: blackdoc
+        name: Autoformat codes in docstrings with blackdoc
+
   - repo: https://github.com/PyCQA/doc8
     rev: 0.9.0a1
     hooks:
     - id: doc8
-      name: Autoformat with doc8
+      name: Check documentation formats with doc8
       args: [--max-line-length, "100"]
 
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.10.0
+    hooks:
+      - id: pyupgrade
+        name: Upgrade synax to python 3.6+ with pyupgrade
+        args: [--py36-plus]
+
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.4
+    rev: 3.9.0
     hooks:
       - id: flake8
         name: Linting with flake8
@@ -53,19 +66,12 @@ repos:
       - id: mypy
         name: Static type checking with mypy
         exclude: tests
-        files: pydaymet
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v2.10.0
-    hooks:
-      - id: pyupgrade
-        name: Upgrade synax to python 3.6+ with pyupgrade
-        args: [--py36-plus]
+        files: pygeohydro
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.0
     hooks:
       - id: bandit
         name: Check for security issues with bandit
-        args: [-lll, --recursive, pydaymet]
+        args: [-lll, --recursive, pygeohydro]
         files: .py$
