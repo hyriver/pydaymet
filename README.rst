@@ -186,12 +186,8 @@ Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
     hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
     pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
-    hi = daymet.get_bygeom(
-        hi_ext, 2010, variables="prcp", region="hi", time_scale="annual"
-    )
-    pr = daymet.get_bygeom(
-        pr_ext, 2010, variables="prcp", region="pr", time_scale="annual"
-    )
+    hi = daymet.get_bygeom(hi_ext, 2010, variables="prcp", region="hi", time_scale="annual")
+    pr = daymet.get_bygeom(pr_ext, 2010, variables="prcp", region="pr", time_scale="annual")
 
 Some example plots are shown below:
 
