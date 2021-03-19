@@ -60,9 +60,9 @@ PyDaymet: Daily climate data through Daymet
     :target: https://codecov.io/gh/cheginit/pydaymet
     :alt: CodeCov
 
-.. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/cheginit/HyRiver-examples/main?urlpath=lab/tree/notebooks
-    :alt: Binder
+.. image:: https://img.shields.io/pypi/pyversions/pydaymet.svg
+    :target: https://pypi.python.org/pypi/pydaymet
+    :alt: Python Versions
 
 |
 
@@ -78,6 +78,10 @@ PyDaymet: Daily climate data through Daymet
     :target: https://github.com/pre-commit/pre-commit
     :alt: pre-commit
 
+.. image:: https://mybinder.org/badge_logo.svg
+    :target: https://mybinder.org/v2/gh/cheginit/HyRiver-examples/main?urlpath=lab/tree/notebooks
+    :alt: Binder
+
 |
 
 Features
@@ -85,13 +89,12 @@ Features
 
 PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
 is designed to aid in watershed analysis through web services. This package provides
-an interface to access to daily
-climate data through the `Daymet <https://daymet.ornl.gov/>`__ RESTful service. Both single
-pixel and gridded data can be requested which are returned as ``pandas.DataFrame`` and
-``xarray.Dataset``, respectively. Climate data is available for CONUS, Hawaii, and Puerto Rico.
-Additionally, PyDaymet can compute Potential EvapoTranspiration (PET) using
-`UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__
-method for both single pixel and gridded data.
+an interface to access to daily climate data through the `Daymet <https://daymet.ornl.gov/>`__
+RESTful service. Both single pixel and gridded data can be requested which are returned as
+``pandas.DataFrame`` and ``xarray.Dataset``, respectively. Climate data is available for CONUS,
+Hawaii, and Puerto Rico. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET)
+using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ method for both single
+pixel and gridded data.
 
 Note that starting from version ``0.9.0``, the recently released version of Daymet database
 is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
