@@ -2,7 +2,7 @@
 History
 =======
 
-0.10.1 (2021-03-27)
+0.10.2 (2021-03-27)
 -------------------
 
 - Add annoucement regarding the new name for the softwate stack, HyRiver.
