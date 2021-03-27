@@ -2,6 +2,4 @@
 """The setup script."""
 from setuptools import setup  # isort:skip
 
-setup(
-    use_scm_version=True,
-)
+setup(use_scm_version={"fallback_version": "999"})
