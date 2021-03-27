@@ -64,11 +64,11 @@ PyDaymet: Daily climate data through Daymet
     :target: https://pypi.python.org/pypi/pydaymet
     :alt: Python Versions
 
-|
-
 .. image:: https://pepy.tech/badge/pydaymet
     :target: https://pepy.tech/project/pydaymet
     :alt: Downloads
+
+|
 
 .. image:: https://www.codefactor.io/repository/github/cheginit/pydaymet/badge
    :target: https://www.codefactor.io/repository/github/cheginit/pydaymet
