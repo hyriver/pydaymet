@@ -97,7 +97,7 @@ using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ method
 pixel and gridded data.
 
 Note that starting from version ``0.9.0``, the recently released version of Daymet database
-is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
+is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_.
 Moreover, there's a new function called ``get_bycoords`` that is an alternative to ``get_byloc``
 for getting climate data at a single pixel. This new function uses THREDDS data server
 with NetCDF Subset Service (NCSS), and supports getting monthly and annual summaries directly
