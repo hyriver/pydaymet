@@ -59,7 +59,7 @@ jobs:
           python -c "import pydaymet; pydaymet.show_versions()"
       - name: Run pytest
         run: |-
-          python -m pytest -n 4 --cov=pydaymet --cov-report xml
+          python -m pytest -n=auto --cov=pydaymet --cov-report xml
       - name: Run codecov and upload the report
         uses: codecov/codecov-action@v1
         with:
