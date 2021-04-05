@@ -113,8 +113,17 @@ class Daymet:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when
-        it's leap year. This function returns all the dates in the
-        Daymet database within the provided date range.
+        it's leap year.
+
+        Parameters
+        ----------
+        dates : tuple
+            Target start and end dates.
+
+        Returns
+        -------
+        list
+            All the dates in the Daymet database within the provided date range.
         """
         date_dict = self.dates_todict(dates)
         start = pd.to_datetime(date_dict["start"]) + pd.DateOffset(hour=12)
@@ -133,8 +142,17 @@ class Daymet:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when
-        it's leap year. This function returns all the dates in the
-        Daymet database for the provided years.
+        it's leap year.
+
+        Parameters
+        ----------
+        years: list
+            A list of target years.
+
+        Returns
+        -------
+        list
+            All the dates in the Daymet database within the provided date range.
         """
         date_dict = self.years_todict(years)
         start_list, end_list = [], []
@@ -684,7 +702,7 @@ def coord_urls(
         * pr: Puerto Rico
     variables : list
         A list of Daymet variables
-    date : list
+    dates : list
         A list of dates
 
     Returns
@@ -740,7 +758,7 @@ def gridded_urls(
         * pr: Puerto Rico
     variables : list
         A list of Daymet variables
-    date : list
+    dates : list
         A list of dates
 
     Returns
