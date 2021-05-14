@@ -1,12 +1,12 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 import io
 from itertools import product
-from typing import Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
+import async_retriever as ar
 import numpy as np
 import pandas as pd
 import py3dep
-import pygeoogc as ogc
 import pygeoutils as geoutils
 import rasterio.transform as rio_transform
 import xarray as xr
@@ -68,6 +68,10 @@ class Daymet:
                 raise InvalidInputValue("variables", valid_variables)
 
             if pet:
+                if time_scale != "daily":
+                    msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
+                    raise InvalidInputRange(msg)
+
                 reqs = ("tmin", "tmax", "vp", "srad", "dayl")
                 self.variables = list(set(reqs) | set(self.variables))
 
@@ -506,15 +510,16 @@ def get_bycoords(
 
     _coords = MatchCRS.coords(((coords[0],), (coords[1],)), loc_crs, DEF_CRS)
     coords = (_coords[0][0], _coords[1][0])
-    urls = coord_urls(daymet.code[time_scale], coords, region, daymet.variables, dates_itr)
+    url_kwd_list = coord_urls(daymet.code[time_scale], coords, region, daymet.variables, dates_itr)
+    url_kwd_list = [tuple(zip(*u)) for u in url_kwd_list]
 
     clm = pd.concat(
         (
             pd.concat(
                 pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in ogc.async_requests(u, "binary", max_workers=8)
+                for r in ar.retrieve(u, "binary", request_kwds=k, max_workers=8)
             )
-            for u in urls
+            for u, k in url_kwd_list
         ),
         axis=1,
     )
@@ -580,11 +585,15 @@ def get_bygeom(
         dates_itr = daymet.years_tolist(dates)
 
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
-    urls = gridded_urls(
-        daymet.code[time_scale], _geometry.bounds, region, daymet.variables, dates_itr
+    urls, kwds = zip(
+        *gridded_urls(
+            daymet.code[time_scale], _geometry.bounds, region, daymet.variables, dates_itr
+        )
     )
 
-    clm = xr.open_mfdataset(ogc.async_requests(urls, "binary", max_workers=8))
+    clm = xr.open_mfdataset(
+        io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)
+    )
 
     for k, v in daymet.units.items():
         if k in clm.variables:
@@ -683,7 +692,7 @@ def coord_urls(
     region: str,
     variables: List[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
-) -> Iterator[List[Tuple[str, Dict[str, str]]]]:
+) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -714,23 +723,25 @@ def coord_urls(
 
     lon, lat = coord
     base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return (
+    return [
         [
             (
                 f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
                 {
-                    "var": v,
-                    "longitude": f"{lon}",
-                    "latitude": f"{lat}",
-                    "time_start": s.strftime(DATE_REQ),
-                    "time_end": e.strftime(DATE_REQ),
-                    "accept": "csv",
+                    "params": {
+                        "var": v,
+                        "longitude": f"{lon}",
+                        "latitude": f"{lat}",
+                        "time_start": s.strftime(DATE_REQ),
+                        "time_end": e.strftime(DATE_REQ),
+                        "accept": "csv",
+                    }
                 },
             )
             for s, e in dates
         ]
         for v in variables
-    )
+    ]
 
 
 def gridded_urls(
@@ -739,7 +750,7 @@ def gridded_urls(
     region: str,
     variables: List[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
-) -> Iterator[Tuple[str, Dict[str, str]]]:
+) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -770,26 +781,28 @@ def gridded_urls(
 
     west, south, east, north = bounds
     base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return (
+    return [
         (
             f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
             {
-                "var": v,
-                "north": f"{north}",
-                "west": f"{west}",
-                "east": f"{east}",
-                "south": f"{south}",
-                "disableProjSubset": "on",
-                "horizStride": "1",
-                "time_start": s.strftime(DATE_REQ),
-                "time_end": e.strftime(DATE_REQ),
-                "timeStride": "1",
-                "addLatLon": "true",
-                "accept": "netcdf",
+                "params": {
+                    "var": v,
+                    "north": f"{north}",
+                    "west": f"{west}",
+                    "east": f"{east}",
+                    "south": f"{south}",
+                    "disableProjSubset": "on",
+                    "horizStride": "1",
+                    "time_start": s.strftime(DATE_REQ),
+                    "time_end": e.strftime(DATE_REQ),
+                    "timeStride": "1",
+                    "addLatLon": "true",
+                    "accept": "netcdf",
+                }
             },
         )
         for v, (s, e) in product(variables, dates)
-    )
+    ]
 
 
 def _check_requirements(reqs: Iterable, cols: List[str]) -> None:
