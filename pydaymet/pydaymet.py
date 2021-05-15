@@ -513,11 +513,15 @@ def get_bycoords(
     url_kwd_list = coord_urls(daymet.code[time_scale], coords, region, daymet.variables, dates_itr)
     url_kwd_list = [tuple(zip(*u)) for u in url_kwd_list]
 
+    cache_name = ar.create_cachefile()
+
     clm = pd.concat(
         (
             pd.concat(
                 pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in ar.retrieve(u, "binary", request_kwds=k, max_workers=8)
+                for r in ar.retrieve(
+                    u, "binary", request_kwds=k, max_workers=8, cache_name=cache_name
+                )
             )
             for u, k in url_kwd_list
         ),
@@ -591,8 +595,12 @@ def get_bygeom(
         )
     )
 
+    cache_name = ar.create_cachefile()
     clm = xr.open_mfdataset(
-        io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)
+        io.BytesIO(r)
+        for r in ar.retrieve(
+            urls, "binary", request_kwds=kwds, max_workers=8, cache_name=cache_name
+        )
     )
 
     for k, v in daymet.units.items():
