@@ -18,23 +18,29 @@ dependencies:
   - orjson
 
   # pygeoogc deps
-  # - cytoolz
   - defusedxml
   - owslib
+  - pyyaml
   - pyproj
   - requests
-  - requests_cache
+  - requests-cache
+  - setuptools
   - shapely
   - simplejson
+  - urllib3
 
   # pygeoutils deps
+  - affine
   - geopandas
-  - netCDF4
+  - numpy
+  - netcdf4
+  - orjson
   - rasterio
   - xarray
 
   # pynhd deps
   - networkx
+  - pandas
   - pyarrow
 
   # pygeohydro deps
@@ -44,7 +50,6 @@ dependencies:
   - openpyxl
 
   # pydaymet deps
-  # - lxml
   - dask-core
   - scipy
 
@@ -60,14 +65,15 @@ dependencies:
   - colorcet
 
   # dev deps
-  - setuptools_scm
+  - setuptools-scm
   - pytest-xdist
-  - pre-commit
+  - pytest-sugar
   - flaky
+  - pre-commit
 
   - pip
   - pip:
-    - git+https://github.com/cheginit/async_retiriever.git
+    - git+https://github.com/cheginit/async_retriever.git
     - git+https://github.com/cheginit/pygeoogc.git
     - git+https://github.com/cheginit/pygeoutils.git
     - git+https://github.com/cheginit/pynhd.git
