@@ -7,6 +7,7 @@ import async_retriever as ar
 import numpy as np
 import pandas as pd
 import py3dep
+import pygeoogc as ogc
 import pygeoutils as geoutils
 import rasterio.transform as rio_transform
 import xarray as xr
@@ -37,35 +38,69 @@ class Daymet:
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
+    region : str, optional
+        Region in the US, defaults to na. Acceptable values are:
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
     """
 
     def __init__(
         self,
-        variables: Optional[Union[List[str], str]] = None,
+        variables: Optional[Union[Iterable[str], str]] = None,
         pet: bool = False,
         time_scale: str = "daily",
+        region: str = "na",
     ) -> None:
-        self.session = RetrySession()
+        self.valid_regions = ["na", "hi", "pr"]
+        self.region = self.check_input_validity(region, self.valid_regions)
 
-        vars_table = pd.read_html("https://daymet.ornl.gov/overview")[1]
+        self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
+        self.time_scale = self.check_input_validity(time_scale, list(self.time_codes.keys()))
+
+        vars_table = pd.DataFrame(
+            {
+                "Parameter": [
+                    "Day length",
+                    "Precipitation",
+                    "Shortwave radiation",
+                    "Snow water equivalent",
+                    "Maximum air temperature",
+                    "Minimum air temperature",
+                    "Water vapor pressure",
+                ],
+                "Abbr": ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"],
+                "Units": ["s/day", "mm/day", "W/m2", "kg/m2", "degrees C", "degrees C", "Pa"],
+                "Description": [
+                    "Duration of the daylight period in seconds per day. "
+                    + "This calculation is based on the period of the day during which the "
+                    + "sun is above a hypothetical flat horizon",
+                    "Daily total precipitation in millimeters per day, sum of"
+                    + " all forms converted to water-equivalent. Precipitation occurrence on "
+                    + "any given day may be ascertained.",
+                    "Incident shortwave radiation flux density in watts per square meter, "
+                    + "taken as an average over the daylight period of the day. "
+                    + "NOTE: Daily total radiation (MJ/m2/day) can be calculated as follows: "
+                    + "((srad (W/m2) * dayl (s/day)) / l,000,000)",
+                    "Snow water equivalent in kilograms per square meter."
+                    + " The amount of water contained within the snowpack.",
+                    "Daily maximum 2-meter air temperature in degrees Celsius.",
+                    "Daily minimum 2-meter air temperature in degrees Celsius.",
+                    "Water vapor pressure in pascals. Daily average partial pressure of water vapor.",
+                ],
+            }
+        )
 
         self.units = dict(zip(vars_table["Abbr"], vars_table["Units"]))
 
-        valid_times = ["daily", "monthly", "annual"]
-        if time_scale not in valid_times:
-            raise InvalidInputValue("time_scale", valid_times)
-
-        self.time_scale = time_scale
-        self.code = {"daily": 1840, "monthly": 1855, "annual": 1852}
-
-        valid_variables = vars_table.Abbr.to_list()
+        self.valid_variables = vars_table.Abbr.to_list()
         if variables is None:
-            self.variables = valid_variables
+            self.variables = self.valid_variables
         else:
-            self.variables = variables if isinstance(variables, list) else [variables]
+            self.variables = [variables] if isinstance(variables, str) else variables
 
-            if not set(self.variables).issubset(set(valid_variables)):
-                raise InvalidInputValue("variables", valid_variables)
+            if not set(self.variables).issubset(set(self.valid_variables)):
+                raise InvalidInputValue("variables", self.valid_variables)
 
             if pet:
                 if time_scale != "daily":
@@ -74,6 +109,13 @@ class Daymet:
 
                 reqs = ("tmin", "tmax", "vp", "srad", "dayl")
                 self.variables = list(set(reqs) | set(self.variables))
+
+    @staticmethod
+    def check_input_validity(inp: str, valid_list: Iterable[str]) -> str:
+        """Check the validity of input based on a list of valid options."""
+        if inp not in valid_list:
+            raise InvalidInputValue(inp, valid_list)
+        return inp
 
     @staticmethod
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
@@ -108,7 +150,7 @@ class Daymet:
     @staticmethod
     def years_todict(years: Union[List[int], int]) -> Dict[str, str]:
         """Set date by list of year(s)."""
-        years = years if isinstance(years, list) else [years]
+        years = [years] if isinstance(years, int) else years
         return {"years": ",".join(str(y) for y in years)}
 
     def dates_tolist(
@@ -170,7 +212,7 @@ class Daymet:
         return list(zip(start_list, end_list))
 
     @staticmethod
-    def pet_byloc(
+    def pet_bycoords(
         clm_df: pd.DataFrame,
         coords: Tuple[float, float],
         crs: str = DEF_CRS,
@@ -201,7 +243,6 @@ class Daymet:
             The input DataFrame with an additional column named ``pet (mm/day)``
         """
         units = {
-            "dayl": ("s/day", "s"),
             "srad": ("W/m2", "W/m^2"),
             "tmax": ("degrees C", "deg c"),
             "tmin": ("degrees C", "deg c"),
@@ -211,11 +252,12 @@ class Daymet:
         tmin_c = f"tmin ({units['tmin'][alt_unit]})"
         tmax_c = f"tmax ({units['tmax'][alt_unit]})"
         srad_wm2 = f"srad ({units['srad'][alt_unit]})"
-        dayl_s = f"dayl ({units['dayl'][alt_unit]})"
+        dayl_s = "dayl (s)"
         tmean_c = "tmean (deg c)"
 
         reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
 
+        print(clm_df.columns)
         _check_requirements(reqs, clm_df.columns)
 
         clm_df[tmean_c] = 0.5 * (clm_df[tmax_c] + clm_df[tmin_c])
@@ -383,7 +425,7 @@ def get_byloc(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     crs: str = DEF_CRS,
-    variables: Optional[Union[List[str], str]] = None,
+    variables: Optional[Union[Iterable[str], str]] = None,
     pet: bool = False,
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
@@ -444,14 +486,16 @@ def get_byloc(
         **dates_dict,
     }
 
-    r = daymet.session.get(ServiceURL().restful.daymet_point, payload)
+    cache_name = ogc.utils.create_cachefile()
+    session = RetrySession(cache_name=cache_name)
+    r = session.get(ServiceURL().restful.daymet_point, payload)
 
     clm = pd.DataFrame(r.json()["data"])
     clm.index = pd.to_datetime(clm.year * 1000.0 + clm.yday, format="%Y%j")
     clm = clm.drop(["year", "yday"], axis=1)
 
     if pet:
-        clm = daymet.pet_byloc(clm, (lon, lat), alt_unit=True)
+        clm = daymet.pet_bycoords(clm, (lon, lat), alt_unit=True)
     return clm
 
 
@@ -459,7 +503,7 @@ def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     loc_crs: str = DEF_CRS,
-    variables: Optional[List[str]] = None,
+    variables: Optional[Union[Iterable[str], str]] = None,
     pet: bool = False,
     region: str = "na",
     time_scale: str = "daily",
@@ -500,7 +544,7 @@ def get_bycoords(
     xarray.Dataset
         Daily climate data within a geometry
     """
-    daymet = Daymet(variables, pet, time_scale)
+    daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
@@ -510,8 +554,10 @@ def get_bycoords(
 
     _coords = MatchCRS.coords(((coords[0],), (coords[1],)), loc_crs, DEF_CRS)
     coords = (_coords[0][0], _coords[1][0])
-    url_kwd_list = coord_urls(daymet.code[time_scale], coords, region, daymet.variables, dates_itr)
-    url_kwd_list = [tuple(zip(*u)) for u in url_kwd_list]
+    url_kwds = coord_urls(
+        daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
+    )
+    url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
     cache_name = ar.create_cachefile()
 
@@ -535,7 +581,7 @@ def get_bycoords(
     clm.index = pd.to_datetime(clm.index.strftime("%Y-%m-%d"))
 
     if pet:
-        clm = daymet.pet_byloc(clm, coords, alt_unit=False)
+        clm = daymet.pet_bycoords(clm, coords, alt_unit=False)
     return clm
 
 
@@ -543,7 +589,7 @@ def get_bygeom(
     geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     geo_crs: str = DEF_CRS,
-    variables: Optional[List[str]] = None,
+    variables: Optional[Union[Iterable[str], str]] = None,
     pet: bool = False,
     region: str = "na",
     time_scale: str = "daily",
@@ -580,7 +626,7 @@ def get_bygeom(
     xarray.Dataset
         Daily climate data within a geometry
     """
-    daymet = Daymet(variables, pet, time_scale)
+    daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
@@ -591,16 +637,23 @@ def get_bygeom(
     _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
     urls, kwds = zip(
         *gridded_urls(
-            daymet.code[time_scale], _geometry.bounds, region, daymet.variables, dates_itr
+            daymet.time_codes[time_scale],
+            _geometry.bounds,
+            daymet.region,
+            daymet.variables,
+            dates_itr,
         )
     )
 
     cache_name = ar.create_cachefile()
     clm = xr.open_mfdataset(
-        io.BytesIO(r)
-        for r in ar.retrieve(
-            urls, "binary", request_kwds=kwds, max_workers=8, cache_name=cache_name
-        )
+        (
+            io.BytesIO(r)
+            for r in ar.retrieve(
+                urls, "binary", request_kwds=kwds, max_workers=8, cache_name=cache_name
+            )
+        ),
+        coords="minimal",
     )
 
     for k, v in daymet.units.items():
@@ -679,14 +732,6 @@ def get_filename(
     generator
         An iterator of generated URLs.
     """
-    valid_regions = ["na", "hi", "pr"]
-    if region not in valid_regions:
-        raise InvalidInputValue("region", valid_regions)
-
-    valid_codes = [1840, 1855, 1852]
-    if code not in valid_codes:
-        raise InvalidInputValue("code", valid_codes)
-
     return {
         1840: lambda v: f"daily_{region}_{v}",
         1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
@@ -698,7 +743,7 @@ def coord_urls(
     code: int,
     coord: Tuple[float, float],
     region: str,
-    variables: List[str],
+    variables: Iterable[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
 ) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
     """Generate an iterable URL list for downloading Daymet data.
@@ -756,7 +801,7 @@ def gridded_urls(
     code: int,
     bounds: Tuple[float, float, float, float],
     region: str,
-    variables: List[str],
+    variables: Iterable[str],
     dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
 ) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
