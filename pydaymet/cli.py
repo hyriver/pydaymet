@@ -1,12 +1,11 @@
 """Command-line interface for PyDaymet."""
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import click
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import MultiPolygon, Polygon
 
 from . import pydaymet as daymet
 from .exceptions import MissingItems
@@ -25,11 +24,20 @@ def get_target_df(
     return tdf[req_cols]
 
 
-@click.command()
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("target", type=click.Path(exists=True))
 @click.argument("target_type", type=click.Choice(["geometry", "coords"], case_sensitive=False))
 @click.argument("crs", type=str)
-@click.option('--variables', '-v', multiple=True, default=["prcp"], help="Target variables. You can pass this flag multiple times for multiple variables.")
+@click.option(
+    "--variables",
+    "-v",
+    multiple=True,
+    default=["prcp"],
+    help="Target variables. You can pass this flag multiple times for multiple variables.",
+)
 @click.option(
     "-t",
     "--time_scale",
@@ -48,7 +56,8 @@ def get_target_df(
     "--save_dir",
     type=click.Path(exists=False),
     default="clm_daymet",
-    help="Path to a directory to save the requested files. "+ "Extension for the outputs is .nc for geometry and .csv for coords.",
+    help="Path to a directory to save the requested files. "
+    + "Extension for the outputs is .nc for geometry and .csv for coords.",
 )
 def main(
     target: Path,
@@ -64,22 +73,27 @@ def main(
     TARGET: Path to a geospatial file (any file that geopandas.read_file can open) or a csv file.
 
     The input files should have three columns:
-    \n\t- id: Feature identifiers that daymet uses as the output netcdf filenames.
-    \n\t- start: Starting time.
-    \n\t- end: Ending time.
-    \n\t- region: Target region (na for CONUS, hi for Hawaii, and pr for Puerto Rico.
-    
+
+        - id: Feature identifiers that daymet uses as the output netcdf filenames.
+
+        - start: Starting time.
+
+        - end: Ending time.
+
+        - region: Target region (na for CONUS, hi for Hawaii, and pr for Puerto Rico.
+
     If target_type is geometry, an additional geometry column is required.
     If it's coords, two additional columns are need: x and y.
 
-    TARGET_TYPE: Type of input file: "coords" for csv, and "geometry" for geospatial.
+    TARGET_TYPE: Type of input file: "coords" for csv and "geometry" for geospatial.
 
     CRS: CRS of the input data.
 
-    Example:
+    Examples:
 
-    \tpydaymet ny_coords.csv coords epsg:4326 -v prcp -v tmin -p -t monthly
-    \n\tpydaymet ny_geom.gpkg geometry epsg:3857 -v prcp
+        $ pydaymet ny_coords.csv coords epsg:4326 -v prcp -v tmin -p -t monthly
+
+        $ pydaymet ny_geom.gpkg geometry epsg:3857 -v prcp
     """  # noqa: D412
     save_dir = Path(save_dir)
     target = Path(target)
@@ -112,13 +126,15 @@ def main(
 
     click.echo(f"Found {len(target_df)} items in {target}. Retrieving ...")
     with click.progressbar(
-        target_df.itertuples(index=False, name=None), label=f"Getting climate data from Daymet", length=len(target_df)
+        target_df.itertuples(index=False, name=None),
+        label="Getting climate data",
+        length=len(target_df),
     ) as bar:
         for i, *args in bar:
             fname = Path(save_dir, f"{i}.{save_ext}")
             if fname.exists():
                 continue
-            clm = get_func[target_type](**dict(zip(req_args[1:], args)), **extra_args)
+            clm = get_func[target_type](**dict(zip(req_args[1:], args)), **extra_args)  # type: ignore
             getattr(clm, save_func)(fname)
 
     click.echo(f"Retrieved climate data for {len(target_df)} item(s).")
