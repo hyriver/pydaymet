@@ -66,6 +66,7 @@ dependencies:
   - mapclassify
   - cartopy
   - colorcet
+  - hvplot
 
   # dev deps
   - setuptools-scm
@@ -73,6 +74,7 @@ dependencies:
   - pytest-sugar
   - pytest-console-scripts
   - flaky
+  - codespell
   - pre-commit
 
   - pip
