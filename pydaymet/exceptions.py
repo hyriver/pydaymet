@@ -1,5 +1,5 @@
 """Customized PyDaymet exceptions."""
-from typing import Any, Generator, List, Optional, Union
+from typing import Any, Generator, Iterable, List, Optional, Union
 
 
 class ZeroMatched(ValueError):
@@ -18,7 +18,7 @@ class InvalidInputValue(Exception):
     """
 
     def __init__(
-        self, inp: str, valid_inputs: Union[List[Any], Generator[str, None, None]]
+        self, inp: str, valid_inputs: Union[Iterable[Any], Generator[str, None, None]]
     ) -> None:
         self.message = f"Given {inp} is invalid. Valid {inp}s are:\n" + ", ".join(
             str(i) for i in valid_inputs
