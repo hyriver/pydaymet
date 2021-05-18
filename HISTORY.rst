@@ -2,10 +2,21 @@
 History
 =======
 
+0.11.0 (unreleased)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+
+- Add command-line interface (:issue_day:`7`).
+- All feature query functions automatically check if ``aiohttp-client-cache`` and
+  ``aiosqlite`` are installed and if so, they use persistent caching. This can significantly
+  improve the performance.
+
 0.10.2 (2021-03-27)
 -------------------
 
-- Add annoucement regarding the new name for the softwate stack, HyRiver.
+- Add announcement regarding the new name for the softwate stack, HyRiver.
 - Improve ``pip`` installation and release workflow.
 
 0.10.0 (2021-03-06)
@@ -45,7 +56,7 @@ History
 - Remove the ``fill_hole`` argument.
 - Improve masking by geometry.
 - Use the newly added ``async_requests`` function from ``pygeoogc`` for getting
-  datymet data to increase the performace (almost 2x faster)
+  datymet data to increase the performance (almost 2x faster)
 
 0.1.3 (2020-08-18)
 ------------------

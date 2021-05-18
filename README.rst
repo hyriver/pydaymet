@@ -136,8 +136,8 @@ Installation
 
 You can install PyDaymet using ``pip`` after installing ``libgdal`` on your system
 (for example, in Ubuntu run ``sudo apt install libgdal-dev``). Moreover, PyDaymet has two optional
-dependecies for using persistent caching, ``aiohttp-client-cache`` and ``aiosqlite``. We highly
-recommend to install this package as it can significantly speedup send/recieve queries. You don't
+dependencies for using persistent caching, ``aiohttp-client-cache`` and ``aiosqlite``. We highly
+recommend to install this package as it can significantly speedup send/receive queries. You don't
 have to change anything in your code, since PyDaymet under-the-hood looks for them and if available,
 it will automatically use persistent caching:
 
@@ -154,6 +154,66 @@ using `Conda <https://docs.conda.io/en/latest/>`__:
 
 Quick start
 -----------
+
+You can use PyDaymet using command-line or as a Python library. The commanda-line
+provides access to two functionality:
+
+- Getting climate data within a geometry: You must create a ``geopandas.GeoDataFrame`` that contains
+  the geometries of the target locations. This dataframe must have at least four columns:
+  ``id``, ``start``, ``end``, and ``geometry``. The ``id`` column is used as filenames for saving
+  the obtained climate data to a NetCDF (``.nc``) file. The ``start`` and ``end`` columns are
+  starting and ending dates. Then, you must save the dataframe to a file with extensions
+  such as ``.shp`` or ``.gpkg`` (whatever that ``geopandas.read_file`` can read).
+- Getting climate data for a list of coordinates: You must create a ``pandas.DataFrame`` that
+  contains coordinates of the target locations. This dataframe must have at least six columns:
+  ``id``, ``start``, ``end``, ``x``, and ``y``. The ``id`` column is used as filenames for saving
+  the obtained climate data to a CSV (``.csv``) file.
+
+``pydaymet`` has three required arguments and four optional:
+
+.. code-block:: bash
+
+    pydaymet --help
+    Usage: pydaymet [OPTIONS] TARGET [geometry|coords] CRS
+
+      Retrieve cliamte data within geometries or elevations for a list of coordinates.
+
+      TARGET: Path to a geospatial file (any file that geopandas.read_file can
+      open) or a csv file.
+
+      The input files should have three columns:
+
+          - id: Feature identifiers that daymet uses as the output netcdf/csv filenames.
+          - start: Starting time.
+          - end: Ending time.
+          - region: Target region (na for CONUS, hi for Hawaii, and pr for Puerto Rico.
+
+      If target_type is geometry, an additional geometry column is required.
+      If it's coords, two additional columns are need: x and y.
+
+      TARGET_TYPE: Type of input file: "coords" for csv and "geometry" for geospatial.
+
+      CRS: CRS of the input data.
+
+      Examples:
+
+          $ pydaymet ny_coords.csv coords epsg:4326 -v prcp -v tmin -p -t monthly
+          $ pydaymet ny_geom.gpkg geometry epsg:3857 -v prcp
+
+    Options:
+      -v, --variables TEXT            Target variables. You can pass this flag
+                                      multiple times for multiple variables.
+
+      -t, --time_scale [daily|monthly|annual]
+                                      Target time scale.
+      -p, --pet                       Compute PET.
+      -s, --save_dir PATH             Path to a directory to save the requested
+                                      files. Extension for the outputs is .nc for
+                                      geometry and .csv for coords.
+
+      -h, --help                      Show this message and exit.
+
+Now, let's see how we can use PyDaymet as a library.
 
 PyDaymet offers two functions for getting climate data; ``get_bycoords`` and ``get_bygeom``.
 The arguments of these functions are identical except the first argument where the latter
