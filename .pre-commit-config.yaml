@@ -1,6 +1,6 @@
 repos:
   - repo: git://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.0
+    rev: v4.0.1
     hooks:
     - id: trailing-whitespace
     - id: requirements-txt-fixer
@@ -18,7 +18,7 @@ repos:
     hooks:
     - id: setup-cfg-fmt
       name: Autoformat setup.cfg
-      args: [--min-py3-version, "3.6"]
+      args: [--min-py3-version, "3.7"]
 
   - repo: https://github.com/timothycrosley/isort
     rev: 5.8.0
@@ -61,13 +61,20 @@ repos:
     hooks:
     - id: darglint
       name: Lint docstrings with Darglint
+      exclude: pydaymet/cli.py
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.0.0
+    hooks:
+    - id: codespell
+      name: Checks for common misspellings in text files.
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.16.0
+    rev: v2.17.0
     hooks:
     - id: pyupgrade
       name: Upgrade synax to python 3.6+ with pyupgrade
-      args: [--py36-plus]
+      args: [--py37-plus]
 
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.9.2
@@ -82,12 +89,12 @@ repos:
     - id: mypy
       name: Static type checking with mypy
       exclude: tests
-      files: pynhd
+      files: pydaymet
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.0
     hooks:
     - id: bandit
       name: Check for security issues with bandit
-      args: [-lll, --recursive, pynhd]
+      args: [-lll, --recursive, pydaymet]
       files: .py$
