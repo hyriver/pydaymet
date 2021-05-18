@@ -1,3 +1,5 @@
+.. highlight:: shell
+
 .. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pydaymet_logo.png
     :target: https://github.com/cheginit/HyRiver
 
@@ -171,15 +173,14 @@ provides access to two functionality:
 
 ``pydaymet`` has three required arguments and four optional:
 
-.. code-block:: bash
+.. code-block:: console
 
     pydaymet --help
     Usage: pydaymet [OPTIONS] TARGET [geometry|coords] CRS
 
       Retrieve cliamte data within geometries or elevations for a list of coordinates.
 
-      TARGET: Path to a geospatial file (any file that geopandas.read_file can
-      open) or a csv file.
+      TARGET: Path to a geospatial file (any file that geopandas.read_file can open) or a csv file.
 
       The input files should have three columns:
 
@@ -203,14 +204,11 @@ provides access to two functionality:
     Options:
       -v, --variables TEXT            Target variables. You can pass this flag
                                       multiple times for multiple variables.
-
       -t, --time_scale [daily|monthly|annual]
                                       Target time scale.
       -p, --pet                       Compute PET.
-      -s, --save_dir PATH             Path to a directory to save the requested
-                                      files. Extension for the outputs is .nc for
-                                      geometry and .csv for coords.
-
+      -s, --save_dir PATH             Path to a directory to save the requested files. Extension
+                                      for the outputs is .nc for geometry and .csv for coords.
       -h, --help                      Show this message and exit.
 
 Now, let's see how we can use PyDaymet as a library.
