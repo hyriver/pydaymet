@@ -1,6 +1,11 @@
 """Tests for PyDaymet package."""
 import io
+import shutil
+from pathlib import Path
 
+import cytoolz as tlz
+import geopandas as gpd
+import pandas as pd
 from shapely.geometry import Polygon
 
 import pydaymet as daymet
@@ -11,20 +16,23 @@ GEOM = Polygon(
 DAY = ("2000-01-01", "2000-01-12")
 YEAR = 2010
 VAR = ["prcp", "tmin"]
+DEF_CRS = "epsg:4326"
+ALT_CRS = "epsg:3542"
 
 
 def test_byloc():
     coords = (-1431147.7928, 318483.4618)
     dates = ("2000-01-01", "2000-12-31")
-    crs = "epsg:3542"
 
-    pet = daymet.get_byloc(coords, dates, crs=crs, pet=True)
-    st_p = daymet.get_byloc(coords, dates, crs=crs, variables=VAR)
-    yr_p = daymet.get_byloc(coords, YEAR, crs=crs, variables=VAR)
+    pet = daymet.get_byloc(coords, dates, crs=ALT_CRS, pet=True)
+    st_p = daymet.get_byloc(coords, dates, crs=ALT_CRS, variables=VAR)
+    yr_p = daymet.get_byloc(coords, YEAR, crs=ALT_CRS, variables=VAR)
 
-    daily = daymet.get_bycoords(coords, dates, variables=VAR, loc_crs=crs)
-    monthly = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=crs, time_scale="monthly")
-    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=crs, time_scale="annual")
+    daily = daymet.get_bycoords(coords, dates, variables=VAR, loc_crs=ALT_CRS)
+    monthly = daymet.get_bycoords(
+        coords, YEAR, variables=VAR, loc_crs=ALT_CRS, time_scale="monthly"
+    )
+    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=ALT_CRS, time_scale="annual")
 
     assert (
         abs(pet["pet (mm/day)"].mean() - 4.076) < 1e-3
@@ -61,6 +69,61 @@ def test_region():
     assert (
         abs(hi.prcp.mean().values - 1035.233) < 1e-3 and abs(pr.tmin.mean().values - 21.441) < 1e-3
     )
+
+
+def test_cli_grid(script_runner):
+    params = {
+        "id": "geo_test",
+        "start": "2000-01-01",
+        "end": "2000-05-31",
+        "region": "na",
+    }
+    gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
+    gdf.to_file("nat_geo.gpkg")
+    ret = script_runner.run(
+        "pydaymet",
+        "nat_geo.gpkg",
+        "geometry",
+        DEF_CRS,
+        *list(tlz.concat([["-v", v] for v in VAR])),
+        "-t",
+        "monthly",
+        "-s",
+        "geo_map",
+    )
+    shutil.rmtree("nat_geo.gpkg")
+    shutil.rmtree("geo_map")
+    assert ret.success
+    assert "Retrieved climate data for 1 item(s)." in ret.stdout
+    assert ret.stderr == ""
+
+
+def test_cli_coords(script_runner):
+    params = {
+        "id": "coords_test",
+        "x": -1431147.7928,
+        "y": 318483.4618,
+        "start": DAY[0],
+        "end": DAY[1],
+        "region": "na",
+    }
+    df = pd.DataFrame(params, index=[0])
+    df.to_csv("coords.csv")
+    ret = script_runner.run(
+        "pydaymet",
+        "coords.csv",
+        "coords",
+        ALT_CRS,
+        *list(tlz.concat([["-v", v] for v in VAR])),
+        "-p",
+        "-s",
+        "geo_coords",
+    )
+    Path("coords.csv").unlink()
+    shutil.rmtree("geo_coords")
+    assert ret.success
+    assert "Retrieved climate data for 1 item(s)." in ret.stdout
+    assert ret.stderr == ""
 
 
 def test_show_versions():
