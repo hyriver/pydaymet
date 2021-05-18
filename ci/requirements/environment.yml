@@ -9,7 +9,7 @@ dependencies:
   - aiohttp-client-cache
   - aiosqlite
   - brotlipy
-  - chardet
+  - cchardet
   - cytoolz
   - nest-asyncio
   - orjson
@@ -34,6 +34,9 @@ dependencies:
   - rasterio
   - xarray
 
+  # py3dep
+  - click
+
   # pydaymet deps
   - dask-core
   - lxml
@@ -47,6 +50,7 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-xdist
+  - pytest-console-scripts
   - flaky
 
   - pip
