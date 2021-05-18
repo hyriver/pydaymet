@@ -83,7 +83,7 @@ def main(
         - region: Target region (na for CONUS, hi for Hawaii, and pr for Puerto Rico.
 
     If target_type is geometry, an additional geometry column is required.
-    If it is coords, two additional columns are need: x and y.
+    If it is coords, two additional columns are needed: x and y.
 
     TARGET_TYPE: Type of input file: "coords" for csv and "geometry" for geospatial.
 
