@@ -120,9 +120,9 @@ def get_bycoords(
     coords : tuple
         Coordinates of the location of interest as a tuple (lon, lat)
     dates : tuple or list, optional
-        Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
+        Start and end dates as a tuple (start, end) or a list of years ``[2001, 2010, ...]``.
     crs : str, optional
-        The CRS of the input geometry, defaults to epsg:4326.
+        The CRS of the input geometry, defaults to ``"epsg:4326"``.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
@@ -132,10 +132,12 @@ def get_bycoords(
         `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
         The default is False
     region : str, optional
-        Region in the US, defaults to na. Acceptable values are:
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
+        Target region in the US, defaults to ``na``. Acceptable values are:
+
+        * ``na``: Continental North America
+        * ``hi``: Hawaii
+        * ``pr``: Puerto Rico
+
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
