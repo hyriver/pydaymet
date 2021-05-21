@@ -28,11 +28,9 @@ def test_byloc():
     st_p = daymet.get_byloc(coords, dates, crs=ALT_CRS, variables=VAR)
     yr_p = daymet.get_byloc(coords, YEAR, crs=ALT_CRS, variables=VAR)
 
-    daily = daymet.get_bycoords(coords, dates, variables=VAR, loc_crs=ALT_CRS)
-    monthly = daymet.get_bycoords(
-        coords, YEAR, variables=VAR, loc_crs=ALT_CRS, time_scale="monthly"
-    )
-    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, loc_crs=ALT_CRS, time_scale="annual")
+    daily = daymet.get_bycoords(coords, dates, variables=VAR, crs=ALT_CRS)
+    monthly = daymet.get_bycoords(coords, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
+    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
 
     assert (
         abs(pet["pet (mm/day)"].mean() - 4.076) < 1e-3
