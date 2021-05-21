@@ -101,26 +101,20 @@ Features
 
 PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
 is designed to aid in watershed analysis through web services. This package provides
-an interface to access to daily climate data through the `Daymet <https://daymet.ornl.gov/>`__
-RESTful service. Both single pixel and gridded data can be requested which are returned as
+an interface to access to climate data from
+`Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ using NetCDF Subset
+Service (NCSS). Both single pixel (using ``get_bycoords`` function) and gridded data (using
+``get_bygeom``) can berequested which are returned as
 ``pandas.DataFrame`` and ``xarray.Dataset``, respectively. Climate data is available for CONUS,
-Hawaii, and Puerto Rico. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET)
-using `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ method for both single
+Hawaii, and Puerto Rico from 1980 to present year at three time scales: daily, monthly,
+and annual. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET)
+using `UN-FAO 56 <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ method for both single
 pixel and gridded data.
 
-Note that starting from version ``0.9.0``, the recently released version of Daymet database
-is used. You can check the release information `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_.
-Moreover, there's a new function called ``get_bycoords`` that is an alternative to ``get_byloc``
-for getting climate data at a single pixel. This new function uses THREDDS data server
-with NetCDF Subset Service (NCSS), and supports getting monthly and annual summaries directly
-from the server. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
-to ``get_bygeom`` or ``get_bycoords`` functions to download the respective summaries.
-``get_bycoords`` will replace ``get_byloc`` in  the future.
-So, please consider migrating your code by replacing ``get_byloc`` with ``get_bycoords``. The
-input arguments of ``get_bycoords`` is identical to ``get_bygeom``. Another difference
-between ``get_byloc`` and ``get_bycoords`` is column names where ``get_bycoords`` uses
-the units that are returned by NCSS server. Moreover, both ``get_bygeom`` and ``get_bycoords``
-accept an additional argument called ``region`` for passing the region of interest.
+To fully utilize the capabilities of the NCSS, under-the-hood PyDaymet uses
+`AsyncRetriever <https://github.com/cheginit/async_retriever>`__
+for retrieving Daymet data asynchronously with persistent caching. This improves the reliability
+and speed of the data retrieval significantly.
 
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
 below the PyDaymet banner. A Jupyter notebook instance with the stack
@@ -137,15 +131,11 @@ Installation
 ------------
 
 You can install PyDaymet using ``pip`` after installing ``libgdal`` on your system
-(for example, in Ubuntu run ``sudo apt install libgdal-dev``). Moreover, PyDaymet has two optional
-dependencies for using persistent caching, ``aiohttp-client-cache`` and ``aiosqlite``. We highly
-recommend to install this package as it can significantly speedup send/receive queries. You don't
-have to change anything in your code, since PyDaymet under-the-hood looks for them and if available,
-it will automatically use persistent caching:
+(for example, in Ubuntu run ``sudo apt install libgdal-dev``):
 
 .. code-block:: console
 
-    $ pip install pydaymet[cache]
+    $ pip install pydaymet
 
 Alternatively, PyDaymet can be installed from the ``conda-forge`` repository
 using `Conda <https://docs.conda.io/en/latest/>`__:
@@ -247,9 +237,7 @@ it to the functions.
     coords = (-1431147.7928, 318483.4618)
     crs = "epsg:3542"
     dates = ("2000-01-01", "2006-12-31")
-    annual = daymet.get_bycoords(
-        coords, dates, variables=var, loc_crs=crs, time_scale="annual"
-    )
+    annual = daymet.get_bycoords(coords, dates, variables=var, loc_crs=crs, time_scale="annual")
 
 .. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/daymet_loc.png
     :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
