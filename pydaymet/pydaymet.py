@@ -29,9 +29,8 @@ def get_byloc(
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
 
-    This function uses Daymet's RESTful service to get the daily
-    climate data and does not support monthly and annual summaries.
-    If you want to get the summaries directly use get_bycoords function.
+    .. deprecated:: 1.6.0
+        Please use ``get_bycoords`` instead. This function will be removed in the future.
 
     Parameters
     ----------
@@ -54,7 +53,7 @@ def get_byloc(
     Returns
     -------
     pandas.DataFrame
-        Daily climate data for a location
+        Daily climate data for a location.
     """
     msg = "Please use get_bycoords instead. This function will be removed in the future."
     warnings.warn(msg, DeprecationWarning)
@@ -143,8 +142,8 @@ def get_bycoords(
 
     Returns
     -------
-    xarray.Dataset
-        Daily climate data within a geometry
+    pandas.DataFrame
+        Daily climate data for a location.
 
     Examples
     --------
@@ -231,7 +230,7 @@ def get_bygeom(
     Returns
     -------
     xarray.Dataset
-        Daily climate data within a geometry
+        Daily climate data within the target geometry.
 
     Examples
     --------
