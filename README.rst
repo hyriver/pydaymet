@@ -101,20 +101,20 @@ Features
 
 PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
 is designed to aid in watershed analysis through web services. This package provides
-an interface to access to climate data from
-`Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ using NetCDF Subset
-Service (NCSS). Both single pixel (using ``get_bycoords`` function) and gridded data (using
-``get_bygeom``) can berequested which are returned as
+access to climate data from
+`Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ database using NetCDF
+Subset Service (NCSS). Both single pixel (using ``get_bycoords`` function) and gridded data (using
+``get_bygeom``) are supported which are returned as
 ``pandas.DataFrame`` and ``xarray.Dataset``, respectively. Climate data is available for CONUS,
-Hawaii, and Puerto Rico from 1980 to present year at three time scales: daily, monthly,
+Hawaii, and Puerto Rico from 1980 to the present year at three time scales: daily, monthly,
 and annual. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET)
-using `UN-FAO 56 <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ method for both single
-pixel and gridded data.
+using `FAO Penman-Monteith equation <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ for
+both single pixel and gridded data.
 
 To fully utilize the capabilities of the NCSS, under-the-hood PyDaymet uses
 `AsyncRetriever <https://github.com/cheginit/async_retriever>`__
 for retrieving Daymet data asynchronously with persistent caching. This improves the reliability
-and speed of the data retrieval significantly.
+and speed of data retrieval significantly.
 
 You can try using PyDaymet without installing it on you system by clicking on the binder badge
 below the PyDaymet banner. A Jupyter notebook instance with the stack
@@ -150,23 +150,27 @@ Quick start
 You can use PyDaymet using command-line or as a Python library. The commanda-line
 provides access to two functionality:
 
-- Getting climate data within a geometry: You must create a ``geopandas.GeoDataFrame`` that contains
-  the geometries of the target locations. This dataframe must have at least four columns:
-  ``id``, ``start``, ``end``, and ``geometry``. The ``id`` column is used as filenames for saving
-  the obtained climate data to a NetCDF (``.nc``) file. The ``start`` and ``end`` columns are
-  starting and ending dates. Then, you must save the dataframe to a file with extensions
-  such as ``.shp`` or ``.gpkg`` (whatever that ``geopandas.read_file`` can read).
-- Getting climate data for a list of coordinates: You must create a ``pandas.DataFrame`` that
-  contains coordinates of the target locations. This dataframe must have at least six columns:
-  ``id``, ``start``, ``end``, ``x``, and ``y``. The ``id`` column is used as filenames for saving
-  the obtained climate data to a CSV (``.csv``) file.
+- Getting gridded climate data: You must create a ``geopandas.GeoDataFrame`` that contains
+  the geometries of the target locations. This dataframe must have at least five columns:
+  ``id``, ``start``, ``end``, ``region``, and ``geometry``. The ``id`` column is used as
+  filenames for saving the obtained climate data to a NetCDF (``.nc``) file. The ``start``
+  and ``end`` columns are starting and ending dates of the target period. The ``region``
+  columns determines the geometry's region of each row (``na``, ``hi``, or ``pr``). Then,
+  you must save the dataframe to a file with extensions such as ``.shp`` or ``.gpkg``
+  (whatever that ``geopandas.read_file`` can read).
+- Getting single pixel climate data: You must create a ``pandas.DataFrame`` that
+  contains coordinates of the target locations. This dataframe must have at least five columns:
+  ``id``, ``start``, ``end``, ``region``, ``x``, and ``y``. The ``id`` column is used as filenames
+  for saving the obtained climate data to a CSV (``.csv``) file. The ``start``, ``end``, and
+  ``region`` columns the same as the before. The ``x`` and ``y`` columns are coordinates
+  of the target locations.
 
 ``pydaymet`` has three required arguments and four optional:
 
 .. code-block:: console
 
     pydaymet --help
-    Usage: pydaymet [OPTIONS] TARGET [geometry|coords] CRS
+    Usage: pydaymet [OPTIONS] TARGET TARGET_TYPE CRS
 
       Retrieve cliamte data within geometries or elevations for a list of coordinates.
 
