@@ -248,7 +248,6 @@ class Daymet:
 
         reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
 
-        print(clm_df.columns)
         _check_requirements(reqs, clm_df.columns)
 
         clm_df[tmean_c] = 0.5 * (clm_df[tmax_c] + clm_df[tmin_c])
@@ -311,7 +310,8 @@ class Daymet:
         ) / (delta_v + gamma * (1 + 0.34 * u_2m))
         clm_df[va_pa] = clm_df[va_pa] * 1.0e3
 
-        return clm_df.drop(columns=tmean_c)
+        clm_df = clm_df.drop(columns=tmean_c)
+        return clm_df
 
     @staticmethod
     def pet_bygrid(clm_ds: xr.Dataset) -> xr.Dataset:
