@@ -102,14 +102,13 @@ def main(
 
     get_func = {"coords": daymet.get_bycoords, "geometry": daymet.get_bygeom}
     cols = ["dates", "region"]
-    extra_args = {"variables": variables, "time_scale": time_scale, "pet": pet}
+    extra_args = {"crs": crs, "variables": variables, "time_scale": time_scale, "pet": pet}
 
     if target_type == "geometry":
         target_df = gpd.read_file(target, crs=crs)
         target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
         req_args = ["id", "geometry"] + cols
         target_df = get_target_df(target_df, req_args)
-        extra_args["geo_crs"] = crs
         save_func = "to_netcdf"
         save_ext = "nc"
     else:
@@ -120,7 +119,6 @@ def main(
         target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
         req_args = ["id", "coords"] + cols
         target_df = get_target_df(target_df, req_args)
-        extra_args["loc_crs"] = crs
         save_func = "to_csv"
         save_ext = "csv"
 

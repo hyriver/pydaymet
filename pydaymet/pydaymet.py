@@ -1,6 +1,7 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 import io
 import itertools
+import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import async_retriever as ar
@@ -55,6 +56,9 @@ def get_byloc(
     pandas.DataFrame
         Daily climate data for a location
     """
+    msg = "Please use get_bycoords instead. This function will be removed in the future."
+    warnings.warn(msg, DeprecationWarning)
+
     daymet = Daymet(variables, pet)
     daymet.check_dates(dates)
 
@@ -100,7 +104,7 @@ def get_byloc(
 def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    loc_crs: str = DEF_CRS,
+    crs: str = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
     pet: bool = False,
     region: str = "na",
@@ -118,7 +122,7 @@ def get_bycoords(
         Coordinates of the location of interest as a tuple (lon, lat)
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
-    loc_crs : str, optional
+    crs : str, optional
         The CRS of the input geometry, defaults to epsg:4326.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
@@ -141,6 +145,15 @@ def get_bycoords(
     -------
     xarray.Dataset
         Daily climate data within a geometry
+
+    Examples
+    --------
+    >>> import pydaymet as daymet
+    >>> coords = (-1431147.7928, 318483.4618)
+    >>> dates = ("2000-01-01", "2000-12-31")
+    >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet=True)
+    >>> clm["pet (mm/day)"].mean()
+    4.076187138002121
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -150,7 +163,7 @@ def get_bycoords(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), loc_crs, DEF_CRS)
+    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
     coords = (_coords[0][0], _coords[1][0])
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
@@ -172,7 +185,7 @@ def get_bycoords(
     if "prcp (mm)" in clm:
         clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
 
-    clm.index = pd.to_datetime(clm.index.strftime("%Y-%m-%d"))
+    clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
     if pet:
         clm = daymet.pet_bycoords(clm, coords, alt_unit=False)
@@ -182,7 +195,7 @@ def get_bycoords(
 def get_bygeom(
     geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    geo_crs: str = DEF_CRS,
+    crs: str = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
     pet: bool = False,
     region: str = "na",
@@ -196,7 +209,7 @@ def get_bygeom(
         The geometry of the region of interest.
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
-    geo_crs : str, optional
+    crs : str, optional
         The CRS of the input geometry, defaults to epsg:4326.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
@@ -219,6 +232,17 @@ def get_bygeom(
     -------
     xarray.Dataset
         Daily climate data within a geometry
+
+    Examples
+    --------
+    >>> from shapely.geometry import Polygon
+    >>> import pydaymet as daymet
+    >>> geometry = Polygon(
+    ...     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
+    ... )
+    >>> clm = daymet.get_bygeom(geometry, 2010, variables="tmin", time_scale="annual")
+    >>> clm["tmin"].mean().values
+    array(1.3613942, dtype=float32)
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -228,7 +252,7 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    _geometry = geoutils.geo2polygon(geometry, geo_crs, DEF_CRS)
+    _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
     urls, kwds = zip(
         *_gridded_urls(
             daymet.time_codes[time_scale],
@@ -250,7 +274,7 @@ def get_bygeom(
 
     clm = clm.drop_vars(["lambert_conformal_conic"])
 
-    crs = " ".join(
+    daymet_crs = " ".join(
         [
             "+proj=lcc",
             "+lat_1=25",
@@ -264,7 +288,7 @@ def get_bygeom(
             "+no_defs",
         ]
     )
-    clm.attrs["crs"] = crs
+    clm.attrs["crs"] = daymet_crs
     clm.attrs["nodatavals"] = (0.0,)
 
     xdim, ydim = "x", "y"
@@ -293,7 +317,7 @@ def get_bygeom(
             clm[v].attrs["crs"] = crs
             clm[v].attrs["nodatavals"] = (0.0,)
 
-    return geoutils.xarray_geomask(clm, geometry, geo_crs)
+    return geoutils.xarray_geomask(clm, geometry, crs)
 
 
 def _get_filename(
