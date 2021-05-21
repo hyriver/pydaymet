@@ -29,7 +29,7 @@ def get_byloc(
 ) -> pd.DataFrame:
     """Get daily climate data from Daymet for a single point.
 
-    .. deprecated:: 1.6.0
+    .. deprecated:: 0.9.0
         Please use ``get_bycoords`` instead. This function will be removed in the future.
 
     Parameters
