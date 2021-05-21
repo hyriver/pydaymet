@@ -10,8 +10,16 @@ New Features
 
 - Add command-line interface (:issue_day:`7`).
 - All feature query functions automatically check if ``aiohttp-client-cache`` and
-  ``aiosqlite`` are installed and if so, they use persistent caching. This can significantly
-  improve the performance.
+  ``aiosqlite`` are installed and if so, they use persistent caching. This significantly
+  improves the performance.
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Change ``loc_crs`` and ``geo_crs`` arguments to ``crs`` in ``get_bycoords`` and ``get_bygeom``.
+
+Documentation
+~~~~~~~~~~~~~
+- Add examples to docstrings and improve writing.
 
 0.10.2 (2021-03-27)
 -------------------
