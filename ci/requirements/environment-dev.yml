@@ -54,7 +54,7 @@ dependencies:
 
   # pydaymet deps
   - dask-core
-  - scipy
+  - h5netcdf
 
   # optional deps to speed up xarray and geopandas
   - bottleneck

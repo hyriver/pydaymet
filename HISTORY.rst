@@ -12,6 +12,7 @@ New Features
 - All feature query functions automatically check if ``aiohttp-client-cache`` and
   ``aiosqlite`` are installed and if so, they use persistent caching. This significantly
   improves the performance.
+- Use ``h5netcdf`` as the backend for ``xarray`` which can be faster than ``scipy``.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
@@ -31,8 +32,7 @@ Documentation
 -------------------
 
 - The first release after renaming hydrodata to pygeohydro.
-- Make ``mypy`` checks more strict and fix all the errors and prevent possible
-  bugs.
+- Make ``mypy`` checks more strict and fix all the errors and prevent possible bugs.
 - Speed up CI testing by using ``mamba`` and caching.
 
 

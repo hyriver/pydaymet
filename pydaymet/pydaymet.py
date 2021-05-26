@@ -266,6 +266,7 @@ def get_bygeom(
 
     clm = xr.open_mfdataset(
         (io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)),
+        engine="h5netcdf",
         coords="minimal",
     )
 
