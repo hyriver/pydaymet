@@ -24,7 +24,7 @@ class Daymet:
         Defaults to None i.e., all the variables are downloaded.
     pet : bool, optional
         Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
+        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
         The default is False
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
@@ -130,8 +130,8 @@ class Daymet:
         start = pd.to_datetime(dates[0])
         end = pd.to_datetime(dates[1])
 
-        if start < pd.to_datetime("1980-01-01"):
-            raise InvalidInputRange("Daymet database ranges from 1980 to 2019.")
+        if start < pd.to_datetime("1980-01-01") or end > pd.to_datetime("2020-12-31"):
+            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
 
         return {
             "start": start.strftime(DATE_FMT),
@@ -142,6 +142,10 @@ class Daymet:
     def years_todict(years: Union[List[int], int]) -> Dict[str, str]:
         """Set date by list of year(s)."""
         years = [years] if isinstance(years, int) else years
+
+        if min(years) < 1980 or max(years) > 2020:
+            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
+
         return {"years": ",".join(str(y) for y in years)}
 
     def dates_tolist(
@@ -165,6 +169,9 @@ class Daymet:
         date_dict = self.dates_todict(dates)
         start = pd.to_datetime(date_dict["start"]) + pd.DateOffset(hour=12)
         end = pd.to_datetime(date_dict["end"]) + pd.DateOffset(hour=12)
+
+        if start < pd.to_datetime("1980-01-01") or end > pd.to_datetime("2020-12-31"):
+            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
 
         period = pd.date_range(start, end)
         nl = period[~period.is_leap_year]
@@ -211,8 +218,12 @@ class Daymet:
     ) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using Daymet dataset for a single location.
 
-        The method is based on `FAO-56 <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
-        The following variables are required:
+        Notes
+        -----
+        The method is based on
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
+        is 2 m/s. The following variables are required:
         tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
         The computed PET's unit is mm/day.
 
@@ -266,15 +277,12 @@ class Daymet:
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
         gamma = pa * 0.665e-3
 
-        rho_s = 0.0  # recommended for daily data
         clm_df[va_pa] = clm_df[va_pa] * 1e-3
 
         e_max = 0.6108 * np.exp(17.27 * clm_df[tmax_c] / (clm_df[tmax_c] + 237.3))
         e_min = 0.6108 * np.exp(17.27 * clm_df[tmin_c] / (clm_df[tmin_c] + 237.3))
         e_s = (e_max + e_min) * 0.5
         e_def = e_s - clm_df[va_pa]
-
-        u_2m = 2.0  # recommended when no data is available
 
         jday = clm_df.index.dayofyear
         r_surf = clm_df[srad_wm2] * clm_df[dayl_s] * 1e-6
@@ -304,6 +312,8 @@ class Daymet:
         )
         rad_n = rad_ns - rad_nl
 
+        rho_s = 0.0  # recommended for daily data
+        u_2m = 2.0  # recommended when no data is available
         clm_df["pet (mm/day)"] = (
             0.408 * delta_v * (rad_n - rho_s)
             + gamma * 900.0 / (clm_df[tmean_c] + 273.0) * u_2m * e_def
@@ -317,8 +327,10 @@ class Daymet:
     def pet_bygrid(clm_ds: xr.Dataset) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using Daymet dataset.
 
-        The method is based on `FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
-        The following variables are required:
+        The method is based on
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
+        is 2 m/s. The following variables are required:
         tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
         The computed PET's unit is mm/day.
 
@@ -349,25 +361,20 @@ class Daymet:
 
         res = clm_ds.res[0] * 1.0e3
         elev = py3dep.elevation_bygrid(clm_ds.x.values, clm_ds.y.values, clm_ds.crs, res)
-        attrs = clm_ds.attrs
-        clm_ds = xr.merge([clm_ds, elev])
-        clm_ds.attrs = attrs
+        clm_ds = xr.merge([clm_ds, elev], combine_attrs="override")
         clm_ds["elevation"] = clm_ds.elevation.where(
             ~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True
-        )
+        ).T
 
         pa = 101.3 * ((293.0 - 0.0065 * clm_ds["elevation"]) / 293.0) ** 5.26
         clm_ds["gamma"] = pa * 0.665e-3
 
-        rho_s = 0.0  # recommended for daily data
         clm_ds["vp"] *= 1e-3
 
         e_max = 0.6108 * np.exp(17.27 * clm_ds["tmax"] / (clm_ds["tmax"] + 237.3))
         e_min = 0.6108 * np.exp(17.27 * clm_ds["tmin"] / (clm_ds["tmin"] + 237.3))
         e_s = (e_max + e_min) * 0.5
         clm_ds["e_def"] = e_s - clm_ds["vp"]
-
-        u_2m = 2.0  # recommended when no wind data is available
 
         lat = clm_ds.isel(time=0).lat
         clm_ds["time"] = pd.to_datetime(clm_ds.time.values).dayofyear.astype(dtype)
@@ -398,6 +405,8 @@ class Daymet:
         )
         clm_ds["rad_n"] = rad_ns - rad_nl
 
+        rho_s = 0.0  # recommended for daily data
+        u_2m = 2.0  # recommended when no data is available
         clm_ds["pet"] = (
             0.408 * clm_ds["delta_r"] * (clm_ds["rad_n"] - rho_s)
             + clm_ds["gamma"] * 900.0 / (clm_ds["tmean"] + 273.0) * u_2m * clm_ds["e_def"]

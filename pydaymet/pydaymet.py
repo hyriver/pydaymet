@@ -47,7 +47,7 @@ def get_byloc(
         Defaults to None i.e., all the variables are downloaded.
     pet : bool, optional
         Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
         The default is False
 
     Returns
@@ -129,7 +129,7 @@ def get_bycoords(
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
     pet : bool
         Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
         The default is False
     region : str, optional
         Target region in the US, defaults to ``na``. Acceptable values are:
@@ -218,7 +218,7 @@ def get_bygeom(
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
     pet : bool
         Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
         The default is False
     region : str, optional
         Region in the US, defaults to na. Acceptable values are:
@@ -266,7 +266,7 @@ def get_bygeom(
 
     clm = xr.open_mfdataset(
         (io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)),
-        engine="h5netcdf",
+        engine="scipy",
         coords="minimal",
     )
 
