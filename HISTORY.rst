@@ -7,15 +7,15 @@ History
 
 New Features
 ~~~~~~~~~~~~
-
 - Add command-line interface (:issue_day:`7`).
 - All feature query functions automatically check if ``aiohttp-client-cache`` and
   ``aiosqlite`` are installed and if so, they use persistent caching. This significantly
   improves the performance.
-- Use ``h5netcdf`` as the backend for ``xarray`` which can be faster than ``scipy``.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
+- Drop support for python 3.6 since many of the dependencies have done so, such as
+  ``xarray`` and ``pandas``.
 - Change ``loc_crs`` and ``geo_crs`` arguments to ``crs`` in ``get_bycoords`` and ``get_bygeom``.
 
 Documentation

@@ -111,7 +111,7 @@ and annual. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET
 using `FAO Penman-Monteith equation <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ for
 both single pixel and gridded data.
 
-To fully utilize the capabilities of the NCSS, under-the-hood PyDaymet uses
+To fully utilize the capabilities of the NCSS, under-the-hood, PyDaymet uses
 `AsyncRetriever <https://github.com/cheginit/async_retriever>`__
 for retrieving Daymet data asynchronously with persistent caching. This improves the reliability
 and speed of data retrieval significantly.
