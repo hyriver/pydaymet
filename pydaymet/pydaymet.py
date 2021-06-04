@@ -6,7 +6,6 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import async_retriever as ar
 import pandas as pd
-import pygeoogc as ogc
 import pygeoutils as geoutils
 import rasterio.transform as rio_transform
 import xarray as xr
@@ -69,8 +68,7 @@ def get_byloc(
     if not (isinstance(coords, tuple) and len(coords) == 2):
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
-    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
-    lon, lat = (_coords[0][0], _coords[1][0])
+    lon, lat = MatchCRS(crs, DEF_CRS).coords([coords])[0]
 
     if not ((14.5 < lat < 52.0) or (-131.0 < lon < -53.0)):
         raise InvalidInputRange(
@@ -87,8 +85,7 @@ def get_byloc(
         **dates_dict,
     }
 
-    cache_name = ogc.utils.create_cachefile()
-    session = RetrySession(cache_name=cache_name)
+    session = RetrySession()
     r = session.get(ServiceURL().restful.daymet_point, payload)
 
     clm = pd.DataFrame(r.json()["data"])
@@ -164,8 +161,10 @@ def get_bycoords(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    _coords = MatchCRS.coords(((coords[0],), (coords[1],)), crs, DEF_CRS)
-    coords = (_coords[0][0], _coords[1][0])
+    if not (isinstance(coords, tuple) and len(coords) == 2):
+        raise InvalidInputType("coords", "tuple", "(lon, lat)")
+
+    coords = MatchCRS(crs, DEF_CRS).coords([coords])[0]
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
     )
@@ -264,11 +263,18 @@ def get_bygeom(
         )
     )
 
-    clm = xr.open_mfdataset(
-        (io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)),
-        engine="scipy",
-        coords="minimal",
-    )
+    try:
+        clm = xr.open_mfdataset(
+            (io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)),
+            engine="scipy",
+            coords="minimal",
+        )
+    except ValueError:
+        msg = (
+            "The server did NOT process your request successfully. "
+            + "Check your inputs and try again."
+        )
+        raise ValueError(msg)
 
     for k, v in daymet.units.items():
         if k in clm.variables:
