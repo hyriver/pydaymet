@@ -46,6 +46,14 @@ class Daymet:
         self.valid_regions = ["na", "hi", "pr"]
         self.region = self.check_input_validity(region, self.valid_regions)
 
+        if self.region == "pr":
+            self.valid_start = pd.to_datetime("1950-01-01")
+        else:
+            self.valid_start = pd.to_datetime("1980-01-01")
+        self.valid_end = pd.to_datetime("2020-12-31")
+        self._invalid_yr = (
+            "Daymet database ranges from " + f"{self.valid_start.year} to {self.valid_end.year}."
+        )
         self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
         self.time_scale = self.check_input_validity(time_scale, list(self.time_codes.keys()))
 
@@ -121,8 +129,7 @@ class Daymet:
                 "dates", "Start and end should be passed as a tuple of length 2."
             )
 
-    @staticmethod
-    def dates_todict(dates: Tuple[str, str]) -> Dict[str, str]:
+    def dates_todict(self, dates: Tuple[str, str]) -> Dict[str, str]:
         """Set dates by start and end dates as a tuple, (start, end)."""
         if not isinstance(dates, tuple) or len(dates) != 2:
             raise InvalidInputType("dates", "tuple", "(start, end)")
@@ -130,21 +137,20 @@ class Daymet:
         start = pd.to_datetime(dates[0])
         end = pd.to_datetime(dates[1])
 
-        if start < pd.to_datetime("1980-01-01") or end > pd.to_datetime("2020-12-31"):
-            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
+        if start < self.valid_start or end > self.valid_end:
+            raise InvalidInputRange(self._invalid_yr)
 
         return {
             "start": start.strftime(DATE_FMT),
             "end": end.strftime(DATE_FMT),
         }
 
-    @staticmethod
-    def years_todict(years: Union[List[int], int]) -> Dict[str, str]:
+    def years_todict(self, years: Union[List[int], int]) -> Dict[str, str]:
         """Set date by list of year(s)."""
         years = [years] if isinstance(years, int) else years
 
-        if min(years) < 1980 or max(years) > 2020:
-            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
+        if min(years) < self.valid_start.year or max(years) > self.valid_end.year:
+            raise InvalidInputRange(self._invalid_yr)
 
         return {"years": ",".join(str(y) for y in years)}
 
@@ -169,9 +175,6 @@ class Daymet:
         date_dict = self.dates_todict(dates)
         start = pd.to_datetime(date_dict["start"]) + pd.DateOffset(hour=12)
         end = pd.to_datetime(date_dict["end"]) + pd.DateOffset(hour=12)
-
-        if start < pd.to_datetime("1980-01-01") or end > pd.to_datetime("2020-12-31"):
-            raise InvalidInputRange("Daymet database ranges from 1980 to 2020.")
 
         period = pd.date_range(start, end)
         nl = period[~period.is_leap_year]
