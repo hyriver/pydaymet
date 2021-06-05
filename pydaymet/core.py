@@ -4,6 +4,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import py3dep
+import shapely.geometry as sgeom
 import xarray as xr
 
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
@@ -24,7 +25,7 @@ class Daymet:
         Defaults to None i.e., all the variables are downloaded.
     pet : bool, optional
         Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         The default is False
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
@@ -46,6 +47,17 @@ class Daymet:
         self.valid_regions = ["na", "hi", "pr"]
         self.region = self.check_input_validity(region, self.valid_regions)
 
+        self.region_bbox = {
+            "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
+            "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
+            "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
+        }
+        self._outside_bbox = "\n".join(
+            [
+                f"Input coordinates are outside the Daymet range for region ``{region}``.",
+                f"Valid bounding box is: {self.region_bbox[region].bounds}",
+            ]
+        )
         if self.region == "pr":
             self.valid_start = pd.to_datetime("1950-01-01")
         else:
@@ -224,7 +236,7 @@ class Daymet:
         Notes
         -----
         The method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
         is 2 m/s. The following variables are required:
         tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
@@ -331,7 +343,7 @@ class Daymet:
         """Compute Potential EvapoTranspiration using Daymet dataset.
 
         The method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
         is 2 m/s. The following variables are required:
         tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
