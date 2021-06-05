@@ -52,7 +52,7 @@ class Daymet:
             "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
             "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
         }
-        self._outside_bbox = "\n".join(
+        self.invalid_bbox_msg = "\n".join(
             [
                 f"Input coordinates are outside the Daymet range for region ``{region}``.",
                 f"Valid bounding box is: {self.region_bbox[region].bounds}",

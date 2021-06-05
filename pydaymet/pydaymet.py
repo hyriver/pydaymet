@@ -167,7 +167,7 @@ def get_bycoords(
     coords = MatchCRS(crs, DEF_CRS).coords([coords])[0]
 
     if not Point(*coords).within(daymet.region_bbox[region]):
-        raise InvalidInputRange(daymet._outside_bbox)
+        raise InvalidInputRange(daymet.invalid_bbox_msg)
 
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
@@ -259,7 +259,7 @@ def get_bygeom(
     _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
-        raise InvalidInputRange(daymet._outside_bbox)
+        raise InvalidInputRange(daymet.invalid_bbox_msg)
 
     urls, kwds = zip(
         *_gridded_urls(
