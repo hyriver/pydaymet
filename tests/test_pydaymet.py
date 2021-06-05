@@ -76,11 +76,12 @@ def test_cli_grid(script_runner):
         "end": "2000-05-31",
         "region": "na",
     }
+    geo_gpkg = "nat_geo.gpkg"
     gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
-    gdf.to_file("nat_geo.gpkg")
+    gdf.to_file(geo_gpkg)
     ret = script_runner.run(
         "pydaymet",
-        "nat_geo.gpkg",
+        geo_gpkg,
         "geometry",
         DEF_CRS,
         *list(tlz.concat([["-v", v] for v in VAR])),
@@ -89,7 +90,7 @@ def test_cli_grid(script_runner):
         "-s",
         "geo_map",
     )
-    shutil.rmtree("nat_geo.gpkg")
+    shutil.rmtree(geo_gpkg)
     shutil.rmtree("geo_map")
     assert ret.success
     assert "Retrieved climate data for 1 item(s)." in ret.stdout
@@ -105,11 +106,12 @@ def test_cli_coords(script_runner):
         "end": DAY[1],
         "region": "na",
     }
+    coord_csv = "coords.csv"
     df = pd.DataFrame(params, index=[0])
-    df.to_csv("coords.csv")
+    df.to_csv(coord_csv)
     ret = script_runner.run(
         "pydaymet",
-        "coords.csv",
+        coord_csv,
         "coords",
         ALT_CRS,
         *list(tlz.concat([["-v", v] for v in VAR])),
@@ -117,7 +119,7 @@ def test_cli_coords(script_runner):
         "-s",
         "geo_coords",
     )
-    Path("coords.csv").unlink()
+    Path(coord_csv).unlink()
     shutil.rmtree("geo_coords")
     assert ret.success
     assert "Retrieved climate data for 1 item(s)." in ret.stdout
