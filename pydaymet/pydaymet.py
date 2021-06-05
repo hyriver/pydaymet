@@ -10,7 +10,7 @@ import pygeoutils as geoutils
 import rasterio.transform as rio_transform
 import xarray as xr
 from pygeoogc import MatchCRS, RetrySession, ServiceURL
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 from .core import Daymet
 from .exceptions import InvalidInputRange, InvalidInputType
@@ -46,7 +46,7 @@ def get_byloc(
         Defaults to None i.e., all the variables are downloaded.
     pet : bool, optional
         Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         The default is False
 
     Returns
@@ -126,7 +126,7 @@ def get_bycoords(
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
     pet : bool
         Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         The default is False
     region : str, optional
         Target region in the US, defaults to ``na``. Acceptable values are:
@@ -165,6 +165,10 @@ def get_bycoords(
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
     coords = MatchCRS(crs, DEF_CRS).coords([coords])[0]
+
+    if not Point(*coords).within(daymet.region_bbox[region]):
+        raise InvalidInputRange(daymet._outside_bbox)
+
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
     )
@@ -217,7 +221,7 @@ def get_bygeom(
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
     pet : bool
         Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm#equation>`__.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
         The default is False
     region : str, optional
         Region in the US, defaults to na. Acceptable values are:
@@ -253,6 +257,10 @@ def get_bygeom(
         dates_itr = daymet.years_tolist(dates)
 
     _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
+
+    if not _geometry.intersects(daymet.region_bbox[region]):
+        raise InvalidInputRange(daymet._outside_bbox)
+
     urls, kwds = zip(
         *_gridded_urls(
             daymet.time_codes[time_scale],
