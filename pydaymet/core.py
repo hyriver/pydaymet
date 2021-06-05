@@ -32,6 +32,7 @@ class Daymet:
         or annual (annual summaries). Defaults to daily.
     region : str, optional
         Region in the US, defaults to na. Acceptable values are:
+
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
@@ -246,7 +247,7 @@ class Daymet:
         ----------
         clm_df : DataFrame
             A dataframe with columns named as follows:
-            ``tmin (deg c)``, ``tmax (deg c)``, ``vp (Pa)``, ``srad (W/m^2)``, ``dayl (s)``
+            ``tmin (deg c)``, ``tmax (deg c)``, ``vp (Pa)``, ``srad (W/m^2)``, and ``dayl (s)``.
         coords : tuple of floats
             Coordinates of the daymet data location as a tuple, (x, y).
         crs : str, optional
@@ -261,13 +262,12 @@ class Daymet:
         """
         units = {
             "srad": ("W/m2", "W/m^2"),
-            "tmax": ("degrees C", "deg c"),
-            "tmin": ("degrees C", "deg c"),
+            "temp": ("degrees C", "deg c"),
         }
 
         va_pa = "vp (Pa)"
-        tmin_c = f"tmin ({units['tmin'][alt_unit]})"
-        tmax_c = f"tmax ({units['tmax'][alt_unit]})"
+        tmin_c = f"tmin ({units['temp'][alt_unit]})"
+        tmax_c = f"tmax ({units['temp'][alt_unit]})"
         srad_wm2 = f"srad ({units['srad'][alt_unit]})"
         dayl_s = "dayl (s)"
         tmean_c = "tmean (deg c)"
