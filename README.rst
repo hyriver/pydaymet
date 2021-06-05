@@ -105,8 +105,8 @@ access to climate data from
 `Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ database using NetCDF
 Subset Service (NCSS). Both single pixel (using ``get_bycoords`` function) and gridded data (using
 ``get_bygeom``) are supported which are returned as
-``pandas.DataFrame`` and ``xarray.Dataset``, respectively. Climate data is available for CONUS,
-Hawaii, and Puerto Rico from 1980 to the present year at three time scales: daily, monthly,
+``pandas.DataFrame`` and ``xarray.Dataset``, respectively. Climate data is available for North
+America, Hawaii from 1980, and Puerto Rico from 1950 at three time scales: daily, monthly,
 and annual. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET)
 using `FAO Penman-Monteith equation <http://www.fao.org/docrep/X0490E/X0490E00.htm>`__ for
 both single pixel and gridded data.
