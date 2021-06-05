@@ -337,18 +337,12 @@ def get_bygeom(
 
 
 def _get_filename(
-    code: int,
     region: str,
 ) -> Dict[int, Callable[[str], str]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
     ----------
-    code : int
-        Endpoint code which should be one of the following:
-        * 1840: Daily
-        * 1855: Monthly average
-        * 1852: Annual average
     region : str
         Region in the US. Acceptable values are:
         * na: Continental North America
@@ -380,16 +374,20 @@ def _coord_urls(
     ----------
     code : int
         Endpoint code which should be one of the following:
+
         * 1840: Daily
         * 1855: Monthly average
         * 1852: Annual average
+
     coord : tuple of length 2
         Coordinates in EPSG:4326 CRS (lon, lat)
     region : str
         Region in the US. Acceptable values are:
+
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
+
     variables : list
         A list of Daymet variables
     dates : list
@@ -400,7 +398,7 @@ def _coord_urls(
     generator
         An iterator of generated URLs.
     """
-    time_scale = _get_filename(code, region)
+    time_scale = _get_filename(region)
 
     lon, lat = coord
     base_url = f"{ServiceURL().restful.daymet}/{code}"
@@ -438,16 +436,20 @@ def _gridded_urls(
     ----------
     code : int
         Endpoint code which should be one of the following:
+
         * 1840: Daily
         * 1855: Monthly average
         * 1852: Annual average
+
     bounds : tuple of length 4
         Bounding box (west, south, east, north)
     region : str
         Region in the US. Acceptable values are:
+
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
+
     variables : list
         A list of Daymet variables
     dates : list
@@ -458,7 +460,7 @@ def _gridded_urls(
     generator
         An iterator of generated URLs.
     """
-    time_scale = _get_filename(code, region)
+    time_scale = _get_filename(region)
 
     west, south, east, north = bounds
     base_url = f"{ServiceURL().restful.daymet}/{code}"
