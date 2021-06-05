@@ -8,9 +8,11 @@ History
 New Features
 ~~~~~~~~~~~~
 - Add command-line interface (:issue_day:`7`).
-- All feature query functions automatically check if ``aiohttp-client-cache`` and
-  ``aiosqlite`` are installed and if so, they use persistent caching. This significantly
-  improves the performance.
+- Use ``AsyncRetriever`` for sending requests asyncronosly with persistent caching.
+  A cache folder in the current directory is created.
+- Check for validity of start/end dates based on Daymet V4 since Puerto Rico data
+  starts from 1950 while North America and Hwaii start from 1980.
+- Check for validity of input coordinate/geometry based on the Daymet V4 bounding boxes.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
