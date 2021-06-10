@@ -58,7 +58,6 @@ dependencies:
 
   # optional deps to speed up xarray and geopandas
   - bottleneck
-  - rtree
   - pygeos
 
   # plotting deps
@@ -72,14 +71,30 @@ dependencies:
   # dev deps
   - setuptools-scm
   - pytest-xdist
+  - psutil
   - pytest-sugar
+  - pytest-clarity
   - pytest-console-scripts
   - flaky
   - codespell
   - pre-commit
 
+  # IDE deps
+  - jupyterlab
+  - jupyterlab-drawio
+  - jupyterlab-git
+  - jupyterlab-python-file
+  - jupyterlab-system-monitor
+  - jupyterlab_widgets
+  - ipywidgets
+  - nb_black
+
   - pip
   - pip:
+    - nbmake
+    - jupyterlab-spellchecker
+    - jupyterlab-unfold
+
     - git+https://github.com/cheginit/async_retriever.git
     - git+https://github.com/cheginit/pygeoogc.git
     - git+https://github.com/cheginit/pygeoutils.git
