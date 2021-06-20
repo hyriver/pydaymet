@@ -7,9 +7,9 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 import async_retriever as ar
 import pandas as pd
 import pygeoutils as geoutils
-import rasterio.transform as rio_transform
+import rasterio.features as rio_features
 import xarray as xr
-from pygeoogc import MatchCRS, RetrySession, ServiceURL
+from pygeoogc import MatchCRS, ServiceURL
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from .core import Daymet
@@ -77,7 +77,7 @@ def get_byloc(
             + "14.5 < lat < 52.0 and -131.0 < lon < -53.0"
         )
 
-    payload = {
+    params = {
         "lat": f"{lat:.6f}",
         "lon": f"{lon:.6f}",
         "vars": ",".join(daymet.variables),
@@ -85,10 +85,9 @@ def get_byloc(
         **dates_dict,
     }
 
-    session = RetrySession()
-    r = session.get(ServiceURL().restful.daymet_point, payload)
+    r = ar.retrieve([ServiceURL().restful.daymet_point], "json", [{"params": params}])
 
-    clm = pd.DataFrame(r.json()["data"])
+    clm = pd.DataFrame(r[0]["data"])
     clm.index = pd.to_datetime(clm.year * 1000.0 + clm.yday, format="%Y%j")
     clm = clm.drop(["year", "yday"], axis=1)
 
@@ -151,7 +150,7 @@ def get_bycoords(
     >>> dates = ("2000-01-01", "2000-12-31")
     >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet=True)
     >>> clm["pet (mm/day)"].mean()
-    4.076187138002121
+    3.472495178802955
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -225,9 +224,11 @@ def get_bygeom(
         The default is False
     region : str, optional
         Region in the US, defaults to na. Acceptable values are:
+
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
+
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly average),
         or annual (annual average). Defaults to daily.
@@ -256,7 +257,7 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
+    _geometry = geoutils.pygeoutils._geo2polygon(geometry, crs, DEF_CRS)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
         raise InvalidInputRange(daymet.invalid_bbox_msg)
@@ -306,24 +307,9 @@ def get_bygeom(
     )
     clm.attrs["crs"] = daymet_crs
     clm.attrs["nodatavals"] = (0.0,)
-
-    xdim, ydim = "x", "y"
-    height, width = clm.sizes[ydim], clm.sizes[xdim]
-
-    left, right = clm[xdim].min().item(), clm[xdim].max().item()
-    bottom, top = clm[ydim].min().item(), clm[ydim].max().item()
-
-    x_res = abs(left - right) / (width - 1)
-    y_res = abs(top - bottom) / (height - 1)
-
-    left -= x_res * 0.5
-    right += x_res * 0.5
-    top += y_res * 0.5
-    bottom -= y_res * 0.5
-
-    clm.attrs["transform"] = rio_transform.from_bounds(left, bottom, right, top, width, height)
-    clm.attrs["res"] = (x_res, y_res)
-    clm.attrs["bounds"] = (left, bottom, right, top)
+    transform, _, _ = geoutils.pygeoutils._get_transform(clm, ("y", "x"))
+    clm.attrs["transform"] = transform
+    clm.attrs["res"] = (transform.a, transform.e)
 
     if pet:
         clm = daymet.pet_bygrid(clm)
@@ -333,7 +319,44 @@ def get_bygeom(
             clm[v].attrs["crs"] = crs
             clm[v].attrs["nodatavals"] = (0.0,)
 
-    return geoutils.xarray_geomask(clm, geometry, crs)
+    return _xarray_geomask(clm, geometry, crs)
+
+
+def _xarray_geomask(
+    ds: Union[xr.Dataset, xr.DataArray],
+    geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
+    geo_crs: str,
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Mask a ``xarray.Dataset`` based on a geometry.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset or xarray.DataArray
+        The dataset(array) to be masked
+    geometry : Polygon, MultiPolygon, or tuple of length 4
+        The geometry or bounding box to mask the data
+    geo_crs : str
+        The spatial reference of the input geometry
+
+    Returns
+    -------
+    xarray.Dataset or xarray.DataArray
+        The input dataset with a mask applied (np.nan)
+    """
+    ds_dims = ("y", "x")
+    transform, width, height = geoutils.pygeoutils._get_transform(ds, ds_dims)
+    _geometry = geoutils.pygeoutils._geo2polygon(geometry, geo_crs, ds.crs)
+
+    _mask = rio_features.geometry_mask([_geometry], (height, width), transform, invert=True)
+
+    coords = {ds_dims[0]: ds.coords[ds_dims[0]], ds_dims[1]: ds.coords[ds_dims[1]]}
+    mask = xr.DataArray(_mask, coords, dims=ds_dims)
+
+    ds_masked = ds.where(mask, drop=True)
+    ds_masked.attrs["transform"] = transform
+    ds_masked.attrs["bounds"] = _geometry.bounds
+
+    return ds_masked
 
 
 def _get_filename(
@@ -345,6 +368,7 @@ def _get_filename(
     ----------
     region : str
         Region in the US. Acceptable values are:
+
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
