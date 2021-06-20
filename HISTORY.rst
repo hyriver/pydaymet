@@ -16,8 +16,8 @@ New Features
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
-- Drop support for python 3.6 since many of the dependencies have done so, such as
-  ``xarray`` and ``pandas``.
+- Drop support for Python 3.6 since many of the dependencies such as ``xarray`` and ``pandas``
+  have done so.
 - Change ``loc_crs`` and ``geo_crs`` arguments to ``crs`` in ``get_bycoords`` and ``get_bygeom``.
 
 Documentation
