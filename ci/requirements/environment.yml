@@ -51,7 +51,7 @@ dependencies:
   - psutil
   - pytest
   - pytest-clarity
-    pytest-console-scripts
+  - pytest-console-scripts
   - pytest-cov
   - pytest-sugar
   - pytest-xdist
