@@ -33,7 +33,7 @@ def test_byloc():
     annual = daymet.get_bycoords(coords, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
 
     assert (
-        abs(pet["pet (mm/day)"].mean() - 4.076) < 1e-3
+        abs(pet["pet (mm/day)"].mean() - 3.472) < 1e-3
         and abs(st_p["tmin (deg c)"].mean() - 12.056) < 1e-3
         and abs(yr_p["tmin (deg c)"].mean() - 11.458) < 1e-3
         and abs(daily["prcp (mm/day)"].mean() - 1.005) < 1e-3
@@ -50,8 +50,8 @@ def test_bygeom():
     annual = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
 
     assert (
-        abs(pet.pet.mean().values - 0.629) < 1e-3
-        and abs(prcp.prcp.mean().values - 3.513) < 1e-3
+        abs(pet.pet.mean().values - 0.6269) < 1e-3
+        and abs(prcp.prcp.mean().values - 3.4999) < 1e-3
         and abs(daily.tmin.mean().values - (-9.421)) < 1e-3
         and abs(monthly.tmin.mean().values - 1.311) < 1e-3
         and abs(annual.tmin.mean().values - 1.361) < 1e-3
@@ -110,6 +110,16 @@ def test_cli_coords(script_runner):
     df = pd.DataFrame(params, index=[0])
     df.to_csv(coord_csv)
     ret = script_runner.run(
+        "pydaymet",
+        coord_csv,
+        "coords",
+        ALT_CRS,
+        *list(tlz.concat([["-v", v] for v in VAR])),
+        "-p",
+        "-s",
+        "geo_coords",
+    )
+    script_runner.run(
         "pydaymet",
         coord_csv,
         "coords",
