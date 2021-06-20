@@ -6,11 +6,76 @@ import pandas as pd
 import py3dep
 import shapely.geometry as sgeom
 import xarray as xr
+from pydantic import BaseModel, validator
 
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 
 DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
+
+
+class DaymetBase(BaseModel):
+    """Base class for validating Daymet requests.
+
+    Parameters
+    ----------
+    pet : bool, optional
+        Whether to compute evapotranspiration based on
+        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
+        The default is False
+    time_scale : str, optional
+        Data time scale which can be daily, monthly (monthly summaries),
+        or annual (annual summaries). Defaults to daily.
+    variables : list, optional
+        List of variables to be downloaded. The acceptable variables are:
+        ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
+        Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
+        Defaults to None i.e., all the variables are downloaded.
+    region : str, optional
+        Region in the US, defaults to na. Acceptable values are:
+
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
+    """
+
+    pet: bool = False
+    time_scale: str = "daily"
+    variables: List[str] = ["all"]
+    region: str = "na"
+
+    @validator("variables")
+    def _valid_variables(cls, v, values) -> List[str]:
+        valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
+        if "all" in v:
+            return valid_variables
+
+        variables = [v] if isinstance(v, str) else v
+
+        if not set(variables).issubset(set(valid_variables)):
+            raise InvalidInputValue("variables", valid_variables)
+
+        if values["pet"]:
+            variables = list({"tmin", "tmax", "srad", "dayl"} | set(variables))
+        return variables
+
+    @validator("time_scale")
+    def _valid_timescales(cls, v, values):
+        valid_timescales = ["daily", "monthly", "annual"]
+        if v not in valid_timescales:
+            raise InvalidInputValue("time_scale", valid_timescales)
+
+        if values["pet"] and v != "daily":
+            msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
+            raise InvalidInputRange(msg)
+        return v
+
+    @validator("region")
+    def _valid_regions(cls, v):
+        valid_regions = ["na", "hi", "pr"]
+        if v not in valid_regions:
+            raise InvalidInputValue("region", valid_regions)
+        return v
 
 
 class Daymet:
@@ -45,8 +110,14 @@ class Daymet:
         time_scale: str = "daily",
         region: str = "na",
     ) -> None:
-        self.valid_regions = ["na", "hi", "pr"]
-        self.region = self.check_input_validity(region, self.valid_regions)
+
+        _variables = ["all"] if variables is None else variables
+        _variables = [_variables] if isinstance(_variables, str) else _variables
+        validated = DaymetBase(variables=_variables, pet=pet, time_scale=time_scale, region=region)
+        self.variables = validated.variables
+        self.pet = validated.pet
+        self.time_scale = validated.time_scale
+        self.region = validated.region
 
         self.region_bbox = {
             "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
@@ -68,9 +139,8 @@ class Daymet:
             "Daymet database ranges from " + f"{self.valid_start.year} to {self.valid_end.year}."
         )
         self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
-        self.time_scale = self.check_input_validity(time_scale, list(self.time_codes.keys()))
 
-        vars_table = pd.DataFrame(
+        self.daymet_table = pd.DataFrame(
             {
                 "Parameter": [
                     "Day length",
@@ -103,31 +173,7 @@ class Daymet:
             }
         )
 
-        self.units = dict(zip(vars_table["Abbr"], vars_table["Units"]))
-
-        self.valid_variables = vars_table.Abbr.to_list()
-        if variables is None:
-            self.variables = self.valid_variables
-        else:
-            self.variables = [variables] if isinstance(variables, str) else variables
-
-            if not set(self.variables).issubset(set(self.valid_variables)):
-                raise InvalidInputValue("variables", self.valid_variables)
-
-            if pet:
-                if time_scale != "daily":
-                    msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
-                    raise InvalidInputRange(msg)
-
-                reqs = ("tmin", "tmax", "vp", "srad", "dayl")
-                self.variables = list(set(reqs) | set(self.variables))
-
-    @staticmethod
-    def check_input_validity(inp: str, valid_list: Iterable[str]) -> str:
-        """Check the validity of input based on a list of valid options."""
-        if inp not in valid_list:
-            raise InvalidInputValue(inp, valid_list)
-        return inp
+        self.units = dict(zip(self.daymet_table["Abbr"], self.daymet_table["Units"]))
 
     @staticmethod
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
@@ -237,21 +283,22 @@ class Daymet:
         Notes
         -----
         The method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
-        is 2 m/s. The following variables are required:
-        tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
-        The computed PET's unit is mm/day.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__
+        assuming that soil heat flux density is zero.
 
         Parameters
         ----------
         clm_df : DataFrame
-            A dataframe with columns named as follows:
-            ``tmin (deg c)``, ``tmax (deg c)``, ``vp (Pa)``, ``srad (W/m^2)``, and ``dayl (s)``.
+            The dataset must include at least the following variables:
+            ``tmin (deg c)``, ``tmax (deg c)``, ``srad (W/m^2)``, and ``dayl (s)``.
+            Also, if ``rh (-)`` (relative humidity) and ``u2 (m/s)`` (wind at 2 m level)
+            are available, they are used. Otherwise, actual vapour pressure is assumed
+            to be saturation vapour pressure at daily minimum temperature and 2-m wind
+            speed is considered to be 2 m/s.
         coords : tuple of floats
             Coordinates of the daymet data location as a tuple, (x, y).
         crs : str, optional
-            The spatial reference of the input coordinate, defaults to epsg:4326
+            The spatial reference of the input coordinate, defaults to epsg:4326.
         alt_unit : str, optional
             Whether to use alternative units rather than the official ones, defaults to False.
 
@@ -265,14 +312,15 @@ class Daymet:
             "temp": ("degrees C", "deg c"),
         }
 
-        va_pa = "vp (Pa)"
         tmin_c = f"tmin ({units['temp'][alt_unit]})"
         tmax_c = f"tmax ({units['temp'][alt_unit]})"
         srad_wm2 = f"srad ({units['srad'][alt_unit]})"
         dayl_s = "dayl (s)"
         tmean_c = "tmean (deg c)"
+        rh = "rh (-)"
+        u2 = "u2 (m/s)"
 
-        reqs = [tmin_c, tmax_c, va_pa, srad_wm2, dayl_s]
+        reqs = [tmin_c, tmax_c, srad_wm2, dayl_s]
 
         _check_requirements(reqs, clm_df.columns)
 
@@ -289,15 +337,18 @@ class Daymet:
         )
         elevation = py3dep.elevation_bycoords([coords], crs)[0]
 
+        # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
-        gamma = pa * 0.665e-3
-
-        clm_df[va_pa] = clm_df[va_pa] * 1e-3
+        # Latent Heat of Vaporization [MJ/kg]
+        lmbda = 2.501 - 0.002361 * clm_df[tmean_c]
+        # Psychrometric constant [kPa/°C]
+        gamma = 1.013e-3 * pa / (0.622 * lmbda)
 
         e_max = 0.6108 * np.exp(17.27 * clm_df[tmax_c] / (clm_df[tmax_c] + 237.3))
         e_min = 0.6108 * np.exp(17.27 * clm_df[tmin_c] / (clm_df[tmin_c] + 237.3))
         e_s = (e_max + e_min) * 0.5
-        e_def = e_s - clm_df[va_pa]
+        e_a = clm_df[rh] * e_s * 1e-2 if rh in clm_df else e_min
+        e_def = e_s - e_a
 
         jday = clm_df.index.dayofyear
         r_surf = clm_df[srad_wm2] * clm_df[dayl_s] * 1e-6
@@ -322,18 +373,19 @@ class Daymet:
         rad_nl = (
             4.903e-9
             * (((clm_df[tmax_c] + 273.16) ** 4 + (clm_df[tmin_c] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(clm_df[va_pa]))
+            * (0.34 - 0.14 * np.sqrt(e_a))
             * ((1.35 * r_surf / rad_s) - 0.35)
         )
         rad_n = rad_ns - rad_nl
 
-        rho_s = 0.0  # recommended for daily data
-        u_2m = 2.0  # recommended when no data is available
+        # recommended for daily data
+        rho_s = 0.0
+        # recommended when no data is available
+        u_2m = clm_df[u2] if u2 in clm_df else 2.0
         clm_df["pet (mm/day)"] = (
             0.408 * delta_v * (rad_n - rho_s)
             + gamma * 900.0 / (clm_df[tmean_c] + 273.0) * u_2m * e_def
         ) / (delta_v + gamma * (1 + 0.34 * u_2m))
-        clm_df[va_pa] = clm_df[va_pa] * 1.0e3
 
         clm_df = clm_df.drop(columns=tmean_c)
         return clm_df
@@ -342,32 +394,37 @@ class Daymet:
     def pet_bygrid(clm_ds: xr.Dataset) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using Daymet dataset.
 
+        Notes
+        -----
         The method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        Moreover, we assume that soil heat flux density is zero and wind speed at 2 m height
-        is 2 m/s. The following variables are required:
-        tmin (deg c), tmax (deg c), lat, lon, vp (Pa), srad (W/m2), dayl (s/day)
-        The computed PET's unit is mm/day.
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__
+        assuming that soil heat flux density is zero.
 
         Parameters
         ----------
         clm_ds : xarray.DataArray
-            The dataset should include the following variables:
-            ``tmin``, ``tmax``, ``lat``, ``lon``, ``vp``, ``srad``, ``dayl``
+            The dataset must include at least the following variables:
+            ``tmin``, ``tmax``, ``lat``, ``lon``, ``srad``, ``dayl``. Also, if
+            ``rh`` (relative humidity) and ``u2`` (wind at 2 m level)
+            are available, they are used. Otherwise, actual vapour pressure is assumed
+            to be saturation vapour pressure at daily minimum temperature and 2-m wind
+            speed is considered to be 2 m/s.
 
         Returns
         -------
         xarray.DataArray
-            The input dataset with an additional variable called ``pet``.
+            The input dataset with an additional variable called ``pet`` in mm/day.
         """
         keys = list(clm_ds.keys())
-        reqs = ["tmin", "tmax", "lat", "lon", "vp", "srad", "dayl"]
+        reqs = ["tmin", "tmax", "lat", "lon", "srad", "dayl"]
 
         _check_requirements(reqs, keys)
 
         dtype = clm_ds.tmin.dtype
         dates = clm_ds["time"]
         clm_ds["tmean"] = 0.5 * (clm_ds["tmax"] + clm_ds["tmin"])
+
+        # Slope of saturation vapour pressure [kPa/°C]
         clm_ds["delta_r"] = (
             4098
             * (0.6108 * np.exp(17.27 * clm_ds["tmean"] / (clm_ds["tmean"] + 237.3)))
@@ -381,15 +438,20 @@ class Daymet:
             ~np.isnan(clm_ds.isel(time=0)[keys[0]]), drop=True
         ).T
 
+        # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * clm_ds["elevation"]) / 293.0) ** 5.26
-        clm_ds["gamma"] = pa * 0.665e-3
+        # Latent Heat of Vaporization [MJ/kg]
+        lmbda = 2.501 - 0.002361 * clm_ds["tmean"]
+        # Psychrometric constant [kPa/°C]
+        clm_ds["gamma"] = 1.013e-3 * pa / (0.622 * lmbda)
 
-        clm_ds["vp"] *= 1e-3
-
+        # Saturation vapor pressure [kPa]
         e_max = 0.6108 * np.exp(17.27 * clm_ds["tmax"] / (clm_ds["tmax"] + 237.3))
         e_min = 0.6108 * np.exp(17.27 * clm_ds["tmin"] / (clm_ds["tmin"] + 237.3))
         e_s = (e_max + e_min) * 0.5
-        clm_ds["e_def"] = e_s - clm_ds["vp"]
+
+        clm_ds["e_a"] = clm_ds["rh"] * e_s * 1e-2 if "rh" in keys else e_min
+        clm_ds["e_def"] = e_s - clm_ds["e_a"]
 
         lat = clm_ds.isel(time=0).lat
         clm_ds["time"] = pd.to_datetime(clm_ds.time.values).dayofyear.astype(dtype)
@@ -415,13 +477,15 @@ class Daymet:
         rad_nl = (
             4.903e-9
             * (((clm_ds["tmax"] + 273.16) ** 4 + (clm_ds["tmin"] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(clm_ds["vp"]))
+            * (0.34 - 0.14 * np.sqrt(clm_ds["e_a"]))
             * ((1.35 * r_surf / rad_s) - 0.35)
         )
         clm_ds["rad_n"] = rad_ns - rad_nl
 
-        rho_s = 0.0  # recommended for daily data
-        u_2m = 2.0  # recommended when no data is available
+        # recommended for daily data
+        rho_s = 0.0
+        # recommended when no data is available
+        u_2m = clm_ds["u2"] if "u2" in keys else 2.0
         clm_ds["pet"] = (
             0.408 * clm_ds["delta_r"] * (clm_ds["rad_n"] - rho_s)
             + clm_ds["gamma"] * 900.0 / (clm_ds["tmean"] + 273.0) * u_2m * clm_ds["e_def"]
@@ -429,9 +493,8 @@ class Daymet:
         clm_ds["pet"].attrs["units"] = "mm/day"
 
         clm_ds["time"] = dates
-        clm_ds["vp"] *= 1.0e3
 
-        clm_ds = clm_ds.drop_vars(["delta_r", "gamma", "e_def", "rad_n", "tmean"])
+        clm_ds = clm_ds.drop_vars(["delta_r", "gamma", "e_def", "rad_n", "tmean", "e_a"])
 
         return clm_ds
 
