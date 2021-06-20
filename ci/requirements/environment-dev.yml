@@ -20,21 +20,21 @@ dependencies:
   # pygeoogc deps
   - defusedxml
   - owslib
+  - pydantic
   - pyyaml
   - pyproj
   - requests
   - requests-cache
-  - setuptools
   - shapely
   - simplejson
   - urllib3
 
   # pygeoutils deps
   - affine
+  - dask-core
   - geopandas
-  - numpy
   - netcdf4
-  - orjson
+  - numpy
   - rasterio
   - xarray
 
@@ -53,7 +53,6 @@ dependencies:
   - openpyxl
 
   # pydaymet deps
-  - dask-core
   - scipy
 
   # optional deps to speed up xarray and geopandas
@@ -69,15 +68,16 @@ dependencies:
   - geoviews
 
   # dev deps
-  - setuptools-scm
-  - pytest-xdist
-  - psutil
-  - pytest-sugar
-  - pytest-clarity
-  - pytest-console-scripts
-  - flaky
   - codespell
+  - nox
   - pre-commit
+  - psutil
+  - pytest
+  - pytest-clarity
+  - pytest-cov
+  - pytest-sugar
+  - pytest-xdist
+  - setuptools-scm
 
   # IDE deps
   - jupyterlab
