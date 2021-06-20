@@ -150,7 +150,7 @@ def get_bycoords(
     >>> dates = ("2000-01-01", "2000-12-31")
     >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet=True)
     >>> clm["pet (mm/day)"].mean()
-    3.472495178802955
+    3.472
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -246,8 +246,8 @@ def get_bygeom(
     ...     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
     ... )
     >>> clm = daymet.get_bygeom(geometry, 2010, variables="tmin", time_scale="annual")
-    >>> clm["tmin"].mean().values
-    array(1.3613942, dtype=float32)
+    >>> clm["tmin"].mean().compute().item()
+    1.361
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
