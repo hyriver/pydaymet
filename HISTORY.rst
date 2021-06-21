@@ -13,6 +13,8 @@ New Features
 - Check for validity of start/end dates based on Daymet V4 since Puerto Rico data
   starts from 1950 while North America and Hwaii start from 1980.
 - Check for validity of input coordinate/geometry based on the Daymet V4 bounding boxes.
+- Improve accuracy of computing Psychrometric constant in PET calculations by using
+  an equation in Allen et al. 1998.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
@@ -23,6 +25,12 @@ Breaking Changes
 Documentation
 ~~~~~~~~~~~~~
 - Add examples to docstrings and improve writing.
+- Add more notes regarding the underlying assumptions for ``pet_bycoords`` and ``pet_bygrid``.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Refactor ``Daymet`` class to use ``pydantic`` for validating the inputs.
+- Increase test coverage.
 
 0.10.2 (2021-03-27)
 -------------------
