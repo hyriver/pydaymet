@@ -1,5 +1,3 @@
-.. highlight:: shell
-
 .. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pydaymet_logo.png
     :target: https://github.com/cheginit/HyRiver
 
