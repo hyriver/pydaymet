@@ -257,7 +257,7 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    _geometry = geoutils.pygeoutils._geo2polygon(geometry, crs, DEF_CRS)
+    _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
         raise InvalidInputRange(daymet.invalid_bbox_msg)
@@ -345,7 +345,7 @@ def _xarray_geomask(
     """
     ds_dims = ("y", "x")
     transform, width, height = geoutils.pygeoutils._get_transform(ds, ds_dims)
-    _geometry = geoutils.pygeoutils._geo2polygon(geometry, geo_crs, ds.crs)
+    _geometry = geoutils.geo2polygon(geometry, geo_crs, ds.crs)
 
     _mask = rio_features.geometry_mask([_geometry], (height, width), transform, invert=True)
 
