@@ -11,11 +11,11 @@ dependencies:
   - brotlipy
   - cchardet
   - cytoolz
+  - defusedxml
   - nest-asyncio
   - orjson
 
   # pygeoogc deps
-  - defusedxml
   - owslib
   - pydantic
   - pyyaml
@@ -28,7 +28,7 @@ dependencies:
 
   # pygeoutils deps
   - affine
-  - dask-core
+  - dask
   - geopandas
   - netcdf4
   - numpy
