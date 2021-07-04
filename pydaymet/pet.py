@@ -1,6 +1,6 @@
 """Core class for the Daymet functions."""
 from dataclasses import dataclass
-from typing import List, Iterable, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -8,6 +8,7 @@ import py3dep
 import xarray as xr
 
 from .exceptions import InvalidInputType, InvalidInputValue, MissingItems
+
 DEF_CRS = "epsg:4326"
 
 
