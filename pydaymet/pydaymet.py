@@ -14,6 +14,7 @@ from shapely.geometry import MultiPolygon, Point, Polygon
 
 from .core import Daymet
 from .exceptions import InvalidInputRange, InvalidInputType
+from .pet import potential_et
 
 DEF_CRS = "epsg:4326"
 DATE_REQ = "%Y-%m-%dT%H:%M:%SZ"
@@ -92,7 +93,7 @@ def get_byloc(
     clm = clm.drop(["year", "yday"], axis=1)
 
     if pet:
-        clm = daymet.pet_bycoords(clm, (lon, lat), alt_unit=True)
+        clm = potential_et(clm, (lon, lat), alt_unit=True)
     return clm
 
 
@@ -191,7 +192,7 @@ def get_bycoords(
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
     if pet:
-        clm = daymet.pet_bycoords(clm, coords, alt_unit=False)
+        clm = potential_et(clm, coords, alt_unit=False)
     return clm
 
 
@@ -312,7 +313,7 @@ def get_bygeom(
     clm.attrs["res"] = (transform.a, transform.e)
 
     if pet:
-        clm = daymet.pet_bygrid(clm)
+        clm = potential_et(clm)
 
     if isinstance(clm, xr.Dataset):
         for v in clm:
