@@ -265,10 +265,8 @@ class Daymet:
         for year in date_dict["years"].split(","):
             s = pd.to_datetime(f"{year}0101")
             start_list.append(s + pd.DateOffset(hour=12))
-            if int(year) % 4 == 0 and (int(year) % 100 != 0 or int(year) % 400 == 0):
-                end_list.append(pd.to_datetime(f"{year}1230") + pd.DateOffset(hour=12))
-            else:
-                end_list.append(pd.to_datetime(f"{year}1231") + pd.DateOffset(hour=12))
+            e = pd.to_datetime(f"{year}1230") if s.is_leap_year else pd.to_datetime(f"{year}1231")
+            end_list.append(e + pd.DateOffset(hour=12))
         return list(zip(start_list, end_list))
 
     @staticmethod
