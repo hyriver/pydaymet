@@ -7,9 +7,9 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 import async_retriever as ar
 import pandas as pd
 import pygeoutils as geoutils
-import rasterio.features as rio_features
 import xarray as xr
-from pygeoogc import MatchCRS, ServiceURL
+from pygeoogc import ServiceURL
+from pygeoogc import utils as ogcutils
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from .core import Daymet
@@ -68,7 +68,7 @@ def get_byloc(
     if not (isinstance(coords, tuple) and len(coords) == 2):
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
-    lon, lat = MatchCRS(crs, DEF_CRS).coords([coords])[0]
+    lon, lat = ogcutils.match_crs([coords], crs, DEF_CRS)[0]
 
     if not ((14.5 < lat < 52.0) or (-131.0 < lon < -53.0)):
         raise InvalidInputRange(
@@ -163,7 +163,7 @@ def get_bycoords(
     if not (isinstance(coords, tuple) and len(coords) == 2):
         raise InvalidInputType("coords", "tuple", "(lon, lat)")
 
-    coords = MatchCRS(crs, DEF_CRS).coords([coords])[0]
+    coords = ogcutils.match_crs([coords], crs, DEF_CRS)[0]
 
     if not Point(*coords).within(daymet.region_bbox[region]):
         raise InvalidInputRange(daymet.invalid_bbox_msg)
@@ -319,44 +319,7 @@ def get_bygeom(
             clm[v].attrs["crs"] = crs
             clm[v].attrs["nodatavals"] = (0.0,)
 
-    return _xarray_geomask(clm, geometry, crs)
-
-
-def _xarray_geomask(
-    ds: Union[xr.Dataset, xr.DataArray],
-    geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
-    geo_crs: str,
-) -> Union[xr.Dataset, xr.DataArray]:
-    """Mask a ``xarray.Dataset`` based on a geometry.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset or xarray.DataArray
-        The dataset(array) to be masked
-    geometry : Polygon, MultiPolygon, or tuple of length 4
-        The geometry or bounding box to mask the data
-    geo_crs : str
-        The spatial reference of the input geometry
-
-    Returns
-    -------
-    xarray.Dataset or xarray.DataArray
-        The input dataset with a mask applied (np.nan)
-    """
-    ds_dims = ("y", "x")
-    transform, width, height = geoutils.pygeoutils._get_transform(ds, ds_dims)
-    _geometry = geoutils.geo2polygon(geometry, geo_crs, ds.crs)
-
-    _mask = rio_features.geometry_mask([_geometry], (height, width), transform, invert=True)
-
-    coords = {ds_dims[0]: ds.coords[ds_dims[0]], ds_dims[1]: ds.coords[ds_dims[1]]}
-    mask = xr.DataArray(_mask, coords, dims=ds_dims)
-
-    ds_masked = ds.where(mask, drop=True)
-    ds_masked.attrs["transform"] = transform
-    ds_masked.attrs["bounds"] = _geometry.bounds
-
-    return ds_masked
+    return geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
 
 
 def _get_filename(
