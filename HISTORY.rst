@@ -2,7 +2,18 @@
 History
 =======
 
-0.11.0 (unreleased)
+0.11.1 (unreleased)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Refactor ``Daymet`` class by removing ``pet_bycoords`` and ``pet_bygrid`` methods and
+  creating a new public function called ``potential_et``. This function computes potential
+  evapotranspiration (PET) and supports both gridded (``xarray.Dataset``) and single pixel
+  (``pandas.DataFrame``) climate data. The long-term plan is to add support for methods
+  other than FAO 56 for computing PET.
+
+0.11.0 (2021-06-19)
 -------------------
 
 New Features
