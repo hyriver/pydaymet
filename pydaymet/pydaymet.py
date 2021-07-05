@@ -308,7 +308,7 @@ def get_bygeom(
     )
     clm.attrs["crs"] = daymet_crs
     clm.attrs["nodatavals"] = (0.0,)
-    transform, _, _ = geoutils.pygeoutils._get_transform(clm, ("y", "x"))
+    transform, _, _ = geoutils.get_transform(clm, ("y", "x"))
     clm.attrs["transform"] = transform
     clm.attrs["res"] = (transform.a, transform.e)
 
