@@ -77,21 +77,9 @@ dependencies:
   - pytest-xdist
   - setuptools-scm
 
-  # IDE deps
-  - jupyterlab
-  - jupyterlab-drawio
-  - jupyterlab-git
-  - jupyterlab-python-file
-  - jupyterlab-system-monitor
-  - jupyterlab_widgets
-  - ipywidgets
-  - nb_black
-
   - pip
   - pip:
     - nbmake
-    - jupyterlab-spellchecker
-    - jupyterlab-unfold
 
     - git+https://github.com/cheginit/async_retriever.git
     - git+https://github.com/cheginit/pygeoogc.git
