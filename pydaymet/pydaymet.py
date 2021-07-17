@@ -8,7 +8,7 @@ import async_retriever as ar
 import pandas as pd
 import pygeoutils as geoutils
 import xarray as xr
-from pygeoogc import ServiceURL
+from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
 from shapely.geometry import MultiPolygon, Point, Polygon
 
@@ -151,7 +151,7 @@ def get_bycoords(
     >>> dates = ("2000-01-01", "2000-12-31")
     >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet=True)
     >>> clm["pet (mm/day)"].mean()
-    3.472
+    3.497
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -279,12 +279,12 @@ def get_bygeom(
             engine="scipy",
             coords="minimal",
         )
-    except ValueError:
+    except ValueError as ex:
         msg = (
-            "The server did NOT process your request successfully. "
+            "The service did NOT process your request successfully. "
             + "Check your inputs and try again."
         )
-        raise ValueError(msg)
+        raise ServiceError(msg) from ex
 
     for k, v in daymet.units.items():
         if k in clm.variables:
