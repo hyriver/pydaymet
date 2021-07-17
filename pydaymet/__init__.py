@@ -10,5 +10,17 @@ from .pydaymet import get_bycoords, get_bygeom, get_byloc
 try:
     __version__ = get_distribution(__name__).version
 except DistributionNotFound:
-    # package is not installed
-    pass
+    __version__ = "999"
+
+__all__ = [
+    "Daymet",
+    "get_bycoords",
+    "get_bygeom",
+    "get_byloc",
+    "potential_et",
+    "show_versions",
+    "InvalidInputRange",
+    "InvalidInputType",
+    "InvalidInputValue",
+    "MissingItems",
+]
