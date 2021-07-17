@@ -170,7 +170,7 @@ class PETCoords:
             )
             / ((self.clm[tmean_c] + 237.3) ** 2)
         )
-        elevation = py3dep.elevation_bycoords([self.coords], self.crs)[0]
+        elevation = py3dep.elevation_bycoords([self.coords], self.crs, source="tnm")[0]
 
         # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
