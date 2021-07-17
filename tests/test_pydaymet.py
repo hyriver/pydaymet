@@ -2,6 +2,7 @@
 import io
 import shutil
 from pathlib import Path
+from typing import Tuple
 
 import cytoolz as tlz
 import geopandas as gpd
@@ -18,55 +19,68 @@ YEAR = 2010
 VAR = ["prcp", "tmin"]
 DEF_CRS = "epsg:4326"
 ALT_CRS = "epsg:3542"
+COORDS = (-1431147.7928, 318483.4618)
+DATES = ("2000-01-01", "2000-12-31")
+SMALL = 1e-3
 
 
 def test_byloc():
-    coords = (-1431147.7928, 318483.4618)
-    dates = ("2000-01-01", "2000-12-31")
-
-    pet = daymet.get_byloc(coords, dates, crs=ALT_CRS, pet=True)
-    st_p = daymet.get_byloc(coords, dates, crs=ALT_CRS, variables=VAR)
-    yr_p = daymet.get_byloc(coords, YEAR, crs=ALT_CRS, variables=VAR)
-
-    daily = daymet.get_bycoords(coords, dates, variables=VAR, crs=ALT_CRS)
-    monthly = daymet.get_bycoords(coords, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
-    annual = daymet.get_bycoords(coords, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
+    pet = daymet.get_byloc(COORDS, DATES, crs=ALT_CRS, pet=True)
+    st_p = daymet.get_byloc(COORDS, DATES, crs=ALT_CRS, variables=VAR)
+    yr_p = daymet.get_byloc(COORDS, YEAR, crs=ALT_CRS, variables=VAR)
 
     assert (
-        abs(pet["pet (mm/day)"].mean() - 3.472) < 1e-3
-        and abs(st_p["tmin (deg c)"].mean() - 12.056) < 1e-3
-        and abs(yr_p["tmin (deg c)"].mean() - 11.458) < 1e-3
-        and abs(daily["prcp (mm/day)"].mean() - 1.005) < 1e-3
-        and abs(monthly["tmin (degrees C)"].mean() - 11.435) < 1e-3
-        and abs(annual["tmin (degrees C)"].mean() - 11.458) < 1e-3
+        abs(pet["pet (mm/day)"].mean() - 3.497) < SMALL
+        and abs(st_p["tmin (deg c)"].mean() - 12.056) < SMALL
+        and abs(yr_p["tmin (deg c)"].mean() - 11.458) < SMALL
     )
 
 
-def test_bygeom():
-    pet = daymet.get_bygeom(GEOM, DAY, pet=True)
-    prcp = daymet.get_bygeom(GEOM.bounds, DAY)
-    daily = daymet.get_bygeom(GEOM, DAY, variables=VAR)
-    monthly = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly")
-    annual = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
+class TestByCoords:
+    def test_daily(self):
+        clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
+        assert abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
 
-    assert (
-        abs(pet.pet.mean().values - 0.6269) < 1e-3
-        and abs(prcp.prcp.mean().values - 3.4999) < 1e-3
-        and abs(daily.tmin.mean().values - (-9.421)) < 1e-3
-        and abs(monthly.tmin.mean().values - 1.311) < 1e-3
-        and abs(annual.tmin.mean().values - 1.361) < 1e-3
-    )
+    def test_monthly(self):
+        clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
+        assert abs(clm["tmin (degrees C)"].mean() - 11.435) < SMALL
+
+    def test_annual(self):
+        clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
+        assert abs(clm["tmin (degrees C)"].mean() - 11.458) < SMALL
 
 
-def test_region():
-    hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
-    pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
-    hi = daymet.get_bygeom(hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual")
-    pr = daymet.get_bygeom(pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual")
+class TestByGeom:
+    def test_pet(self):
+        pet = daymet.get_bygeom(GEOM, DAY, pet=True)
+        assert abs(pet.pet.mean().values - 0.6269) < SMALL
 
-    assert (
-        abs(hi.prcp.mean().values - 1035.233) < 1e-3 and abs(pr.tmin.mean().values - 21.441) < 1e-3
-    )
+    def test_bounds(self):
+        prcp = daymet.get_bygeom(GEOM.bounds, DAY)
+        assert abs(prcp.prcp.mean().values - 3.4999) < SMALL
+
+    def test_daily(self):
+        daily = daymet.get_bygeom(GEOM, DAY, variables=VAR)
+        assert abs(daily.tmin.mean().values - (-9.421)) < SMALL
+
+    def test_monthly(self):
+        monthly = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly")
+        assert abs(monthly.tmin.mean().values - 1.311) < SMALL
+
+    def test_annual(self):
+        annual = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
+        assert abs(annual.tmin.mean().values - 1.361) < SMALL
+
+    def test_region(self):
+        hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
+        pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
+        hi = daymet.get_bygeom(hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual")
+        pr = daymet.get_bygeom(pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual")
+
+        assert (
+            abs(hi.prcp.mean().values - 1035.233) < SMALL
+            and abs(pr.tmin.mean().values - 21.441) < SMALL
+        )
 
 
 def test_cli_grid(script_runner):
