@@ -11,11 +11,11 @@ dependencies:
   - brotlipy
   - cchardet
   - cytoolz
-  - defusedxml
   - nest-asyncio
   - orjson
 
   # pygeoogc deps
+  - defusedxml
   - owslib
   - pydantic
   - pyyaml
@@ -37,10 +37,11 @@ dependencies:
 
   # py3dep
   - click
+  - scipy
+  - richdem
 
   # pydaymet deps
   - lxml
-  - scipy
 
   # deps to speed up xarray and geopandas
   - pygeos
