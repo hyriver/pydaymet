@@ -278,7 +278,7 @@ class PETGridded:
         self.clm = xr.merge([self.clm, elev], combine_attrs="override")
         self.clm["elevation"] = self.clm.elevation.where(
             ~np.isnan(self.clm.isel(time=0)[keys[0]]), drop=True
-        ).T
+        )
 
         # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * self.clm["elevation"]) / 293.0) ** 5.26
