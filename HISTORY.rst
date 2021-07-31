@@ -2,8 +2,11 @@
 History
 =======
 
-0.11.1 (unreleased)
+0.11.1 (2021-07-31)
 -------------------
+
+The highligth of this release is a major refactor of ``Daymet`` to allow for
+extending PET computation function for using methods other than FAO-56.
 
 New Features
 ~~~~~~~~~~~~
