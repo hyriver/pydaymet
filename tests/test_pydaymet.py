@@ -24,19 +24,12 @@ DATES = ("2000-01-01", "2000-12-31")
 SMALL = 1e-3
 
 
-def test_byloc():
-    pet = daymet.get_byloc(COORDS, DATES, crs=ALT_CRS, pet=True)
-    st_p = daymet.get_byloc(COORDS, DATES, crs=ALT_CRS, variables=VAR)
-    yr_p = daymet.get_byloc(COORDS, YEAR, crs=ALT_CRS, variables=VAR)
-
-    assert (
-        abs(pet["pet (mm/day)"].mean() - 3.497) < SMALL
-        and abs(st_p["tmin (deg c)"].mean() - 12.056) < SMALL
-        and abs(yr_p["tmin (deg c)"].mean() - 11.458) < SMALL
-    )
-
-
 class TestByCoords:
+    def test_pet(self):
+        hs = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet="hargreaves_samani")
+        pm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet="penman_monteith")
+        assert abs(hs["pet (mm/day)"].mean() - pm["pet (mm/day)"].mean()) < 0.2166
+
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
         assert abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
@@ -52,8 +45,9 @@ class TestByCoords:
 
 class TestByGeom:
     def test_pet(self):
-        pet = daymet.get_bygeom(GEOM, DAY, pet=True)
-        assert abs(pet.pet.mean().values - 0.6269) < SMALL
+        hs = daymet.get_bygeom(GEOM, DAY, pet="hargreaves_samani")
+        pm = daymet.get_bygeom(GEOM, DAY, pet="penman_monteith")
+        assert abs(hs.pet.mean().values - pm.pet.mean().values) < 0.1749
 
     def test_bounds(self):
         prcp = daymet.get_bygeom(GEOM.bounds, DAY)
@@ -130,6 +124,7 @@ def test_cli_coords(script_runner):
         ALT_CRS,
         *list(tlz.concat([["-v", v] for v in VAR])),
         "-p",
+        "hargreaves_samani",
         "-s",
         "geo_coords",
     )
@@ -140,6 +135,7 @@ def test_cli_coords(script_runner):
         ALT_CRS,
         *list(tlz.concat([["-v", v] for v in VAR])),
         "-p",
+        "hargreaves_samani",
         "-s",
         "geo_coords",
     )

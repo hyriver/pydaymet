@@ -16,7 +16,7 @@ def test_invalid_variable():
 
 def test_invalid_pet_timescale():
     with pytest.raises(ValidationError) as ex:
-        _ = daymet.get_bycoords(COORDS, DATES, pet=True, time_scale="monthly")
+        _ = daymet.get_bycoords(COORDS, DATES, pet="hargreaves_samani", time_scale="monthly")
     assert "PET can only" in str(ex.value)
 
 
