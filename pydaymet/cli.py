@@ -48,7 +48,8 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 @click.option(
     "-p",
     "--pet",
-    is_flag=True,
+    type=click.Choice(["penman_monteith", "hargreaves_samani", "none"], case_sensitive=True),
+    default="none",
     help="Compute PET.",
 )
 @click.option(
@@ -65,7 +66,7 @@ def main(
     crs: str,
     variables: Optional[Union[List[str], str]] = None,
     time_scale: str = "daily",
-    pet: bool = False,
+    pet: str = "none",
     save_dir: Union[str, Path] = "clm_daymet",
 ):
     r"""Retrieve cliamte data within geometries or elevations for a list of coordinates.
@@ -102,7 +103,12 @@ def main(
 
     get_func = {"coords": daymet.get_bycoords, "geometry": daymet.get_bygeom}
     cols = ["dates", "region"]
-    extra_args = {"crs": crs, "variables": variables, "time_scale": time_scale, "pet": pet}
+    extra_args = {
+        "crs": crs,
+        "variables": variables,
+        "time_scale": time_scale,
+        "pet": None if pet == "none" else pet,
+    }
 
     if target_type == "geometry":
         target_df = gpd.read_file(target, crs=crs)

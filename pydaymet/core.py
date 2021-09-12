@@ -19,10 +19,14 @@ class DaymetBase(BaseModel):
 
     Parameters
     ----------
-    pet : bool, optional
-        Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        The default is False
+    pet : str, optional
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
+        The ``penman_monteith`` method is based on
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
+        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+        Defaults to ``hargreaves_samani``.
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -39,10 +43,17 @@ class DaymetBase(BaseModel):
         * pr: Puerto Rico
     """
 
-    pet: bool = False
+    pet: Optional[str] = None
     time_scale: str = "daily"
     variables: List[str] = ["all"]
     region: str = "na"
+
+    @validator("pet")
+    def _valid_pet(cls, v):
+        valid_methods = ["penman_monteith", "hargreaves_samani", None]
+        if v not in valid_methods:
+            raise InvalidInputValue("pet", valid_methods)
+        return v
 
     @validator("variables")
     def _valid_variables(cls, v, values) -> List[str]:
@@ -55,7 +66,7 @@ class DaymetBase(BaseModel):
         if not set(variables).issubset(set(valid_variables)):
             raise InvalidInputValue("variables", valid_variables)
 
-        if values["pet"]:
+        if values["pet"] is not None:
             variables = list({"tmin", "tmax", "srad", "dayl"} | set(variables))
         return variables
 
@@ -65,7 +76,7 @@ class DaymetBase(BaseModel):
         if v not in valid_timescales:
             raise InvalidInputValue("time_scale", valid_timescales)
 
-        if values["pet"] and v != "daily":
+        if values["pet"] is not None and v != "daily":
             msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
             raise InvalidInputRange(msg)
         return v
@@ -106,7 +117,7 @@ class Daymet:
     def __init__(
         self,
         variables: Optional[Union[Iterable[str], str]] = None,
-        pet: bool = False,
+        pet: Optional[str] = None,
         time_scale: str = "daily",
         region: str = "na",
     ) -> None:

@@ -1,7 +1,6 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 import io
 import itertools
-import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import async_retriever as ar
@@ -20,91 +19,14 @@ DEF_CRS = "epsg:4326"
 DATE_REQ = "%Y-%m-%dT%H:%M:%SZ"
 
 
-def get_byloc(
-    coords: Tuple[float, float],
-    dates: Union[Tuple[str, str], Union[int, List[int]]],
-    crs: str = DEF_CRS,
-    variables: Optional[Union[Iterable[str], str]] = None,
-    pet: bool = False,
-) -> pd.DataFrame:
-    """Get daily climate data from Daymet for a single point.
-
-    .. deprecated:: 0.9.0
-        Please use ``get_bycoords`` instead. This function will be removed in the future.
-
-    Parameters
-    ----------
-    coords : tuple
-        Longitude and latitude of the location of interest as a tuple (lon, lat)
-    dates : tuple or list
-        Either a tuple (start, end) or a list of years [YYYY, ...].
-    crs :  str, optional
-        The spatial reference of the input coordinates, defaults to epsg:4326
-    variables : str or list or tuple, optional
-        List of variables to be downloaded. The acceptable variables are:
-        ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
-        Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
-        Defaults to None i.e., all the variables are downloaded.
-    pet : bool, optional
-        Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        The default is False
-
-    Returns
-    -------
-    pandas.DataFrame
-        Daily climate data for a location.
-    """
-    msg = "Please use get_bycoords instead. This function will be removed in the future."
-    warnings.warn(msg, DeprecationWarning)
-
-    daymet = Daymet(variables, pet)
-    daymet.check_dates(dates)
-
-    if isinstance(dates, tuple):
-        dates_dict = daymet.dates_todict(dates)
-    else:
-        dates_dict = daymet.years_todict(dates)
-
-    if not (isinstance(coords, tuple) and len(coords) == 2):
-        raise InvalidInputType("coords", "tuple", "(lon, lat)")
-
-    lon, lat = ogcutils.match_crs([coords], crs, DEF_CRS)[0]
-
-    if not ((14.5 < lat < 52.0) or (-131.0 < lon < -53.0)):
-        raise InvalidInputRange(
-            "The location is outside the Daymet dataset. "
-            + "The acceptable range is: "
-            + "14.5 < lat < 52.0 and -131.0 < lon < -53.0"
-        )
-
-    params = {
-        "lat": f"{lat:.6f}",
-        "lon": f"{lon:.6f}",
-        "vars": ",".join(daymet.variables),
-        "format": "json",
-        **dates_dict,
-    }
-
-    r = ar.retrieve([ServiceURL().restful.daymet_point], "json", [{"params": params}])
-
-    clm = pd.DataFrame(r[0]["data"])
-    clm.index = pd.to_datetime(clm.year * 1000.0 + clm.yday, format="%Y%j")
-    clm = clm.drop(["year", "yday"], axis=1)
-
-    if pet:
-        clm = potential_et(clm, (lon, lat), alt_unit=True)
-    return clm
-
-
 def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     crs: str = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
-    pet: bool = False,
     region: str = "na",
     time_scale: str = "daily",
+    pet: Optional[str] = None,
 ) -> xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -124,10 +46,6 @@ def get_bycoords(
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
-    pet : bool
-        Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        The default is False
     region : str, optional
         Target region in the US, defaults to ``na``. Acceptable values are:
 
@@ -138,6 +56,14 @@ def get_bycoords(
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
+    pet : str, optional
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
+        The ``penman_monteith`` method is based on
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
+        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+        Defaults to ``hargreaves_samani``.
 
     Returns
     -------
@@ -149,9 +75,9 @@ def get_bycoords(
     >>> import pydaymet as daymet
     >>> coords = (-1431147.7928, 318483.4618)
     >>> dates = ("2000-01-01", "2000-12-31")
-    >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet=True)
+    >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet="hargreaves_samani")
     >>> clm["pet (mm/day)"].mean()
-    3.497
+    3.713
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -191,8 +117,8 @@ def get_bycoords(
 
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
-    if pet:
-        clm = potential_et(clm, coords, alt_unit=False)
+    if pet is not None:
+        clm = potential_et(clm, coords, alt_unit=False, method=pet)
     return clm
 
 
@@ -201,9 +127,9 @@ def get_bygeom(
     dates: Union[Tuple[str, str], Union[int, List[int]]],
     crs: str = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
-    pet: bool = False,
     region: str = "na",
     time_scale: str = "daily",
+    pet: Optional[str] = None,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -219,10 +145,6 @@ def get_bygeom(
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
-    pet : bool
-        Whether to compute evapotranspiration based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        The default is False
     region : str, optional
         Region in the US, defaults to na. Acceptable values are:
 
@@ -233,6 +155,14 @@ def get_bygeom(
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly average),
         or annual (annual average). Defaults to daily.
+    pet : str, optional
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
+        The ``penman_monteith`` method is based on
+        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
+        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+        Defaults to ``hargreaves_samani``.
 
     Returns
     -------
@@ -312,8 +242,8 @@ def get_bygeom(
     clm.attrs["transform"] = transform
     clm.attrs["res"] = (transform.a, transform.e)
 
-    if pet:
-        clm = potential_et(clm)
+    if pet is not None:
+        clm = potential_et(clm, method=pet)
 
     if isinstance(clm, xr.Dataset):
         for v in clm:

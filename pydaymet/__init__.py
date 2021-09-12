@@ -5,7 +5,7 @@ from .core import Daymet
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 from .pet import potential_et
 from .print_versions import show_versions
-from .pydaymet import get_bycoords, get_bygeom, get_byloc
+from .pydaymet import get_bycoords, get_bygeom
 
 try:
     __version__ = get_distribution(__name__).version
@@ -16,7 +16,6 @@ __all__ = [
     "Daymet",
     "get_bycoords",
     "get_bygeom",
-    "get_byloc",
     "potential_et",
     "show_versions",
     "InvalidInputRange",

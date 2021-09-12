@@ -20,15 +20,9 @@ def potential_et(
     coords: Optional[Tuple[float, float]] = None,
     crs: str = "epsg:4326",
     alt_unit: bool = False,
-    method: str = "fao56",
+    method: str = "hargreaves_samani",
 ) -> Union[pd.DataFrame, xr.Dataset]:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
-
-    Notes
-    -----
-    The method is based on
-    `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__
-    assuming that soil heat flux density is zero.
 
     Parameters
     ----------
@@ -67,9 +61,12 @@ def potential_et(
     alt_unit : str, optional
         Whether to use alternative units rather than the official ones, defaults to False.
     method : str, optional
-        Method for computing PET. At the moment only ``fao56`` is supported which is based on
+        Method for computing PET. Supported methods are ``penman_monteith`` and ``hargreaves_samani``.
+        The ``penman_monteith`` method is based on
         `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
-        soil heat flux density is zero.
+        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+        Defaults to ``hargreaves_samani``.
 
     Returns
     -------
@@ -77,7 +74,7 @@ def potential_et(
         The input DataFrame/Dataset with an additional variable named ``pet (mm/day)`` for
         DataFrame and ``pet`` for Dataset.
     """
-    valid_methods = ["fao56"]
+    valid_methods = ["penman_monteith", "hargreaves_samani"]
     if method not in valid_methods:
         raise InvalidInputValue("method", valid_methods)
 
@@ -100,21 +97,16 @@ def potential_et(
 class PETCoords:
     """Compute Potential EvapoTranspiration for a single location.
 
-    Notes
-    -----
-    The method is based on
-    `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__
-    assuming that soil heat flux density is zero.
-
     Parameters
     ----------
     clm : DataFrame
-        The dataset must include at least the following variables:
+        For ``penman_monteith`` method, the dataset must include at least the following variables:
         ``tmin (deg c)``, ``tmax (deg c)``, ``srad (W/m^2)``, and ``dayl (s)``.
         Also, if ``rh (-)`` (relative humidity) and ``u2 (m/s)`` (wind at 2 m level)
         are available, they are used. Otherwise, actual vapour pressure is assumed
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
-        speed is considered to be 2 m/s.
+        speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
+        must include ``tmin (deg c)`` and ``tmax (deg c)``.
     coords : tuple of floats
         Coordinates of the daymet data location as a tuple, (x, y).
     crs : str, optional
@@ -128,7 +120,7 @@ class PETCoords:
     crs: str = DEF_CRS
     alt_unit: bool = False
 
-    def fao56(self) -> pd.DataFrame:
+    def penman_monteith(self) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using FAO56 for a single location.
 
         Notes
@@ -195,7 +187,7 @@ class PETCoords:
         delta_r = 0.409 * np.sin(jp - 1.39)
         phi = self.coords[1] * np.pi / 180.0
         w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        r_aero = (
+        rad_a = (
             24.0
             * 60.0
             / np.pi
@@ -203,7 +195,7 @@ class PETCoords:
             * d_r
             * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
         )
-        rad_s = (0.75 + 2e-5 * elevation) * r_aero
+        rad_s = (0.75 + 2e-5 * elevation) * rad_a
         rad_ns = (1.0 - alb) * r_surf
         rad_nl = (
             4.903e-9
@@ -225,6 +217,58 @@ class PETCoords:
         self.clm = self.clm.drop(columns=tmean_c)
         return self.clm
 
+    def hargreaves_samani(self) -> pd.DataFrame:
+        """Compute Potential EvapoTranspiration using FAO56 for a single location.
+
+        Notes
+        -----
+        The method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The input DataFrame with an additional column named ``pet (mm/day)``.
+        """
+        units = {
+            "srad": ("W/m2", "W/m^2"),
+            "temp": ("degrees C", "deg c"),
+        }
+
+        tmin_c = f"tmin ({units['temp'][self.alt_unit]})"
+        tmax_c = f"tmax ({units['temp'][self.alt_unit]})"
+        tmean_c = "tmean (deg c)"
+
+        reqs = [tmin_c, tmax_c]
+
+        _check_requirements(reqs, self.clm.columns)
+
+        self.clm[tmean_c] = 0.5 * (self.clm[tmax_c] + self.clm[tmin_c])
+
+        jday = self.clm.index.dayofyear
+        jp = 2.0 * np.pi * jday / 365.0
+        d_r = 1.0 + 0.033 * np.cos(jp)
+        delta_r = 0.409 * np.sin(jp - 1.39)
+        phi = self.coords[1] * np.pi / 180.0
+        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+        rad_a = (
+            24.0
+            * 60.0
+            / np.pi
+            * 0.082
+            * d_r
+            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
+        ) / 2.43
+        self.clm["pet (mm/day)"] = (
+            0.0023
+            * (self.clm[tmean_c] + 17.8)
+            * np.sqrt(self.clm[tmax_c] - self.clm[tmin_c])
+            * rad_a
+        )
+
+        self.clm = self.clm.drop(columns=tmean_c)
+        return self.clm
+
 
 @dataclass
 class PETGridded:
@@ -233,17 +277,18 @@ class PETGridded:
     Parameters
     ----------
     clm : xarray.DataArray
-        The dataset must include at least the following variables:
+        For ``penman_monteith`` method, the dataset must include at least the following variables:
         ``tmin``, ``tmax``, ``lat``, ``lon``, ``srad``, ``dayl``. Also, if
         ``rh`` (relative humidity) and ``u2`` (wind at 2 m level)
         are available, they are used. Otherwise, actual vapour pressure is assumed
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
-        speed is considered to be 2 m/s.
+        speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
+        must include ``tmin``, ``tmax``, and ``lat``.
     """
 
     clm: xr.Dataset
 
-    def fao56(self) -> xr.Dataset:
+    def penman_monteith(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using FAO56 for a gridded data.
 
         Notes
@@ -267,7 +312,7 @@ class PETGridded:
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
 
         # Slope of saturation vapour pressure [kPa/°C]
-        self.clm["delta_r"] = (
+        self.clm["Delta"] = (
             4098
             * (0.6108 * np.exp(17.27 * self.clm["tmean"] / (self.clm["tmean"] + 237.3)))
             / ((self.clm["tmean"] + 237.3) ** 2)
@@ -306,7 +351,7 @@ class PETGridded:
         delta_r = 0.409 * np.sin(jp - 1.39)
         phi = lat * np.pi / 180.0
         w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        r_aero = (
+        rad_a = (
             24.0
             * 60.0
             / np.pi
@@ -314,7 +359,7 @@ class PETGridded:
             * d_r
             * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
         )
-        rad_s = (0.75 + 2e-5 * self.clm["elevation"]) * r_aero
+        rad_s = (0.75 + 2e-5 * self.clm["elevation"]) * rad_a
         rad_ns = (1.0 - alb) * r_surf
         rad_nl = (
             4.903e-9
@@ -329,14 +374,66 @@ class PETGridded:
         # recommended when no data is available
         u_2m = self.clm["u2"] if "u2" in keys else 2.0
         self.clm["pet"] = (
-            0.408 * self.clm["delta_r"] * (self.clm["rad_n"] - rho_s)
+            0.408 * self.clm["Delta"] * (self.clm["rad_n"] - rho_s)
             + self.clm["gamma"] * 900.0 / (self.clm["tmean"] + 273.0) * u_2m * self.clm["e_def"]
-        ) / (self.clm["delta_r"] + self.clm["gamma"] * (1 + 0.34 * u_2m))
+        ) / (self.clm["Delta"] + self.clm["gamma"] * (1 + 0.34 * u_2m))
         self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm["time"] = dates
 
-        self.clm = self.clm.drop_vars(["delta_r", "gamma", "e_def", "rad_n", "tmean", "e_a"])
+        self.clm = self.clm.drop_vars(["Delta", "gamma", "e_def", "rad_n", "tmean", "e_a"])
+
+        return self.clm
+
+    def hargreaves_samani(self) -> xr.Dataset:
+        """Compute Potential EvapoTranspiration using Hargreaves and Samani, 1985.
+
+        Notes
+        -----
+        The method is based on
+        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
+
+        Returns
+        -------
+        xarray.Dataset
+            The input dataset with an additional variable called ``pet`` in mm/day.
+        """
+        keys = list(self.clm.keys())
+        reqs = ["tmin", "tmax"]
+
+        _check_requirements(reqs, keys)
+
+        dtype = self.clm.tmin.dtype
+        dates = self.clm["time"]
+        self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
+
+        lat = self.clm.isel(time=0).lat
+        self.clm["time"] = pd.to_datetime(self.clm.time.values).dayofyear.astype(dtype)
+
+        jp = 2.0 * np.pi * self.clm["time"] / 365.0
+        d_r = 1.0 + 0.033 * np.cos(jp)
+        delta_r = 0.409 * np.sin(jp - 1.39)
+        phi = lat * np.pi / 180.0
+        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+        rad_a = (
+            24.0
+            * 60.0
+            / np.pi
+            * 0.082
+            * d_r
+            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
+        ) / 2.43
+        self.clm["pet"] = (
+            0.0023
+            * (self.clm["tmean"] + 17.8)
+            * np.sqrt(self.clm["tmax"] - self.clm["tmin"])
+            * rad_a
+        )
+        self.clm["pet"].attrs["units"] = "mm/day"
+
+        self.clm["time"] = dates
+
+        self.clm = self.clm.drop_vars(["tmean"])
 
         return self.clm
 
