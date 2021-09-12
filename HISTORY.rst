@@ -2,6 +2,22 @@
 History
 =======
 
+0.12.0 (2021-09-12)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Add ``hargreaves_samani`` method for computing PET that only requires temperature.
+  This method is based on the Hargreaves-Samani equation
+  (`Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__).
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Deprecate ``get_byloc`` in favor of ``get_bycoords``.
+- The ``pet`` argument in both ``get_bycoords`` and ``get_bygeom`` functions now
+  accepts ``hargreaves_samani``, ``penman_monteith``, and ``None``.
+
+
 0.11.1 (2021-07-31)
 -------------------
 
