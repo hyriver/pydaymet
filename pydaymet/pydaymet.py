@@ -80,6 +80,8 @@ def get_bycoords(
     >>> clm["pet (mm/day)"].mean()
     3.713
 
+    References
+    ----------
     .. footbibliography::
     """
     daymet = Daymet(variables, pet, time_scale, region)
@@ -184,6 +186,8 @@ def get_bygeom(
     >>> clm["tmin"].mean().compute().item()
     1.361
 
+    References
+    ----------
     .. footbibliography::
     """
     daymet = Daymet(variables, pet, time_scale, region)

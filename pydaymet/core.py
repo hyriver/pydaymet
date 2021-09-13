@@ -43,6 +43,8 @@ class DaymetBase(BaseModel):
         * hi: Hawaii
         * pr: Puerto Rico
 
+    References
+    ----------
     .. footbibliography::
     """
 
@@ -121,6 +123,8 @@ class Daymet:
         * hi: Hawaii
         * pr: Puerto Rico
 
+    References
+    ----------
     .. footbibliography::
     """
 

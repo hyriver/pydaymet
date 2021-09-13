@@ -76,6 +76,8 @@ def potential_et(
         The input DataFrame/Dataset with an additional variable named ``pet (mm/day)`` for
         DataFrame and ``pet`` for Dataset.
 
+    References
+    ----------
     .. footbibliography::
     """
     valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
@@ -137,6 +139,8 @@ class PETCoords:
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``
 
+        References
+        ----------
         .. footbibliography::
         """
         units = {
@@ -235,6 +239,8 @@ class PETCoords:
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``.
 
+        References
+        ----------
         .. footbibliography::
         """
         units = {
@@ -323,6 +329,8 @@ class PETCoords:
         pandas.DataFrame
             The input DataFrame with an additional column named ``pet (mm/day)``.
 
+        References
+        ----------
         .. footbibliography::
         """
         units = {
@@ -396,6 +404,8 @@ class PETGridded:
         xarray.Dataset
             The input dataset with an additional variable called ``pet`` in mm/day.
 
+        References
+        ----------
         .. footbibliography::
         """
         keys = list(self.clm.keys())
@@ -494,6 +504,8 @@ class PETGridded:
         xarray.Dataset
             The input dataset with an additional variable called ``pet`` in mm/day.
 
+        References
+        ----------
         .. footbibliography::
         """
         keys = list(self.clm.keys())
@@ -589,6 +601,8 @@ class PETGridded:
         xarray.Dataset
             The input dataset with an additional variable called ``pet`` in mm/day.
 
+        References
+        ----------
         .. footbibliography::
         """
         keys = list(self.clm.keys())
