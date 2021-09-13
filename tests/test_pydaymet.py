@@ -2,11 +2,11 @@
 import io
 import shutil
 from pathlib import Path
-from typing import Tuple
 
 import cytoolz as tlz
 import geopandas as gpd
 import pandas as pd
+import pytest
 from shapely.geometry import Polygon
 
 import pydaymet as daymet
@@ -25,10 +25,13 @@ SMALL = 1e-3
 
 
 class TestByCoords:
-    def test_pet(self):
-        hs = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet="hargreaves_samani")
-        pm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet="penman_monteith")
-        assert abs(hs["pet (mm/day)"].mean() - pm["pet (mm/day)"].mean()) < 0.2166
+    @pytest.mark.parametrize(
+        "method,expected",
+        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.257), ("penman_monteith", 3.497)],
+    )
+    def test_pet(self, method, expected):
+        clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
+        assert abs(clm["pet (mm/day)"].mean() - expected) < SMALL
 
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
@@ -44,10 +47,13 @@ class TestByCoords:
 
 
 class TestByGeom:
-    def test_pet(self):
-        hs = daymet.get_bygeom(GEOM, DAY, pet="hargreaves_samani")
-        pm = daymet.get_bygeom(GEOM, DAY, pet="penman_monteith")
-        assert abs(hs.pet.mean().values - pm.pet.mean().values) < 0.1749
+    @pytest.mark.parametrize(
+        "method,expected",
+        [("hargreaves_samani", 0.452), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
+    )
+    def test_pet(self, method, expected):
+        clm = daymet.get_bygeom(GEOM, DAY, pet=method)
+        assert abs(clm.pet.mean().values - expected) < SMALL
 
     def test_bounds(self):
         prcp = daymet.get_bygeom(GEOM.bounds, DAY)
