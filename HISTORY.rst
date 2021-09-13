@@ -2,14 +2,12 @@
 History
 =======
 
-0.12.0 (2021-09-12)
+0.12.0 (unreleased)
 -------------------
 
 New Features
 ~~~~~~~~~~~~
-- Add ``hargreaves_samani`` method for computing PET that only requires temperature.
-  This method is based on the Hargreaves-Samani equation
-  (`Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__).
+- Add ``hargreaves_samani`` and ``priestley_taylor`` methods for computing PET.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
