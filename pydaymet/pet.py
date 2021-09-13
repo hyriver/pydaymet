@@ -1,10 +1,11 @@
 """Core class for the Daymet functions."""
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import py3dep
+import pygeoogc as ogc
 import xarray as xr
 
 from .exceptions import InvalidInputType, InvalidInputValue, MissingItems
@@ -19,8 +20,8 @@ def potential_et(
     clm: Union[pd.DataFrame, xr.Dataset],
     coords: Optional[Tuple[float, float]] = None,
     crs: str = "epsg:4326",
-    alt_unit: bool = False,
     method: str = "hargreaves_samani",
+    params: Optional[Dict[str, float]] = None,
 ) -> Union[pd.DataFrame, xr.Dataset]:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
 
@@ -31,23 +32,23 @@ def potential_et(
 
         * Minimum temperature in degree celsius
         * Maximum temperature in degree celsius
-        * Solar radiation in in W/m^2
+        * Solar radiation in in W/m2
         * Daylight duration in seconds
 
         Optionally, relative humidity and wind speed at 2-m level will be used if available.
 
         Table below shows the variable names that the function looks for in the input data.
 
-        ================ ========
-        DataFrame        Dataset
-        ================ ========
-        ``tmin (deg c)`` ``tmin``
-        ``tmax (deg c)`` ``tmax``
-        ``srad (W/m^2)`` ``srad``
-        ``dayl (s)``     ``dayl``
-        ``rh (-)``       ``rh``
-        ``u2 (m/s)``     ``u2``
-        ================ ========
+        ==================== ========
+        DataFrame            Dataset
+        ==================== ========
+        ``tmin (degrees C)`` ``tmin``
+        ``tmax (degrees C)`` ``tmax``
+        ``srad (W/m2)``      ``srad``
+        ``dayl (s)``         ``dayl``
+        ``rh (-)``           ``rh``
+        ``u2 (m/s)``         ``u2``
+        ==================== ========
 
         If relative humidity and wind speed at 2-m level are not available,
         actual vapour pressure is assumed to be saturation vapour pressure at daily minimum
@@ -58,8 +59,6 @@ def potential_et(
     crs : str, optional
         The spatial reference of the input coordinate, defaults to ``epsg:4326``. This is only used
         when ``clm`` is a ``DataFrame``.
-    alt_unit : str, optional
-        Whether to use alternative units rather than the official ones, defaults to False.
     method : str, optional
         Method for computing PET. Supported methods are
         ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
@@ -69,6 +68,8 @@ def potential_et(
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``hargreaves_samani``.
+    params : dict, optional
+        Model-specific parameters as a dictionary, defaults to ``None``.
 
     Returns
     -------
@@ -92,9 +93,9 @@ def potential_et(
         if coords is None:
             raise MissingItems(["coords"])
 
-        pet = PETCoords(clm, coords, crs, alt_unit)
+        pet = PETCoords(clm, coords, crs, params)
     else:
-        pet = PETGridded(clm)
+        pet = PETGridded(clm, params)
 
     return getattr(pet, method)()
 
@@ -107,24 +108,40 @@ class PETCoords:
     ----------
     clm : DataFrame
         For ``penman_monteith`` method, the dataset must include at least the following variables:
-        ``tmin (deg c)``, ``tmax (deg c)``, ``srad (W/m^2)``, and ``dayl (s)``.
+        ``tmin (degrees C)``, ``tmax (degrees C)``, ``srad (W/m2)``, and ``dayl (s)``.
         Also, if ``rh (-)`` (relative humidity) and ``u2 (m/s)`` (wind at 2 m level)
         are available, they are used. Otherwise, actual vapour pressure is assumed
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
         speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
-        must include ``tmin (deg c)`` and ``tmax (deg c)``.
+        must include ``tmin (degrees C)`` and ``tmax (degrees C)``.
     coords : tuple of floats
         Coordinates of the daymet data location as a tuple, (x, y).
     crs : str, optional
         The spatial reference of the input coordinate, defaults to epsg:4326.
-    alt_unit : str, optional
-        Whether to use alternative units rather than the official ones, defaults to False.
+    params : dict, optional
+        Model-specific parameters as a dictionary, defaults to ``None``.
     """
 
-    clm: pd.DataFrame
-    coords: Tuple[float, float]
-    crs: str = DEF_CRS
-    alt_unit: bool = False
+    def __init__(
+        self,
+        clm: pd.DataFrame,
+        coords: Tuple[float, float],
+        crs: str = DEF_CRS,
+        params: Optional[Dict[str, float]] = None,
+    ) -> None:
+        self.clm = clm
+        self.coords = ogc.utils.match_crs([coords], crs, DEF_CRS)[0]
+        self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
+        if "soil_heat" not in self.params:
+            self.params["soil_heat"] = 0.0
+
+        self.tmin_c = "tmin (degrees C)"
+        self.tmax_c = "tmax (degrees C)"
+        self.srad_wm2 = "srad (W/m2)"
+        self.dayl_s = "dayl (s)"
+        self.tmean_c = "tmean (degrees C)"
+        self.rh = "rh (-)"
+        self.u2 = "u2 (m/s)"
 
     def penman_monteith(self) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998`.
@@ -143,87 +160,47 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        units = {
-            "srad": ("W/m2", "W/m^2"),
-            "temp": ("degrees C", "deg c"),
-        }
-
-        tmin_c = f"tmin ({units['temp'][self.alt_unit]})"
-        tmax_c = f"tmax ({units['temp'][self.alt_unit]})"
-        srad_wm2 = f"srad ({units['srad'][self.alt_unit]})"
-        dayl_s = "dayl (s)"
-        tmean_c = "tmean (deg c)"
-        rh = "rh (-)"
-        u2 = "u2 (m/s)"
-
-        reqs = [tmin_c, tmax_c, srad_wm2, dayl_s]
+        reqs = [self.tmin_c, self.tmax_c, self.srad_wm2, self.dayl_s]
 
         _check_requirements(reqs, self.clm.columns)
 
-        self.clm[tmean_c] = 0.5 * (self.clm[tmax_c] + self.clm[tmin_c])
-        Delta = (
+        self.clm[self.tmean_c] = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
+        vp_slope = (
             4098
             * (
                 0.6108
                 * np.exp(
-                    17.27 * self.clm[tmean_c] / (self.clm[tmean_c] + 237.3),
+                    17.27 * self.clm[self.tmean_c] / (self.clm[self.tmean_c] + 237.3),
                 )
             )
-            / ((self.clm[tmean_c] + 237.3) ** 2)
+            / ((self.clm[self.tmean_c] + 237.3) ** 2)
         )
-        elevation = py3dep.elevation_bycoords([self.coords], self.crs, source="tnm")[0]
+        elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
 
         # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
         # Latent Heat of Vaporization [MJ/kg]
-        lmbda = 2.501 - 0.002361 * self.clm[tmean_c]
+        lmbda = 2.501 - 0.002361 * self.clm[self.tmean_c]
         # Psychrometric constant [kPa/°C]
         gamma = 1.013e-3 * pa / (0.622 * lmbda)
 
-        e_max = 0.6108 * np.exp(17.27 * self.clm[tmax_c] / (self.clm[tmax_c] + 237.3))
-        e_min = 0.6108 * np.exp(17.27 * self.clm[tmin_c] / (self.clm[tmin_c] + 237.3))
+        # Saturation Vapor Pressure [kPa]
+        e_max = self._saturation_vapour(self.tmax_c)
+        e_min = self._saturation_vapour(self.tmin_c)
         e_s = (e_max + e_min) * 0.5
-        e_a = self.clm[rh] * e_s * 1e-2 if rh in self.clm else e_min
-        e_def = e_s - e_a
+        e_a = self.clm[self.rh] * e_s * 1e-2 if self.rh in self.clm else e_min
 
-        jday = self.clm.index.dayofyear
-        r_surf = self.clm[srad_wm2] * self.clm[dayl_s] * 1e-6
+        rad_a = self._extraterrestrial_radiation()
+        rad_n = self._net_radiation(elevation, rad_a, e_a)
 
-        alb = 0.23
-
-        jp = 2.0 * np.pi * jday / 365.0
-        d_r = 1.0 + 0.033 * np.cos(jp)
-        delta_r = 0.409 * np.sin(jp - 1.39)
-        phi = self.coords[1] * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
-            24.0
-            * 60.0
-            / np.pi
-            * 0.082
-            * d_r
-            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-        )
-        rad_s = (0.75 + 2e-5 * elevation) * rad_a
-        rad_ns = (1.0 - alb) * r_surf
-        rad_nl = (
-            4.903e-9
-            * (((self.clm[tmax_c] + 273.16) ** 4 + (self.clm[tmin_c] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(e_a))
-            * ((1.35 * r_surf / rad_s) - 0.35)
-        )
-        rad_n = rad_ns - rad_nl
-
-        # recommended for daily data
-        rho_s = 0.0
         # recommended when no data is available
-        u_2m = self.clm[u2] if u2 in self.clm else 2.0
+        u_2m = self.clm[self.u2] if self.u2 in self.clm else 2.0
         self.clm["pet (mm/day)"] = (
-            0.408 * Delta * (rad_n - rho_s)
-            + gamma * 900.0 / (self.clm[tmean_c] + 273.0) * u_2m * e_def
-        ) / (Delta + gamma * (1 + 0.34 * u_2m))
+            0.408 * vp_slope * (rad_n - self.params["soil_heat"])
+            + gamma * 900.0 / (self.clm[self.tmean_c] + 273.0) * u_2m * (e_s - e_a)
+        ) / (vp_slope + gamma * (1 + 0.34 * u_2m))
 
-        self.clm = self.clm.drop(columns=tmean_c)
+        self.clm = self.clm.drop(columns=self.tmean_c)
         return self.clm
 
     def priestley_taylor(self) -> pd.DataFrame:
@@ -243,82 +220,53 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        units = {
-            "srad": ("W/m2", "W/m^2"),
-            "temp": ("degrees C", "deg c"),
-        }
-
-        tmin_c = f"tmin ({units['temp'][self.alt_unit]})"
-        tmax_c = f"tmax ({units['temp'][self.alt_unit]})"
-        srad_wm2 = f"srad ({units['srad'][self.alt_unit]})"
-        dayl_s = "dayl (s)"
-        tmean_c = "tmean (deg c)"
-        rh = "rh (-)"
-
-        reqs = [tmin_c, tmax_c, srad_wm2, dayl_s]
+        reqs = [self.tmin_c, self.tmax_c, self.srad_wm2, self.dayl_s]
 
         _check_requirements(reqs, self.clm.columns)
 
-        self.clm[tmean_c] = 0.5 * (self.clm[tmax_c] + self.clm[tmin_c])
-        Delta = (
+        self.clm[self.tmean_c] = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
+        vp_slope = (
             4098
             * (
                 0.6108
                 * np.exp(
-                    17.27 * self.clm[tmean_c] / (self.clm[tmean_c] + 237.3),
+                    17.27 * self.clm[self.tmean_c] / (self.clm[self.tmean_c] + 237.3),
                 )
             )
-            / ((self.clm[tmean_c] + 237.3) ** 2)
+            / ((self.clm[self.tmean_c] + 237.3) ** 2)
         )
-        elevation = py3dep.elevation_bycoords([self.coords], self.crs, source="tnm")[0]
+        elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
 
         # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
         # Latent Heat of Vaporization [MJ/kg]
-        lmbda = 2.501 - 0.002361 * self.clm[tmean_c]
+        lmbda = 2.501 - 0.002361 * self.clm[self.tmean_c]
         # Psychrometric constant [kPa/°C]
         gamma = 1.013e-3 * pa / (0.622 * lmbda)
 
-        e_max = 0.6108 * np.exp(17.27 * self.clm[tmax_c] / (self.clm[tmax_c] + 237.3))
-        e_min = 0.6108 * np.exp(17.27 * self.clm[tmin_c] / (self.clm[tmin_c] + 237.3))
-        e_s = (e_max + e_min) * 0.5
-        e_a = self.clm[rh] * e_s * 1e-2 if rh in self.clm else e_min
+        # Saturation Vapor Pressure [kPa]
+        if self.rh in self.clm:
+            e_max = self._saturation_vapour(self.tmax_c)
+            e_min = self._saturation_vapour(self.tmin_c)
+            e_s = (e_max + e_min) * 0.5
+            e_a = self.clm[self.rh] * e_s * 1e-2
+        else:
+            e_a = self._saturation_vapour(self.tmin_c)
 
-        jday = self.clm.index.dayofyear
-        r_surf = self.clm[srad_wm2] * self.clm[dayl_s] * 1e-6
+        rad_a = self._extraterrestrial_radiation()
+        rad_n = self._net_radiation(elevation, rad_a, e_a)
 
-        alb = 0.23
+        if "alpha" not in self.params:
+            self.params["alpha"] = 1.26
 
-        jp = 2.0 * np.pi * jday / 365.0
-        d_r = 1.0 + 0.033 * np.cos(jp)
-        delta_r = 0.409 * np.sin(jp - 1.39)
-        phi = self.coords[1] * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
-            24.0
-            * 60.0
-            / np.pi
-            * 0.082
-            * d_r
-            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
+        self.clm["pet (mm/day)"] = (
+            self.params["alpha"]
+            * vp_slope
+            * (rad_n - self.params["soil_heat"])
+            / ((vp_slope + gamma) * lmbda)
         )
-        rad_s = (0.75 + 2e-5 * elevation) * rad_a
-        rad_ns = (1.0 - alb) * r_surf
-        rad_nl = (
-            4.903e-9
-            * (((self.clm[tmax_c] + 273.16) ** 4 + (self.clm[tmin_c] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(e_a))
-            * ((1.35 * r_surf / rad_s) - 0.35)
-        )
-        rad_n = rad_ns - rad_nl
 
-        # recommended for daily data
-        rho_s = 0.0
-
-        alpha = 1.26
-        self.clm["pet (mm/day)"] = alpha * Delta * (rad_n - rho_s) / ((Delta + gamma) * lmbda)
-
-        self.clm = self.clm.drop(columns=tmean_c)
+        self.clm = self.clm.drop(columns=self.tmean_c)
         return self.clm
 
     def hargreaves_samani(self) -> pd.DataFrame:
@@ -333,44 +281,77 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        units = {
-            "srad": ("W/m2", "W/m^2"),
-            "temp": ("degrees C", "deg c"),
-        }
-
-        tmin_c = f"tmin ({units['temp'][self.alt_unit]})"
-        tmax_c = f"tmax ({units['temp'][self.alt_unit]})"
-        tmean_c = "tmean (deg c)"
-
-        reqs = [tmin_c, tmax_c]
+        reqs = [self.tmin_c, self.tmax_c]
 
         _check_requirements(reqs, self.clm.columns)
 
-        self.clm[tmean_c] = 0.5 * (self.clm[tmax_c] + self.clm[tmin_c])
+        self.clm[self.tmean_c] = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
+        rad_a = self._extraterrestrial_radiation() / 2.43
+        self.clm["pet (mm/day)"] = (
+            0.0023
+            * (self.clm[self.tmean_c] + 17.8)
+            * np.sqrt(self.clm[self.tmax_c] - self.clm[self.tmin_c])
+            * rad_a
+        )
 
+        self.clm = self.clm.drop(columns=self.tmean_c)
+        return self.clm
+
+    def _saturation_vapour(self, t_col: str) -> pd.DataFrame:
+        """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        return 0.6108 * np.exp(17.27 * self.clm[t_col] / (self.clm[t_col] + 237.3))
+
+    def _extraterrestrial_radiation(self) -> pd.DataFrame:
+        """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
+
+        References
+        ----------
+        .. footbibliography::
+        """
         jday = self.clm.index.dayofyear
         jp = 2.0 * np.pi * jday / 365.0
         d_r = 1.0 + 0.033 * np.cos(jp)
         delta_r = 0.409 * np.sin(jp - 1.39)
         phi = self.coords[1] * np.pi / 180.0
         w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
+        return (
             24.0
             * 60.0
             / np.pi
             * 0.082
             * d_r
             * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-        ) / 2.43
-        self.clm["pet (mm/day)"] = (
-            0.0023
-            * (self.clm[tmean_c] + 17.8)
-            * np.sqrt(self.clm[tmax_c] - self.clm[tmin_c])
-            * rad_a
         )
 
-        self.clm = self.clm.drop(columns=tmean_c)
-        return self.clm
+    def _net_radiation(
+        self, elevation: float, rad_a: pd.DataFrame, e_a: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        r_surf = self.clm[self.srad_wm2] * self.clm[self.dayl_s] * 1e-6
+
+        alb = 0.23
+        rad_s = (0.75 + 2e-5 * elevation) * rad_a
+        rad_ns = (1.0 - alb) * r_surf
+        rad_nl = (
+            4.903e-9
+            * (
+                ((self.clm[self.tmax_c] + 273.16) ** 4 + (self.clm[self.tmin_c] + 273.16) ** 4)
+                * 0.5
+            )
+            * (0.34 - 0.14 * np.sqrt(e_a))
+            * ((1.35 * r_surf / rad_s) - 0.35)
+        )
+        return rad_ns - rad_nl
 
 
 @dataclass
@@ -387,9 +368,19 @@ class PETGridded:
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
         speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
         must include ``tmin``, ``tmax``, and ``lat``.
+    params : dict, optional
+        Model-specific parameters as a dictionary, defaults to ``None``.
     """
 
-    clm: xr.Dataset
+    def __init__(
+        self,
+        clm: xr.Dataset,
+        params: Optional[Dict[str, float]] = None,
+    ) -> None:
+        self.clm = clm
+        self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
+        if "soil_heat" not in self.params:
+            self.params["soil_heat"] = 0.0
 
     def penman_monteith(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998`.
@@ -418,7 +409,7 @@ class PETGridded:
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
 
         # Slope of saturation vapour pressure [kPa/°C]
-        self.clm["Delta"] = (
+        self.clm["vp_slope"] = (
             4098
             * (0.6108 * np.exp(17.27 * self.clm["tmean"] / (self.clm["tmean"] + 237.3)))
             / ((self.clm["tmean"] + 237.3) ** 2)
@@ -434,9 +425,9 @@ class PETGridded:
         # Atmospheric pressure [kPa]
         pa = 101.3 * ((293.0 - 0.0065 * self.clm["elevation"]) / 293.0) ** 5.26
         # Latent Heat of Vaporization [MJ/kg]
-        lmbda = 2.501 - 0.002361 * self.clm["tmean"]
+        self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         # Psychrometric constant [kPa/°C]
-        self.clm["gamma"] = 1.013e-3 * pa / (0.622 * lmbda)
+        self.clm["gamma"] = 1.013e-3 * pa / (0.622 * self.clm["lambda"])
 
         # Saturation vapor pressure [kPa]
         e_max = 0.6108 * np.exp(17.27 * self.clm["tmax"] / (self.clm["tmax"] + 237.3))
@@ -446,48 +437,25 @@ class PETGridded:
         self.clm["e_a"] = self.clm["rh"] * e_s * 1e-2 if "rh" in keys else e_min
         self.clm["e_def"] = e_s - self.clm["e_a"]
 
-        lat = self.clm.isel(time=0).lat
         self.clm["time"] = pd.to_datetime(self.clm.time.values).dayofyear.astype(dtype)
-        r_surf = self.clm["srad"] * self.clm["dayl"] * 1e-6
-
-        alb = 0.23
-
-        jp = 2.0 * np.pi * self.clm["time"] / 365.0
-        d_r = 1.0 + 0.033 * np.cos(jp)
-        delta_r = 0.409 * np.sin(jp - 1.39)
-        phi = lat * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
-            24.0
-            * 60.0
-            / np.pi
-            * 0.082
-            * d_r
-            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-        )
-        rad_s = (0.75 + 2e-5 * self.clm["elevation"]) * rad_a
-        rad_ns = (1.0 - alb) * r_surf
-        rad_nl = (
-            4.903e-9
-            * (((self.clm["tmax"] + 273.16) ** 4 + (self.clm["tmin"] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(self.clm["e_a"]))
-            * ((1.35 * r_surf / rad_s) - 0.35)
-        )
-        self.clm["rad_n"] = rad_ns - rad_nl
+        rad_a = self._extraterrestrial_radiation()
+        self.clm["rad_n"] = self._net_radiation(rad_a)
 
         # recommended for daily data
-        rho_s = 0.0
+        self.params["soil_heat"] = 0.0
         # recommended when no data is available
         u_2m = self.clm["u2"] if "u2" in keys else 2.0
         self.clm["pet"] = (
-            0.408 * self.clm["Delta"] * (self.clm["rad_n"] - rho_s)
+            0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params["soil_heat"])
             + self.clm["gamma"] * 900.0 / (self.clm["tmean"] + 273.0) * u_2m * self.clm["e_def"]
-        ) / (self.clm["Delta"] + self.clm["gamma"] * (1 + 0.34 * u_2m))
+        ) / (self.clm["vp_slope"] + self.clm["gamma"] * (1 + 0.34 * u_2m))
         self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm["time"] = dates
 
-        self.clm = self.clm.drop_vars(["Delta", "gamma", "e_def", "rad_n", "tmean", "e_a"])
+        self.clm = self.clm.drop_vars(
+            ["vp_slope", "gamma", "e_def", "rad_n", "tmean", "e_a", "lambda"]
+        )
 
         return self.clm
 
@@ -518,7 +486,7 @@ class PETGridded:
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
 
         # Slope of saturation vapour pressure [kPa/°C]
-        self.clm["Delta"] = (
+        self.clm["vp_slope"] = (
             4098
             * (0.6108 * np.exp(17.27 * self.clm["tmean"] / (self.clm["tmean"] + 237.3)))
             / ((self.clm["tmean"] + 237.3) ** 2)
@@ -545,51 +513,26 @@ class PETGridded:
 
         self.clm["e_a"] = self.clm["rh"] * e_s * 1e-2 if "rh" in keys else e_min
 
-        lat = self.clm.isel(time=0).lat
         self.clm["time"] = pd.to_datetime(self.clm.time.values).dayofyear.astype(dtype)
-        r_surf = self.clm["srad"] * self.clm["dayl"] * 1e-6
-
-        alb = 0.23
-
-        jp = 2.0 * np.pi * self.clm["time"] / 365.0
-        d_r = 1.0 + 0.033 * np.cos(jp)
-        delta_r = 0.409 * np.sin(jp - 1.39)
-        phi = lat * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
-            24.0
-            * 60.0
-            / np.pi
-            * 0.082
-            * d_r
-            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-        )
-        rad_s = (0.75 + 2e-5 * self.clm["elevation"]) * rad_a
-        rad_ns = (1.0 - alb) * r_surf
-        rad_nl = (
-            4.903e-9
-            * (((self.clm["tmax"] + 273.16) ** 4 + (self.clm["tmin"] + 273.16) ** 4) * 0.5)
-            * (0.34 - 0.14 * np.sqrt(self.clm["e_a"]))
-            * ((1.35 * r_surf / rad_s) - 0.35)
-        )
-        self.clm["rad_n"] = rad_ns - rad_nl
+        rad_a = self._extraterrestrial_radiation()
+        self.clm["rad_n"] = self._net_radiation(rad_a)
 
         # recommended for daily data
-        rho_s = 0.0
+        self.params["soil_heat"] = 0.0
 
         alpha = 1.26
 
         self.clm["pet"] = (
             alpha
-            * self.clm["Delta"]
-            * (self.clm["rad_n"] - rho_s)
-            / ((self.clm["Delta"] + self.clm["gamma"]) * self.clm["lambda"])
+            * self.clm["vp_slope"]
+            * (self.clm["rad_n"] - self.params["soil_heat"])
+            / ((self.clm["vp_slope"] + self.clm["gamma"]) * self.clm["lambda"])
         )
         self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm["time"] = dates
 
-        self.clm = self.clm.drop_vars(["Delta", "gamma", "lambda", "rad_n", "tmean", "e_a"])
+        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean", "e_a"])
 
         return self.clm
 
@@ -613,23 +556,9 @@ class PETGridded:
         dtype = self.clm.tmin.dtype
         dates = self.clm["time"]
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
-
-        lat = self.clm.isel(time=0).lat
         self.clm["time"] = pd.to_datetime(self.clm.time.values).dayofyear.astype(dtype)
 
-        jp = 2.0 * np.pi * self.clm["time"] / 365.0
-        d_r = 1.0 + 0.033 * np.cos(jp)
-        delta_r = 0.409 * np.sin(jp - 1.39)
-        phi = lat * np.pi / 180.0
-        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-        rad_a = (
-            24.0
-            * 60.0
-            / np.pi
-            * 0.082
-            * d_r
-            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-        ) / 2.43
+        rad_a = self._extraterrestrial_radiation() / 2.43
         self.clm["pet"] = (
             0.0023
             * (self.clm["tmean"] + 17.8)
@@ -643,6 +572,56 @@ class PETGridded:
         self.clm = self.clm.drop_vars(["tmean"])
 
         return self.clm
+
+    def _saturation_vapour(self, t_col: str) -> xr.DataArray:
+        """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        return 0.6108 * np.exp(17.27 * self.clm[t_col] / (self.clm[t_col] + 237.3))
+
+    def _extraterrestrial_radiation(self) -> xr.DataArray:
+        """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        jp = 2.0 * np.pi * self.clm["time"] / 365.0
+        d_r = 1.0 + 0.033 * np.cos(jp)
+        delta_r = 0.409 * np.sin(jp - 1.39)
+        phi = self.clm.isel(time=0).lat * np.pi / 180.0
+        w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+        return (
+            24.0
+            * 60.0
+            / np.pi
+            * 0.082
+            * d_r
+            * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
+        )
+
+    def _net_radiation(self, rad_a: xr.Dataset) -> xr.DataArray:
+        """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        r_surf = self.clm["srad"] * self.clm["dayl"] * 1e-6
+
+        alb = 0.23
+        rad_s = (0.75 + 2e-5 * self.clm["elevation"]) * rad_a
+        rad_ns = (1.0 - alb) * r_surf
+        rad_nl = (
+            4.903e-9
+            * (((self.clm["tmax"] + 273.16) ** 4 + (self.clm["tmin"] + 273.16) ** 4) * 0.5)
+            * (0.34 - 0.14 * np.sqrt(self.clm["e_a"]))
+            * ((1.35 * r_surf / rad_s) - 0.35)
+        )
+        return rad_ns - rad_nl
 
 
 def _check_requirements(reqs: Iterable, cols: List[str]) -> None:

@@ -27,6 +27,7 @@ def get_bycoords(
     region: str = "na",
     time_scale: str = "daily",
     pet: Optional[str] = None,
+    pet_params: Optional[Dict[str, float]] = None,
 ) -> xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -64,6 +65,9 @@ def get_bycoords(
         The ``priestley_taylor`` method is based on
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
+    pet_params : dict, optional
+        Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
 
     Returns
@@ -123,7 +127,7 @@ def get_bycoords(
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
     if pet is not None:
-        clm = potential_et(clm, coords, alt_unit=False, method=pet)
+        clm = potential_et(clm, coords, method=pet, params=pet_params)
     return clm
 
 
@@ -135,6 +139,7 @@ def get_bygeom(
     region: str = "na",
     time_scale: str = "daily",
     pet: Optional[str] = None,
+    pet_params: Optional[Dict[str, float]] = None,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -168,6 +173,9 @@ def get_bygeom(
         The ``priestley_taylor`` method is based on
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
+    pet_params : dict, optional
+        Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
 
     Returns
@@ -253,7 +261,7 @@ def get_bygeom(
     clm.attrs["res"] = (transform.a, transform.e)
 
     if pet is not None:
-        clm = potential_et(clm, method=pet)
+        clm = potential_et(clm, method=pet, params=pet_params)
 
     if isinstance(clm, xr.Dataset):
         for v in clm:
