@@ -21,12 +21,13 @@ class DaymetBase(BaseModel):
     ----------
     pet : str, optional
         Method for computing PET. Supported methods are
-        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
-        The ``penman_monteith`` method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
-        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
-        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
-        Defaults to ``hargreaves_samani``.
+        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
+        None (don't compute PET). The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -41,6 +42,8 @@ class DaymetBase(BaseModel):
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
+
+    .. footbibliography::
     """
 
     pet: Optional[str] = None
@@ -50,7 +53,7 @@ class DaymetBase(BaseModel):
 
     @validator("pet")
     def _valid_pet(cls, v):
-        valid_methods = ["penman_monteith", "hargreaves_samani", None]
+        valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
         if v not in valid_methods:
             raise InvalidInputValue("pet", valid_methods)
         return v
@@ -99,10 +102,15 @@ class Daymet:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
         Descriptions can be found `here <https://daymet.ornl.gov/overview>`__.
         Defaults to None i.e., all the variables are downloaded.
-    pet : bool, optional
-        Whether to compute evapotranspiration based on
-        `UN-FAO 56 paper <http://www.fao.org/3/X0490E/x0490e06.htm>`__.
-        The default is False
+    pet : str, optional
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
+        None (don't compute PET). The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -112,6 +120,8 @@ class Daymet:
         * na: Continental North America
         * hi: Hawaii
         * pr: Puerto Rico
+
+    .. footbibliography::
     """
 
     def __init__(

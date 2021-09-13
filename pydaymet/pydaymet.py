@@ -58,12 +58,13 @@ def get_bycoords(
         or annual (annual summaries). Defaults to daily.
     pet : str, optional
         Method for computing PET. Supported methods are
-        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
-        The ``penman_monteith`` method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
-        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
-        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
-        Defaults to ``hargreaves_samani``.
+        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
+        None (don't compute PET). The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
 
     Returns
     -------
@@ -78,6 +79,8 @@ def get_bycoords(
     >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet="hargreaves_samani")
     >>> clm["pet (mm/day)"].mean()
     3.713
+
+    .. footbibliography::
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)
@@ -157,12 +160,13 @@ def get_bygeom(
         or annual (annual average). Defaults to daily.
     pet : str, optional
         Method for computing PET. Supported methods are
-        ``penman_monteith``, ``hargreaves_samani``, and None (don't compute PET).
-        The ``penman_monteith`` method is based on
-        `FAO Penman-Monteith equation <http://www.fao.org/3/X0490E/x0490e06.htm>`__ assuming that
-        soil heat flux density is zero. The ``hargreaves_samani`` method is based on
-        `Hargreaves and Samani, 1985 <https://zohrabsamani.com/research_material/files/Hargreaves-samani.pdf>`__.
-        Defaults to ``hargreaves_samani``.
+        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
+        None (don't compute PET). The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``None``.
 
     Returns
     -------
@@ -179,6 +183,8 @@ def get_bygeom(
     >>> clm = daymet.get_bygeom(geometry, 2010, variables="tmin", time_scale="annual")
     >>> clm["tmin"].mean().compute().item()
     1.361
+
+    .. footbibliography::
     """
     daymet = Daymet(variables, pet, time_scale, region)
     daymet.check_dates(dates)

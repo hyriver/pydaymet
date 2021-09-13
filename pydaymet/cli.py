@@ -48,7 +48,9 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 @click.option(
     "-p",
     "--pet",
-    type=click.Choice(["penman_monteith", "hargreaves_samani", "none"], case_sensitive=True),
+    type=click.Choice(
+        ["penman_monteith", "hargreaves_samani", "priestley_taylor", "none"], case_sensitive=True
+    ),
     default="none",
     help="Compute PET.",
 )
