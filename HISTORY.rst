@@ -13,7 +13,7 @@ Breaking Changes
 ~~~~~~~~~~~~~~~~
 - Deprecate ``get_byloc`` in favor of ``get_bycoords``.
 - The ``pet`` argument in both ``get_bycoords`` and ``get_bygeom`` functions now
-  accepts ``hargreaves_samani``, ``penman_monteith``, and ``None``.
+  accepts ``hargreaves_samani``, ``penman_monteith``, ``priestley_taylor``, and ``None``.
 
 
 0.11.1 (2021-07-31)
