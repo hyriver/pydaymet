@@ -250,11 +250,15 @@ it to the functions.
     :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
 Also, we can use the ``potential_et`` function to compute PET by passing the daily climate data.
-We can either pass a ``pandas.DataFrame`` or a ``xarray.Dataset``.
+We can either pass a ``pandas.DataFrame`` or a ``xarray.Dataset``. Note that, ``penman_monteith``
+and ``priestley_taylor`` methods have parameters that can be passed via the ``params`` argument,
+if any value other than the default values are needed. For example, default value of ``alpha``
+for ``priestley_taylor`` method is 1.26 (humid regions), we can set it to 1.74 (arid regions)
+as follows:
 
 .. code-block:: python
 
-    pet_hs = daymet.potential_et(daily, methods="hargreaves_samani")
+    pet_hs = daymet.potential_et(daily, methods="priestley_taylor", params={"alpha": 1.74})
 
 Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
