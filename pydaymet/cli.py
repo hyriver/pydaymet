@@ -9,7 +9,7 @@ import shapely.geometry as sgeom
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from . import pydaymet as daymet
-from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
+from .exceptions import InvalidInputRange, InvalidInputType, MissingCRS, MissingItems
 
 
 def get_target_df(
@@ -115,14 +115,11 @@ def coords(
 
     \b
     Examples:
-        $ cat cities.csv
+        $ cat coords.csv
         id,lon,lat,start,end
         california,-122.2493328,37.8122894,2012-01-01,2014-12-31
         $ pydaymet coords coords.csv -v prcp -v tmin -p hargreaves_samani
     """  # noqa: D301
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
     fpath = Path(fpath)
     if fpath.suffix != ".csv":
         raise InvalidInputType("file", ".csv")
@@ -140,9 +137,11 @@ def coords(
 
     count = "1 point" if len(target_df) == 1 else f"{len(target_df)} points"
     click.echo(f"Found coordinates of {count} in {fpath.resolve()}.")
+
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
-        label="Getting climate data",
+        label="Getting single-pixel climate data",
         length=len(target_df),
     ) as bar:
         for i, coords, dates, region in bar:
@@ -171,7 +170,8 @@ def geometry(
     """Retrieve climate data for a dataframe of geometries.
 
     \b
-    FPATH: Path to a shapefile (.shp) or geopackage (.gpkg) file with four columns in EPSG:4326:
+    FPATH: Path to a shapefile (.shp) or geopackage (.gpkg) file.
+    This file must have four columns and contain a ``crs`` attribute:
         - ``id``: Feature identifiers that daymet uses as the output netcdf filenames.
         - ``start``: Start time.
         - ``end``: End time.
@@ -181,20 +181,14 @@ def geometry(
     Examples:
         $ pydaymet geometry geo.gpkg -v prcp -v tmin -p hargreaves_samani
     """  # noqa: D301
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
     fpath = Path(fpath)
     if fpath.suffix not in (".shp", ".gpkg"):
         raise InvalidInputType("file", ".shp or .gpkg")
 
-    _pet = None if pet == "none" else pet
-
     target_df = gpd.read_file(fpath)
     if target_df.crs is None:
-        target_df = target_df.set_crs("epsg:4326")
-    elif target_df.crs.to_epsg() != 4326:
-        raise InvalidInputValue("crs", ["epsg:4326"])
+        raise MissingCRS
+    target_df = target_df.to_crs("epsg:4326")
 
     target_df = get_target_df(target_df, ["id", "start", "end", "geometry"])
     target_df["region"] = get_region(target_df)
@@ -203,9 +197,12 @@ def geometry(
 
     count = "1 geometry" if len(target_df) == 1 else f"{len(target_df)} geometries"
     click.echo(f"Found {count} in {fpath.resolve()}.")
+
+    _pet = None if pet == "none" else pet
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
-        label="Getting climate data",
+        label="Getting gridded climate data",
         length=len(target_df),
     ) as bar:
         for i, geometry, dates, region in bar:
