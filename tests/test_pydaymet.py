@@ -10,6 +10,7 @@ import pytest
 from shapely.geometry import Polygon
 
 import pydaymet as daymet
+from pydaymet.cli import cli
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
@@ -27,7 +28,7 @@ SMALL = 1e-3
 class TestByCoords:
     @pytest.mark.parametrize(
         "method,expected",
-        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.257), ("penman_monteith", 3.497)],
+        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.472)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
@@ -83,73 +84,74 @@ class TestByGeom:
         )
 
 
-def test_cli_grid(script_runner):
-    params = {
-        "id": "geo_test",
-        "start": "2000-01-01",
-        "end": "2000-05-31",
-        "region": "na",
-    }
-    geo_gpkg = "nat_geo.gpkg"
-    gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
-    gdf.to_file(geo_gpkg)
-    ret = script_runner.run(
-        "pydaymet",
-        geo_gpkg,
-        "geometry",
-        DEF_CRS,
-        *list(tlz.concat([["-v", v] for v in VAR])),
-        "-t",
-        "monthly",
-        "-s",
-        "geo_map",
-    )
-    shutil.rmtree(geo_gpkg)
-    shutil.rmtree("geo_map")
-    assert ret.success
-    assert "Retrieved climate data for 1 item(s)." in ret.stdout
-    assert ret.stderr == ""
+class TestCLI:
+    """Test the command-line interface."""
 
+    def test_geometry(self, runner):
+        params = {
+            "id": "geo_test",
+            "start": "2000-01-01",
+            "end": "2000-05-31",
+        }
+        geo_gpkg = "nat_geo.gpkg"
+        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
+        gdf.to_file(geo_gpkg)
+        ret = runner.invoke(
+            cli,
+            [
+                "geometry",
+                geo_gpkg,
+                *list(tlz.concat([["-v", v] for v in VAR])),
+                "-t",
+                "monthly",
+                "-s",
+                "geo_map",
+            ],
+        )
+        shutil.rmtree(geo_gpkg)
+        shutil.rmtree("geo_map")
+        assert ret.exit_code == 0
+        assert "Found 1 geometry" in ret.output
 
-def test_cli_coords(script_runner):
-    params = {
-        "id": "coords_test",
-        "x": -1431147.7928,
-        "y": 318483.4618,
-        "start": DAY[0],
-        "end": DAY[1],
-        "region": "na",
-    }
-    coord_csv = "coords.csv"
-    df = pd.DataFrame(params, index=[0])
-    df.to_csv(coord_csv)
-    ret = script_runner.run(
-        "pydaymet",
-        coord_csv,
-        "coords",
-        ALT_CRS,
-        *list(tlz.concat([["-v", v] for v in VAR])),
-        "-p",
-        "hargreaves_samani",
-        "-s",
-        "geo_coords",
-    )
-    script_runner.run(
-        "pydaymet",
-        coord_csv,
-        "coords",
-        ALT_CRS,
-        *list(tlz.concat([["-v", v] for v in VAR])),
-        "-p",
-        "hargreaves_samani",
-        "-s",
-        "geo_coords",
-    )
-    Path(coord_csv).unlink()
-    shutil.rmtree("geo_coords")
-    assert ret.success
-    assert "Retrieved climate data for 1 item(s)." in ret.stdout
-    assert ret.stderr == ""
+    def test_coords(self, runner):
+        params = {
+            "id": "coords_test",
+            "lon": -69.77,
+            "lat": 45.07,
+            "start": DAY[0],
+            "end": DAY[1],
+        }
+        coord_csv = "coords.csv"
+        df = pd.DataFrame(params, index=[0])
+        df.to_csv(coord_csv)
+        ret = runner.invoke(
+            cli,
+            [
+                "coords",
+                coord_csv,
+                *list(tlz.concat([["-v", v] for v in VAR])),
+                "-p",
+                "hargreaves_samani",
+                "-s",
+                "geo_coords",
+            ],
+        )
+        runner.invoke(
+            cli,
+            [
+                "coords",
+                coord_csv,
+                *list(tlz.concat([["-v", v] for v in VAR])),
+                "-p",
+                "hargreaves_samani",
+                "-s",
+                "geo_coords",
+            ],
+        )
+        Path(coord_csv).unlink()
+        shutil.rmtree("geo_coords")
+        assert ret.exit_code == 0
+        assert "Found coordinates of 1 point" in ret.output
 
 
 def test_show_versions():
