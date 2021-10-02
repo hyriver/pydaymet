@@ -116,8 +116,8 @@ def coords(
     \b
     Examples:
         $ cat cities.csv
-        id,lon,lat,start,end,region
-        california,-122.2493328,37.8122894,2012-01-01,2014-12-31,na
+        id,lon,lat,start,end
+        california,-122.2493328,37.8122894,2012-01-01,2014-12-31
         $ pydaymet coords coords.csv -v prcp -v tmin -p hargreaves_samani
     """  # noqa: D301
     save_dir = Path(save_dir)
