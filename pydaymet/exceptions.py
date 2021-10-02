@@ -2,10 +2,6 @@
 from typing import Any, Generator, Iterable, List, Optional, Union
 
 
-class ZeroMatched(ValueError):
-    """Exception raised when a function argument is missing."""
-
-
 class InvalidInputValue(Exception):
     """Exception raised for invalid input.
 
