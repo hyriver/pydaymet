@@ -50,7 +50,7 @@ class TestByCoords:
 class TestByGeom:
     @pytest.mark.parametrize(
         "method,expected",
-        [("hargreaves_samani", 0.452), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
+        [("hargreaves_samani", 0.453), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bygeom(GEOM, DAY, pet=method)
