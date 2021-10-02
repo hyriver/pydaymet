@@ -26,12 +26,11 @@ dependencies:
   - urllib3
 
   # pygeoutils deps
-  - affine
   - dask
   - geopandas
   - netcdf4
   - numpy
-  - rasterio
+  - rasterio>=1.2
   - xarray
 
   # py3dep
@@ -47,10 +46,10 @@ dependencies:
   - bottleneck
 
   # test deps
+  - pyarrow
   - psutil
   - pytest
   - pytest-clarity
-  - pytest-console-scripts
   - pytest-cov
   - pytest-sugar
   - pytest-xdist
