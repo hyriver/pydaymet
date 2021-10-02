@@ -11,6 +11,11 @@ New Features
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
+- Rewrite the command-line interface using ``click.group`` to improve UX.
+  The command is now ``pydaymet [command] [args] [options]``. The two supported
+  commands are ``coords`` for getting climate data for a dataframe of coordinates
+  and ``geometry`` for getting gridded climate data for a geo-dataframe. Moreover,
+  Each sub-command now has a separate help message and example.
 - Deprecate ``get_byloc`` in favor of ``get_bycoords``.
 - The ``pet`` argument in both ``get_bycoords`` and ``get_bygeom`` functions now
   accepts ``hargreaves_samani``, ``penman_monteith``, ``priestley_taylor``, and ``None``.
