@@ -1,14 +1,15 @@
 """Command-line interface for PyDaymet."""
-import os
 from pathlib import Path
 from typing import List, Optional, Union
 
 import click
 import geopandas as gpd
 import pandas as pd
+import shapely.geometry as sgeom
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 from . import pydaymet as daymet
-from .exceptions import MissingItems
+from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 
 
 def get_target_df(
@@ -24,28 +25,44 @@ def get_target_df(
     return tdf[req_cols]
 
 
-CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
+    """Get the Daymer region of an input geometry (point or polygon)."""
+    region_bbox = {
+        "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
+        "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
+        "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
+    }
+    for region, bbox in region_bbox.items():
+        if bbox.contains(geom):
+            return region
+    msg = f"Input location with ID of {gid} is outside the Daymet spatial range."
+    raise InvalidInputRange(msg)
 
 
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.argument("target", type=click.Path(exists=True))
-@click.argument("target_type", type=click.Choice(["geometry", "coords"], case_sensitive=False))
-@click.argument("crs", type=str)
-@click.option(
+def get_region(geodf: gpd.GeoDataFrame) -> List[str]:
+    """Get the Daymer region of a geo-dataframe."""
+    return [
+        _get_region(i, p) for i, p in geodf[["id", "geometry"]].itertuples(index=False, name=None)
+    ]
+
+
+variables = click.option(
     "--variables",
     "-v",
     multiple=True,
     default=["prcp"],
     help="Target variables. You can pass this flag multiple times for multiple variables.",
 )
-@click.option(
+
+time_scale = click.option(
     "-t",
     "--time_scale",
     type=click.Choice(["daily", "monthly", "annual"], case_sensitive=False),
     default="daily",
     help="Target time scale.",
 )
-@click.option(
+
+pet = click.option(
     "-p",
     "--pet",
     type=click.Choice(
@@ -54,7 +71,8 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
     default="none",
     help="Compute PET.",
 )
-@click.option(
+
+save_dir = click.option(
     "-s",
     "--save_dir",
     type=click.Path(exists=False),
@@ -62,85 +80,139 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
     help="Path to a directory to save the requested files. "
     + "Extension for the outputs is .nc for geometry and .csv for coords.",
 )
-def main(
-    target: Path,
-    target_type: str,
-    crs: str,
+
+
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+def cli():
+    """Command-line interface for PyDaymet."""
+
+
+@cli.command("coords", context_settings=CONTEXT_SETTINGS)
+@click.argument("fpath", type=click.Path(exists=True))
+@variables
+@time_scale
+@pet
+@save_dir
+def coords(
+    fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
     time_scale: str = "daily",
     pet: str = "none",
     save_dir: Union[str, Path] = "clm_daymet",
 ):
-    r"""Retrieve cliamte data within geometries or elevations for a list of coordinates.
+    """Retrieve climate data for a list of coordinates.
 
-    TARGET: Path to a geospatial file (any file that geopandas.read_file can open) or a csv file.
+    \b
+    FPATH: Path to a csv file with four columns:
+        - ``id``: Feature identifiers that daymet uses as the output netcdf filenames.
+        - ``start``: Start time.
+        - ``end``: End time.
+        - ``lon``: Longitude of the points of interest.
+        - ``lat``: Latitude of the points of interest.
 
-    The input files should have three columns:
-
-        - id: Feature identifiers that daymet uses as the output netcdf filenames.
-
-        - start: Starting time.
-
-        - end: Ending time.
-
-        - region: Target region (na for CONUS, hi for Hawaii, and pr for Puerto Rico.
-
-    If target_type is geometry, an additional geometry column is required.
-    If it is coords, two additional columns are needed: x and y.
-
-    TARGET_TYPE: Type of input file: "coords" for csv and "geometry" for geospatial.
-
-    CRS: CRS of the input data.
-
+    \b
     Examples:
-
-        $ pydaymet ny_coords.csv coords epsg:4326 -v prcp -v tmin -p -t monthly
-
-        $ pydaymet ny_geom.gpkg geometry epsg:3857 -v prcp
-    """  # noqa: D412
+        $ cat cities.csv
+        id,lon,lat,start,end,region
+        california,-122.2493328,37.8122894,2012-01-01,2014-12-31,na
+        $ pydaymet coords coords.csv -v prcp -v tmin -p hargreaves_samani
+    """  # noqa: D301
     save_dir = Path(save_dir)
-    target = Path(target)
-    if not save_dir.exists():
-        os.makedirs(save_dir, exist_ok=True)
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-    get_func = {"coords": daymet.get_bycoords, "geometry": daymet.get_bygeom}
-    cols = ["dates", "region"]
-    extra_args = {
-        "crs": crs,
-        "variables": variables,
-        "time_scale": time_scale,
-        "pet": None if pet == "none" else pet,
-    }
+    fpath = Path(fpath)
+    if fpath.suffix != ".csv":
+        raise InvalidInputType("file", ".csv")
 
-    if target_type == "geometry":
-        target_df = gpd.read_file(target, crs=crs)
-        target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
-        req_args = ["id", "geometry"] + cols
-        target_df = get_target_df(target_df, req_args)
-        save_func = "to_netcdf"
-        save_ext = "nc"
-    else:
-        target_df = pd.read_csv(target)
-        if not ("x" in target_df and "y" in target_df):
-            raise MissingItems(["x", "y"])
-        target_df["coords"] = list(target_df[["x", "y"]].itertuples(index=False, name=None))
-        target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
-        req_args = ["id", "coords"] + cols
-        target_df = get_target_df(target_df, req_args)
-        save_func = "to_csv"
-        save_ext = "csv"
+    _pet = None if pet == "none" else pet
 
-    click.echo(f"Found {len(target_df)} items in {target}. Retrieving ...")
+    target_df = get_target_df(pd.read_csv(fpath), ["id", "start", "end", "lon", "lat"])
+    points = gpd.GeoDataFrame(
+        target_df.id, geometry=gpd.points_from_xy(target_df.lon, target_df.lat), crs="epsg:4326"
+    )
+    target_df["region"] = get_region(points)
+    target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
+    target_df["coords"] = list(target_df[["lon", "lat"]].itertuples(index=False, name=None))
+    target_df = target_df[["id", "coords", "dates", "region"]]
+
+    count = "1 point" if len(target_df) == 1 else f"{len(target_df)} points"
+    click.echo(f"Found coordinates of {count} in {fpath.resolve()}.")
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting climate data",
         length=len(target_df),
     ) as bar:
-        for i, *args in bar:
-            fname = Path(save_dir, f"{i}.{save_ext}")
+        for i, coords, dates, region in bar:
+            fname = Path(save_dir, f"{i}.csv")
             if fname.exists():
                 continue
-            clm = get_func[target_type](**dict(zip(req_args[1:], args)), **extra_args)  # type: ignore
-            getattr(clm, save_func)(fname)
+            clm = daymet.get_bycoords(
+                coords, dates, region=region, variables=variables, time_scale=time_scale, pet=_pet
+            )
+            clm.to_csv(fname, index=False)
 
-    click.echo(f"Retrieved climate data for {len(target_df)} item(s).")
+
+@cli.command("geometry", context_settings=CONTEXT_SETTINGS)
+@click.argument("fpath", type=click.Path(exists=True))
+@variables
+@time_scale
+@pet
+@save_dir
+def geometry(
+    fpath: Path,
+    variables: Optional[Union[List[str], str]] = None,
+    time_scale: str = "daily",
+    pet: str = "none",
+    save_dir: Union[str, Path] = "clm_daymet",
+):
+    """Retrieve climate data for a dataframe of geometries.
+
+    \b
+    FPATH: Path to a shapefile (.shp) or geopackage (.gpkg) file with four columns in EPSG:4326:
+        - ``id``: Feature identifiers that daymet uses as the output netcdf filenames.
+        - ``start``: Start time.
+        - ``end``: End time.
+        - ``geometry``: geometries of regions of interest.
+
+    \b
+    Examples:
+        $ pydaymet geometry geo.gpkg -v prcp -v tmin -p hargreaves_samani
+    """  # noqa: D301
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    fpath = Path(fpath)
+    if fpath.suffix not in (".shp", ".gpkg"):
+        raise InvalidInputType("file", ".shp or .gpkg")
+
+    _pet = None if pet == "none" else pet
+
+    target_df = gpd.read_file(fpath)
+    if target_df.crs is None:
+        target_df = target_df.set_crs("epsg:4326")
+    elif target_df.crs.to_epsg() != 4326:
+        raise InvalidInputValue("crs", ["epsg:4326"])
+
+    target_df = get_target_df(target_df, ["id", "start", "end", "geometry"])
+    target_df["region"] = get_region(target_df)
+    target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
+    target_df = target_df[["id", "geometry", "dates", "region"]]
+
+    count = "1 geometry" if len(target_df) == 1 else f"{len(target_df)} geometries"
+    click.echo(f"Found {count} in {fpath.resolve()}.")
+    with click.progressbar(
+        target_df.itertuples(index=False, name=None),
+        label="Getting climate data",
+        length=len(target_df),
+    ) as bar:
+        for i, geometry, dates, region in bar:
+            fname = Path(save_dir, f"{i}.nc")
+            if fname.exists():
+                continue
+            clm = daymet.get_bygeom(
+                geometry, dates, region=region, variables=variables, time_scale=time_scale, pet=_pet
+            )
+            clm.to_netcdf(fname)
