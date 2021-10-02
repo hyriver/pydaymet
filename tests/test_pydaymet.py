@@ -94,7 +94,8 @@ class TestCLI:
             "end": "2000-05-31",
         }
         geo_gpkg = "nat_geo.gpkg"
-        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
+        save_dir = "test_geometry"
+        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs=DEF_CRS)
         gdf.to_file(geo_gpkg)
         ret = runner.invoke(
             cli,
@@ -105,11 +106,11 @@ class TestCLI:
                 "-t",
                 "monthly",
                 "-s",
-                "geo_map",
+                save_dir,
             ],
         )
-        shutil.rmtree(geo_gpkg)
-        shutil.rmtree("geo_map")
+        shutil.rmtree(geo_gpkg, ignore_errors=True)
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 0
         assert "Found 1 geometry" in ret.output
 
@@ -122,8 +123,9 @@ class TestCLI:
             "end": DAY[1],
         }
         coord_csv = "coords.csv"
+        save_dir = "test_coords"
         df = pd.DataFrame(params, index=[0])
-        df.to_csv(coord_csv)
+        df.to_csv(coord_csv, index=False)
         ret = runner.invoke(
             cli,
             [
@@ -133,7 +135,7 @@ class TestCLI:
                 "-p",
                 "hargreaves_samani",
                 "-s",
-                "geo_coords",
+                save_dir,
             ],
         )
         runner.invoke(
@@ -145,11 +147,11 @@ class TestCLI:
                 "-p",
                 "hargreaves_samani",
                 "-s",
-                "geo_coords",
+                save_dir,
             ],
         )
         Path(coord_csv).unlink()
-        shutil.rmtree("geo_coords")
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 0
         assert "Found coordinates of 1 point" in ret.output
 

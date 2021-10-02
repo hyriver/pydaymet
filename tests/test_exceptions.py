@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from shapely.geometry import Polygon
 
 import pydaymet as daymet
-from pydaymet import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
+from pydaymet import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems, MissingCRS
 from pydaymet.cli import cli
 
 GEOM = Polygon(
@@ -82,7 +82,8 @@ class TestCLIFails:
             "start": "2000-01-01",
             "end": "2000-01-12",
         }
-        coord_csv = "coords.csv"
+        coord_csv = "coords_missing_co.csv"
+        save_dir = "test_cli_missing_col"
         df = pd.DataFrame(params, index=[0])
         df.to_csv(coord_csv)
         ret = runner.invoke(
@@ -93,13 +94,14 @@ class TestCLIFails:
                 "-p",
                 "hargreaves_samani",
                 "-s",
-                "geo_coords",
+                save_dir,
             ],
         )
+        Path(coord_csv).unlink()
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
         assert isinstance(ret.exception, MissingItems)
         assert "lat" in str(ret.exception)
-        Path(coord_csv).unlink()
 
     def test_wrong_geo_format(self, runner):
         params = {
@@ -107,7 +109,8 @@ class TestCLIFails:
             "start": "2000-01-01",
             "end": "2000-05-31",
         }
-        geo_feather = "nat_geo.feather"
+        geo_feather = "geo_wrong_format.feather"
+        save_dir = "test_wrong_geo_format"
         gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs="epsg:4326")
         gdf.to_feather(geo_feather)
         ret = runner.invoke(
@@ -116,11 +119,11 @@ class TestCLIFails:
                 "geometry",
                 geo_feather,
                 "-s",
-                "geo_map",
+                save_dir,
             ],
         )
         Path(geo_feather).unlink()
-        shutil.rmtree("geo_map")
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
         assert isinstance(ret.exception, InvalidInputType)
         assert "gpkg" in str(ret.exception)
@@ -131,22 +134,24 @@ class TestCLIFails:
             "start": "2000-01-01",
             "end": "2000-05-31",
         }
-        geo_gpkg = "nat_geo.gpkg"
-        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs="epsg:4326")
-        gdf.to_crs("epsg:3542").to_file(geo_gpkg)
+        geo_gpkg = "wrong_geo_crs.gpkg"
+        save_dir = "test_wrong_geo_crs"
+        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
+        gdf.to_file(geo_gpkg)
         ret = runner.invoke(
             cli,
             [
                 "geometry",
                 geo_gpkg,
                 "-s",
-                "geo_map",
+                save_dir,
             ],
         )
-        shutil.rmtree(geo_gpkg)
+        shutil.rmtree(geo_gpkg, ignore_errors=True)
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
-        assert isinstance(ret.exception, InvalidInputValue)
-        assert "4326" in str(ret.exception)
+        assert isinstance(ret.exception, MissingCRS)
+        assert "CRS" in str(ret.exception)
 
     def test_wrong_coords_format(self, runner):
         params = {
@@ -156,7 +161,8 @@ class TestCLIFails:
             "start": "2000-01-01",
             "end": "2000-12-31",
         }
-        coord_paquet = "coords.paquet"
+        coord_paquet = "wrong_coords_format.paquet"
+        save_dir = "test_wrong_coords_format"
         df = pd.DataFrame(params, index=[0])
         df.to_parquet(coord_paquet)
         ret = runner.invoke(
@@ -165,11 +171,11 @@ class TestCLIFails:
                 "coords",
                 coord_paquet,
                 "-s",
-                "geo_coords",
+                save_dir,
             ],
         )
         Path(coord_paquet).unlink()
-        shutil.rmtree("geo_coords")
+        shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
         assert isinstance(ret.exception, InvalidInputType)
         assert "csv" in str(ret.exception)
