@@ -67,3 +67,14 @@ class MissingItems(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+class MissingCRS(Exception):
+    """Exception raised when input GeoDataFrame is missing CRS."""
+
+    def __init__(self) -> None:
+        self.message = "The input GeoDataFrame is missing CRS."
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message

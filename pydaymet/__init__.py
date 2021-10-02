@@ -2,7 +2,7 @@
 from pkg_resources import DistributionNotFound, get_distribution
 
 from .core import Daymet
-from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
+from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems, MissingCRS
 from .pet import potential_et
 from .print_versions import show_versions
 from .pydaymet import get_bycoords, get_bygeom
@@ -22,4 +22,5 @@ __all__ = [
     "InvalidInputType",
     "InvalidInputValue",
     "MissingItems",
+    "MissingCRS",
 ]
