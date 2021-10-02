@@ -1,15 +1,15 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 
+import geopandas as gpd
 import pandas as pd
 import pytest
 from pydantic import ValidationError
-import geopandas as gpd
+from shapely.geometry import Polygon
 
 import pydaymet as daymet
 from pydaymet import InvalidInputRange, InvalidInputType, InvalidInputValue, MissingItems
 from pydaymet.cli import cli
-from shapely.geometry import Polygon
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
@@ -74,6 +74,7 @@ def test_invalid_date_tuple():
 
 class TestCLIFails:
     """Test the command-line interface exceptions."""
+
     def test_cli_missing_col(self, runner):
         params = {
             "id": "coords_test",
@@ -143,7 +144,6 @@ class TestCLIFails:
             ],
         )
         shutil.rmtree(geo_gpkg)
-        shutil.rmtree("geo_map")
         assert ret.exit_code == 1
         assert isinstance(ret.exception, InvalidInputValue)
         assert "4326" in str(ret.exception)
