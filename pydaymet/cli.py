@@ -55,7 +55,7 @@ def get_region(geodf: gpd.GeoDataFrame) -> List[str]:
     ]
 
 
-variables = click.option(
+variables_opt = click.option(
     "--variables",
     "-v",
     multiple=True,
@@ -63,7 +63,7 @@ variables = click.option(
     help="Target variables. You can pass this flag multiple times for multiple variables.",
 )
 
-save_dir = click.option(
+save_dir_opt = click.option(
     "-s",
     "--save_dir",
     type=click.Path(exists=False),
@@ -83,8 +83,8 @@ def cli():
 
 @cli.command("coords", context_settings=CONTEXT_SETTINGS)
 @click.argument("fpath", type=click.Path(exists=True))
-@variables
-@save_dir
+@variables_opt
+@save_dir_opt
 def coords(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
@@ -146,8 +146,8 @@ def coords(
 
 @cli.command("geometry", context_settings=CONTEXT_SETTINGS)
 @click.argument("fpath", type=click.Path(exists=True))
-@variables
-@save_dir
+@variables_opt
+@save_dir_opt
 def geometry(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
