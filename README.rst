@@ -159,9 +159,8 @@ provides access to two functionality:
   ``id``, ``start``, ``end``, ``geometry``. The ``id`` column is used as
   filenames for saving the obtained climate data to a NetCDF (``.nc``) file. The ``start``
   and ``end`` columns are starting and ending dates of the target period. Then,
-  you must save the dataframe as shapefiles (``.shp``) or geopackage (``.gpkg``) files.
-  (the file is directly passed to ``geopandas.read_file`` function). CRS of the geometries
-  must be EPSG:4326.
+  you must save the dataframe as a shapefile (``.shp``) or geopackage (``.gpkg``) with
+  CRS attribute.
 - Getting single pixel climate data: You must create a CSV file that
   contains coordinates of the target locations. This file must have at four columns:
   ``id``, ``start``, ``end``, ``lon``, and ``lat``. The ``id`` column is used as filenames
@@ -198,26 +197,26 @@ The ``coords`` sub-command is as follows:
         - ``end``: End time.
         - ``lon``: Longitude of the points of interest.
         - ``lat``: Latitude of the points of interest.
+        - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
+        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+                   ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
+        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
 
     Examples:
-        $ cat cities.csv
-        id,lon,lat,start,end
-        california,-122.2493328,37.8122894,2012-01-01,2014-12-31
-        $ pydaymet coords coords.csv -v prcp -v tmin -p hargreaves_samani
+        $ cat coords.csv
+        id,lon,lat,start,end,pet
+        california,-122.2493328,37.8122894,2012-01-01,2014-12-31,hargreaves_samani
+        $ pydaymet coords coords.csv -v prcp -v tmin
 
     Options:
-    -v, --variables TEXT            Target variables. You can pass this flag
-                                    multiple times for multiple variables.
+    -v, --variables TEXT  Target variables. You can pass this flag multiple
+                            times for multiple variables.
 
-    -t, --time_scale [daily|monthly|annual]
-                                    Target time scale.
-    -p, --pet [penman_monteith|hargreaves_samani|priestley_taylor|none]
-                                    Compute PET.
-    -s, --save_dir PATH             Path to a directory to save the requested
-                                    files. Extension for the outputs is .nc for
-                                    geometry and .csv for coords.
+    -s, --save_dir PATH   Path to a directory to save the requested files.
+                            Extension for the outputs is .nc for geometry and .csv
+                            for coords.
 
-    -h, --help                      Show this message and exit.
+    -h, --help            Show this message and exit.
 
 And, the ``geometry`` sub-command is as follows:
 
@@ -228,28 +227,29 @@ And, the ``geometry`` sub-command is as follows:
 
     Retrieve climate data for a dataframe of geometries.
 
-    FPATH: Path to a shapefile (.shp) or geopackage (.gpkg) file with four columns in EPSG:4326:
+    FPATH: Path to a shapefile (.shp) or geopackage (.gpkg) file.
+    This file must have four columns and contain a ``crs`` attribute:
         - ``id``: Feature identifiers that daymet uses as the output netcdf filenames.
         - ``start``: Start time.
         - ``end``: End time.
-        - ``geometry``: geometries of regions of interest.
+        - ``geometry``: Target geometries.
+        - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
+        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+                   ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
+        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
 
     Examples:
-        $ pydaymet geometry geo.gpkg -v prcp -v tmin -p hargreaves_samani
+        $ pydaymet geometry geo.gpkg -v prcp -v tmin
 
     Options:
-    -v, --variables TEXT            Target variables. You can pass this flag
-                                    multiple times for multiple variables.
+    -v, --variables TEXT  Target variables. You can pass this flag multiple
+                            times for multiple variables.
 
-    -t, --time_scale [daily|monthly|annual]
-                                    Target time scale.
-    -p, --pet [penman_monteith|hargreaves_samani|priestley_taylor|none]
-                                    Compute PET.
-    -s, --save_dir PATH             Path to a directory to save the requested
-                                    files. Extension for the outputs is .nc for
-                                    geometry and .csv for coords.
+    -s, --save_dir PATH   Path to a directory to save the requested files.
+                            Extension for the outputs is .nc for geometry and .csv
+                            for coords.
 
-    -h, --help                      Show this message and exit.
+    -h, --help            Show this message and exit.
 
 Now, let's see how we can use PyDaymet as a library.
 
