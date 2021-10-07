@@ -135,15 +135,21 @@ class PETCoords:
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
-        self.tmin_c = "tmin (degrees C)"
-        self.tmax_c = "tmax (degrees C)"
-        self.srad_wm2 = "srad (W/m2)"
-        self.dayl_s = "dayl (s)"
+        self.tmin = "tmin (degrees C)"
+        self.tmax = "tmax (degrees C)"
+        self.srad = "srad (W/m2)"
+        self.dayl = "dayl (s)"
         self.rh = "rh (-)"
         self.u2 = "u2 (m/s)"
 
         self.dayofyear = self.clm.index.dayofyear
-        self.tmean_c = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
+        self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
+        self.clm_vars = self.clm.columns
+        self.req_vars = {
+            "penman_monteith": [self.tmin, self.tmax, self.srad, self.dayl],
+            "priestley_taylor": [self.tmin, self.tmax, self.srad, self.dayl],
+            "hargreaves_samani": [self.tmin, self.tmax],
+        }
 
     def penman_monteith(self) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998` Eq. 6.
@@ -162,28 +168,26 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        reqs = [self.tmin_c, self.tmax_c, self.srad_wm2, self.dayl_s]
+        check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
-        check_requirements(reqs, self.clm.columns)
-
-        vp_slope = vapour_slope(self.tmean_c)
+        vp_slope = vapour_slope(self.tmean)
         elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
 
         # Latent Heat of Vaporization [MJ/kg]
-        lmbda = 2.501 - 0.002361 * self.tmean_c
+        lmbda = 2.501 - 0.002361 * self.tmean
         gamma = psychrometric_constant(elevation, lmbda)
 
         # Saturation Vapor Pressure [kPa]
         rh = self.clm[self.rh] if self.rh in self.clm else None
-        e_s, e_a = vapour_pressure(self.clm[self.tmax_c], self.clm[self.tmin_c], rh)
+        e_s, e_a = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin], rh)
 
         rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
-            self.clm[self.srad_wm2],
-            self.clm[self.dayl_s],
+            self.clm[self.srad],
+            self.clm[self.dayl],
             elevation,
-            self.clm[self.tmax_c],
-            self.clm[self.tmin_c],
+            self.clm[self.tmax],
+            self.clm[self.tmin],
             e_a,
             rad_a,
         )
@@ -192,7 +196,7 @@ class PETCoords:
         u_2m = self.clm[self.u2] if self.u2 in self.clm else 2.0
         self.clm["pet (mm/day)"] = (
             0.408 * vp_slope * (rad_n - self.params["soil_heat"])
-            + gamma * 900.0 / (self.tmean_c + 273.0) * u_2m * (e_s - e_a)
+            + gamma * 900.0 / (self.tmean + 273.0) * u_2m * (e_s - e_a)
         ) / (vp_slope + gamma * (1 + 0.34 * u_2m))
 
         return self.clm
@@ -214,29 +218,27 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        reqs = [self.tmin_c, self.tmax_c, self.srad_wm2, self.dayl_s]
+        check_requirements(self.req_vars["priestley_taylor"], self.clm_vars)
 
-        check_requirements(reqs, self.clm.columns)
-
-        self.tmean_c = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
-        vp_slope = vapour_slope(self.tmean_c)
+        self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
+        vp_slope = vapour_slope(self.tmean)
         elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
 
         # Latent Heat of Vaporization [MJ/kg]
-        lmbda = 2.501 - 0.002361 * self.tmean_c
+        lmbda = 2.501 - 0.002361 * self.tmean
         gamma = psychrometric_constant(elevation, lmbda)
 
         # Saturation Vapor Pressure [kPa]
         rh = self.clm[self.rh] if self.rh in self.clm else None
-        _, e_a = vapour_pressure(self.clm[self.tmax_c], self.clm[self.tmin_c], rh)
+        _, e_a = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin], rh)
 
         rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
-            self.clm[self.srad_wm2],
-            self.clm[self.dayl_s],
+            self.clm[self.srad],
+            self.clm[self.dayl],
             elevation,
-            self.clm[self.tmax_c],
-            self.clm[self.tmin_c],
+            self.clm[self.tmax],
+            self.clm[self.tmin],
             e_a,
             rad_a,
         )
@@ -266,16 +268,14 @@ class PETCoords:
         ----------
         .. footbibliography::
         """
-        reqs = [self.tmin_c, self.tmax_c]
+        check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
-        check_requirements(reqs, self.clm.columns)
-
-        self.tmean_c = 0.5 * (self.clm[self.tmax_c] + self.clm[self.tmin_c])
+        self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1]) / 2.43
         self.clm["pet (mm/day)"] = (
             0.0023
-            * (self.tmean_c + 17.8)
-            * np.sqrt(self.clm[self.tmax_c] - self.clm[self.tmin_c])
+            * (self.tmean + 17.8)
+            * np.sqrt(self.clm[self.tmax] - self.clm[self.tmin])
             * rad_a
         )
 
@@ -315,6 +315,13 @@ class PETGridded:
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
+        self.clm_vars = list(self.clm.keys())
+        self.req_vars = {
+            "penman_monteith": ["tmin", "tmax", "lat", "srad", "dayl"],
+            "priestley_taylor": ["tmin", "tmax", "lat", "srad", "dayl"],
+            "hargreaves_samani": ["tmin", "tmax", "lat"],
+        }
+
     def penman_monteith(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998` Eq. 6.
 
@@ -332,10 +339,7 @@ class PETGridded:
         ----------
         .. footbibliography::
         """
-        keys = list(self.clm.keys())
-        reqs = ["tmin", "tmax", "lat", "lon", "srad", "dayl"]
-
-        check_requirements(reqs, keys)
+        check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
@@ -344,7 +348,7 @@ class PETGridded:
         elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.clm.crs, res)
         self.clm = xr.merge([self.clm, elev], combine_attrs="override")
         self.clm["elevation"] = self.clm.elevation.where(
-            ~np.isnan(self.clm.isel(time=0)[keys[0]]), drop=True
+            ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
         )
 
         # Latent Heat of Vaporization [MJ/kg]
@@ -352,7 +356,7 @@ class PETGridded:
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
         # Saturation vapor pressure [kPa]
-        rh = self.clm["rh"] if "rh" in keys else None
+        rh = self.clm["rh"] if "rh" in self.clm_vars else None
         self.clm["e_s"], self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
 
         rad_a = extraterrestrial_radiation(self.clm["dayofyear"], self.clm.isel(time=0).lat)
@@ -367,7 +371,7 @@ class PETGridded:
         )
 
         # recommended when no data is available
-        u_2m = self.clm["u2"] if "u2" in keys else 2.0
+        u_2m = self.clm["u2"] if "u2" in self.clm_vars else 2.0
         self.clm["pet"] = (
             0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params["soil_heat"])
             + self.clm["gamma"]
@@ -406,10 +410,7 @@ class PETGridded:
         ----------
         .. footbibliography::
         """
-        keys = list(self.clm.keys())
-        reqs = ["tmin", "tmax", "lat", "lon", "srad", "dayl"]
-
-        check_requirements(reqs, keys)
+        check_requirements(self.req_vars["priestley_taylor"], self.clm_vars)
 
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
@@ -418,7 +419,7 @@ class PETGridded:
         elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.clm.crs, res)
         self.clm = xr.merge([self.clm, elev], combine_attrs="override")
         self.clm["elevation"] = self.clm.elevation.where(
-            ~np.isnan(self.clm.isel(time=0)[keys[0]]), drop=True
+            ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
         )
 
         # Latent Heat of Vaporization [MJ/kg]
@@ -426,7 +427,7 @@ class PETGridded:
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
         # Saturation vapor pressure [kPa]
-        rh = self.clm["rh"] if "rh" in keys else None
+        rh = self.clm["rh"] if "rh" in self.clm_vars else None
         _, self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
 
         rad_a = extraterrestrial_radiation(self.clm["dayofyear"], self.clm.isel(time=0).lat)
@@ -470,10 +471,7 @@ class PETGridded:
         ----------
         .. footbibliography::
         """
-        keys = list(self.clm.keys())
-        reqs = ["tmin", "tmax"]
-
-        check_requirements(reqs, keys)
+        check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
         lat = self.clm.isel(time=0).lat
         rad_a = extraterrestrial_radiation(self.clm["dayofyear"], lat) / 2.43
