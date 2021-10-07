@@ -7,7 +7,7 @@ History
 
 Bug Fixes
 ~~~~~~~~~
-- There was an issue in the PET computation due to ``dayofyear`` being added as a new dimention.
+- There was an issue in the PET computation due to ``dayofyear`` being added as a new dimension.
   This version fixes it and even further simplifies the code by using ``xarray``'s ``dt`` accessor
   to gain access to the ``dayofyear`` method.
 
