@@ -55,8 +55,8 @@ def get_bycoords(
         * ``pr``: Puerto Rico
 
     time_scale : str, optional
-        Data time scale which can be daily, monthly (monthly summaries),
-        or annual (annual summaries). Defaults to daily.
+        Data time scale which can be ``daily``, ``monthly`` (monthly summaries),
+        or ``annual`` (annual summaries). Defaults to ``daily``.
     pet : str, optional
         Method for computing PET. Supported methods are
         ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
@@ -265,7 +265,7 @@ def get_bygeom(
 
     if isinstance(clm, xr.Dataset):
         for v in clm:
-            clm[v].attrs["crs"] = crs
+            clm[v].attrs["crs"] = daymet_crs
             clm[v].attrs["nodatavals"] = (0.0,)
 
     return geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
