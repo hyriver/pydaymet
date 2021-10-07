@@ -25,6 +25,15 @@ def get_target_df(
     return tdf[req_cols]
 
 
+def get_required_cols(geom_type: str, columns: List[str]) -> List[str]:
+    """Get the required columns for a given geometry type."""
+    req_cols = ["id", geom_type, "dates", "region"]
+    for var in ["time_scale", "pet", "alpha"]:
+        if var in columns:
+            req_cols.append(var)
+    return req_cols
+
+
 def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
     """Get the Daymer region of an input geometry (point or polygon)."""
     region_bbox = {
@@ -54,24 +63,6 @@ variables = click.option(
     help="Target variables. You can pass this flag multiple times for multiple variables.",
 )
 
-time_scale = click.option(
-    "-t",
-    "--time_scale",
-    type=click.Choice(["daily", "monthly", "annual"], case_sensitive=False),
-    default="daily",
-    help="Target time scale.",
-)
-
-pet = click.option(
-    "-p",
-    "--pet",
-    type=click.Choice(
-        ["penman_monteith", "hargreaves_samani", "priestley_taylor", "none"], case_sensitive=True
-    ),
-    default="none",
-    help="Compute PET.",
-)
-
 save_dir = click.option(
     "-s",
     "--save_dir",
@@ -93,14 +84,10 @@ def cli():
 @cli.command("coords", context_settings=CONTEXT_SETTINGS)
 @click.argument("fpath", type=click.Path(exists=True))
 @variables
-@time_scale
-@pet
 @save_dir
 def coords(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
-    time_scale: str = "daily",
-    pet: str = "none",
     save_dir: Union[str, Path] = "clm_daymet",
 ):
     """Retrieve climate data for a list of coordinates.
@@ -112,19 +99,21 @@ def coords(
         - ``end``: End time.
         - ``lon``: Longitude of the points of interest.
         - ``lat``: Latitude of the points of interest.
+        - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
+        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+                   ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
+        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
 
     \b
     Examples:
         $ cat coords.csv
-        id,lon,lat,start,end
-        california,-122.2493328,37.8122894,2012-01-01,2014-12-31
-        $ pydaymet coords coords.csv -v prcp -v tmin -p hargreaves_samani
+        id,lon,lat,start,end,pet
+        california,-122.2493328,37.8122894,2012-01-01,2014-12-31,hargreaves_samani
+        $ pydaymet coords coords.csv -v prcp -v tmin
     """  # noqa: D301
     fpath = Path(fpath)
     if fpath.suffix != ".csv":
         raise InvalidInputType("file", ".csv")
-
-    _pet = None if pet == "none" else pet
 
     target_df = get_target_df(pd.read_csv(fpath), ["id", "start", "end", "lon", "lat"])
     points = gpd.GeoDataFrame(
@@ -133,7 +122,9 @@ def coords(
     target_df["region"] = get_region(points)
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
     target_df["coords"] = list(target_df[["lon", "lat"]].itertuples(index=False, name=None))
-    target_df = target_df[["id", "coords", "dates", "region"]]
+
+    req_cols = get_required_cols("coords", target_df.columns)
+    target_df = target_df[req_cols]
 
     count = "1 point" if len(target_df) == 1 else f"{len(target_df)} points"
     click.echo(f"Found coordinates of {count} in {fpath.resolve()}.")
@@ -144,27 +135,22 @@ def coords(
         label="Getting single-pixel climate data",
         length=len(target_df),
     ) as bar:
-        for i, coords, dates, region in bar:
+        for i, *args in bar:
             fname = Path(save_dir, f"{i}.csv")
+            kwrgs = dict(zip(req_cols[1:], args))
             if fname.exists():
                 continue
-            clm = daymet.get_bycoords(
-                coords, dates, region=region, variables=variables, time_scale=time_scale, pet=_pet
-            )
+            clm = daymet.get_bycoords(**kwrgs, variables=variables)
             clm.to_csv(fname, index=False)
 
 
 @cli.command("geometry", context_settings=CONTEXT_SETTINGS)
 @click.argument("fpath", type=click.Path(exists=True))
 @variables
-@time_scale
-@pet
 @save_dir
 def geometry(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
-    time_scale: str = "daily",
-    pet: str = "none",
     save_dir: Union[str, Path] = "clm_daymet",
 ):
     """Retrieve climate data for a dataframe of geometries.
@@ -175,11 +161,16 @@ def geometry(
         - ``id``: Feature identifiers that daymet uses as the output netcdf filenames.
         - ``start``: Start time.
         - ``end``: End time.
-        - ``geometry``: geometries of regions of interest.
+        - ``geometry``: Target geometries.
+        - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
+        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+                   ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
+        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
+
 
     \b
     Examples:
-        $ pydaymet geometry geo.gpkg -v prcp -v tmin -p hargreaves_samani
+        $ pydaymet geometry geo.gpkg -v prcp -v tmin
     """  # noqa: D301
     fpath = Path(fpath)
     if fpath.suffix not in (".shp", ".gpkg"):
@@ -188,28 +179,33 @@ def geometry(
     target_df = gpd.read_file(fpath)
     if target_df.crs is None:
         raise MissingCRS
-    target_df = target_df.to_crs("epsg:4326")
+
+    if "undefined geographic" in target_df.crs.name.lower():
+        raise MissingCRS
 
     target_df = get_target_df(target_df, ["id", "start", "end", "geometry"])
     target_df["region"] = get_region(target_df)
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
-    target_df = target_df[["id", "geometry", "dates", "region"]]
+    req_cols = get_required_cols("geometry", target_df.columns)
+    target_df = target_df[req_cols]
 
     count = "1 geometry" if len(target_df) == 1 else f"{len(target_df)} geometries"
     click.echo(f"Found {count} in {fpath.resolve()}.")
 
-    _pet = None if pet == "none" else pet
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting gridded climate data",
         length=len(target_df),
     ) as bar:
-        for i, geometry, dates, region in bar:
+        for i, *args in bar:
             fname = Path(save_dir, f"{i}.nc")
             if fname.exists():
                 continue
+            kwrgs = dict(zip(req_cols[1:], args))
             clm = daymet.get_bygeom(
-                geometry, dates, region=region, variables=variables, time_scale=time_scale, pet=_pet
+                **kwrgs,
+                crs=target_df.crs,
+                variables=variables,
             )
             clm.to_netcdf(fname)
