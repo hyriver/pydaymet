@@ -2,7 +2,7 @@
 History
 =======
 
-0.12.0 (unreleased)
+0.11.2 (2021-10-07)
 -------------------
 
 New Features
@@ -20,6 +20,11 @@ Breaking Changes
 - The ``pet`` argument in both ``get_bycoords`` and ``get_bygeom`` functions now
   accepts ``hargreaves_samani``, ``penman_monteith``, ``priestley_taylor``, and ``None``.
 
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Refactor the ``pet`` module for reducing duplicate code and improving readability and
+  maintainability. The code is smaller now and the functions for computing physical properties
+  include references to equations from the respective original paper.
 
 0.11.1 (2021-07-31)
 -------------------
