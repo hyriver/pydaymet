@@ -2,6 +2,15 @@
 History
 =======
 
+0.11.3 (2021-10-07)
+-------------------
+
+Bug Fixes
+~~~~~~~~~
+- There was an issue in the PET computation due to ``dayofyear`` being added as a new dimention.
+  This version fixes it and even further simplifies the code by using ``xarray``'s ``dt`` accessor
+  to gain access to the ``dayofyear`` method.
+
 0.11.2 (2021-10-07)
 -------------------
 
