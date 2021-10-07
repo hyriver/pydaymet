@@ -92,8 +92,9 @@ class TestCLI:
             "id": "geo_test",
             "start": "2000-01-01",
             "end": "2000-05-31",
+            "time_scale": "monthly",
         }
-        geo_gpkg = "nat_geo.gpkg"
+        geo_gpkg = Path("nat_geo.gpkg")
         save_dir = "test_geometry"
         gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs=DEF_CRS)
         gdf.to_file(geo_gpkg)
@@ -101,15 +102,16 @@ class TestCLI:
             cli,
             [
                 "geometry",
-                geo_gpkg,
+                str(geo_gpkg),
                 *list(tlz.concat([["-v", v] for v in VAR])),
-                "-t",
-                "monthly",
                 "-s",
                 save_dir,
             ],
         )
-        shutil.rmtree(geo_gpkg, ignore_errors=True)
+        if geo_gpkg.is_dir():
+            shutil.rmtree(geo_gpkg)
+        else:
+            geo_gpkg.unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 0
         assert "Found 1 geometry" in ret.output
@@ -121,6 +123,7 @@ class TestCLI:
             "lat": 45.07,
             "start": DAY[0],
             "end": DAY[1],
+            "pet": "hargreaves_samani",
         }
         coord_csv = "coords.csv"
         save_dir = "test_coords"
@@ -132,8 +135,6 @@ class TestCLI:
                 "coords",
                 coord_csv,
                 *list(tlz.concat([["-v", v] for v in VAR])),
-                "-p",
-                "hargreaves_samani",
                 "-s",
                 save_dir,
             ],
@@ -144,8 +145,6 @@ class TestCLI:
                 "coords",
                 coord_csv,
                 *list(tlz.concat([["-v", v] for v in VAR])),
-                "-p",
-                "hargreaves_samani",
                 "-s",
                 save_dir,
             ],

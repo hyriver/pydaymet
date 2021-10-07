@@ -87,6 +87,7 @@ class TestCLIFails:
             "lon": -100,
             "start": "2000-01-01",
             "end": "2000-01-12",
+            "pet": "hargreaves_samani",
         }
         coord_csv = "coords_missing_co.csv"
         save_dir = "test_cli_missing_col"
@@ -97,8 +98,6 @@ class TestCLIFails:
             [
                 "coords",
                 coord_csv,
-                "-p",
-                "hargreaves_samani",
                 "-s",
                 save_dir,
             ],
@@ -140,20 +139,23 @@ class TestCLIFails:
             "start": "2000-01-01",
             "end": "2000-05-31",
         }
-        geo_gpkg = "wrong_geo_crs.gpkg"
+        geo_gpkg = Path("wrong_geo_crs.gpkg")
         save_dir = "test_wrong_geo_crs"
-        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0])
+        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs=None)
         gdf.to_file(geo_gpkg)
         ret = runner.invoke(
             cli,
             [
                 "geometry",
-                geo_gpkg,
+                str(geo_gpkg),
                 "-s",
                 save_dir,
             ],
         )
-        shutil.rmtree(geo_gpkg, ignore_errors=True)
+        if geo_gpkg.is_dir():
+            shutil.rmtree(geo_gpkg)
+        else:
+            geo_gpkg.unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
         assert isinstance(ret.exception, MissingCRS)
