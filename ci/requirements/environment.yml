@@ -11,6 +11,7 @@ dependencies:
   - brotlipy
   - cchardet
   - cytoolz
+  - importlib_metadata
   - nest-asyncio
   - ujson
 
@@ -19,24 +20,24 @@ dependencies:
   - owslib
   - pydantic
   - pyyaml
-  - pyproj
+  - pyproj>=1.2
   - requests
-  - requests-cache
+  - requests-cache>=0.8
   - shapely
   - urllib3
 
   # pygeoutils deps
-  - dask
-  - geopandas
+  - dask-core
+  - geopandas>=0.8
   - netcdf4
-  - numpy
+  - numpy>=1.17
   - rasterio>=1.2
-  - xarray
+  - xarray>=0.17
 
   # py3dep
-  - click
+  - click>=7.0
   - scipy
-  - richdem
+  - richdem>=0.3.4
 
   # pydaymet deps
   - lxml
@@ -48,7 +49,6 @@ dependencies:
   # test deps
   - pyarrow
   - psutil
-  - pytest
   - pytest-clarity
   - pytest-cov
   - pytest-sugar

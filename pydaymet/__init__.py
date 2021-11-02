@@ -1,6 +1,4 @@
 """Top-level package for PyDaymet."""
-from pkg_resources import DistributionNotFound, get_distribution
-
 from .core import Daymet
 from .exceptions import (
     InvalidInputRange,
@@ -14,8 +12,13 @@ from .print_versions import show_versions
 from .pydaymet import get_bycoords, get_bygeom
 
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
+    import importlib.metadata as metadata
+except ImportError:
+    import importlib_metadata as metadata  # type: ignore[no-redef]
+
+try:
+    __version__ = metadata.version("pydaymet")
+except Exception:
     __version__ = "999"
 
 __all__ = [
