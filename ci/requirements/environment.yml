@@ -49,9 +49,7 @@ dependencies:
   # test deps
   - pyarrow
   - psutil
-  - pytest-clarity
   - pytest-cov
-  - pytest-sugar
   - pytest-xdist
 
   - pip
