@@ -2,7 +2,7 @@
 import functools
 import io
 import itertools
-import ssl
+from ssl import SSLContext
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import async_retriever as ar
@@ -30,7 +30,7 @@ def get_bycoords(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
-    ssl: Union[ssl.SSLContext, bool, None] = None,
+    ssl: Union[SSLContext, bool, None] = None,
 ) -> xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -147,7 +147,7 @@ def get_bygeom(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
-    ssl: Union[ssl.SSLContext, bool, None] = None,
+    ssl: Union[SSLContext, bool, None] = None,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
