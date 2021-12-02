@@ -2,12 +2,19 @@
 History
 =======
 
+0.11.5 (unreleased)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Expose the ``ssl`` argument for disabling the SSL certification verification (:issue_day:`41`).
+
 0.11.4 (2021-11-12)
 -------------------
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
-- Use ``importlib-metadata`` for getting the version insead of ``pkg_resources``
+- Use ``importlib-metadata`` for getting the version instead of ``pkg_resources``
   to decrease import time as discussed in this
   `issue <https://github.com/pydata/xarray/issues/5676>`__.
 
@@ -47,7 +54,7 @@ Internal Changes
 0.11.1 (2021-07-31)
 -------------------
 
-The highligth of this release is a major refactor of ``Daymet`` to allow for
+The highlight of this release is a major refactor of ``Daymet`` to allow for
 extending PET computation function for using methods other than FAO-56.
 
 New Features
@@ -64,12 +71,12 @@ New Features
 New Features
 ~~~~~~~~~~~~
 - Add command-line interface (:issue_day:`7`).
-- Use ``AsyncRetriever`` for sending requests asyncronosly with persistent caching.
+- Use ``AsyncRetriever`` for sending requests asynchronously with persistent caching.
   A cache folder in the current directory is created.
 - Check for validity of start/end dates based on Daymet V4 since Puerto Rico data
-  starts from 1950 while North America and Hwaii start from 1980.
+  starts from 1950 while North America and Hawaii start from 1980.
 - Check for validity of input coordinate/geometry based on the Daymet V4 bounding boxes.
-- Improve accuracy of computing Psychrometric constant in PET calculations by using
+- Improve accuracy of computing Psychometric constant in PET calculations by using
   an equation in Allen et al. 1998.
 
 Breaking Changes
@@ -91,13 +98,13 @@ Internal Changes
 0.10.2 (2021-03-27)
 -------------------
 
-- Add announcement regarding the new name for the softwate stack, HyRiver.
+- Add announcement regarding the new name for the software stack, HyRiver.
 - Improve ``pip`` installation and release workflow.
 
 0.10.0 (2021-03-06)
 -------------------
 
-- The first release after renaming hydrodata to pygeohydro.
+- The first release after renaming hydrodata to PyGeoHydro.
 - Make ``mypy`` checks more strict and fix all the errors and prevent possible bugs.
 - Speed up CI testing by using ``mamba`` and caching.
 
@@ -105,19 +112,19 @@ Internal Changes
 0.9.0 (2021-02-14)
 ------------------
 
-- Bump version to the same version as pygeohydro.
+- Bump version to the same version as PyGeoHydro.
 - Update to version 4 of Daymet database. You can check the release information
   `here <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`_
 - Add a new function called ``get_bycoords`` that provides an alternative to ``get_byloc``
   for getting climate data at a single pixel. This new function uses THREDDS data server
   with NetCDF Subset Service (NCSS), and supports getting monthly and annual averages directly
-  from the server. Note that this function will replace ``get_byloc`` in  the future.
+  from the server. Note that this function will replace ``get_byloc`` in the future.
   So consider migrating your code by replacing ``get_byloc`` with ``get_bycoords``. The
   input arguments of ``get_bycoords`` is very similar to ``get_bygeom``. Another difference
   between ``get_byloc`` and ``get_bycoords`` is column names where ``get_bycoords`` uses
   the units that are return by NCSS server.
-- Add support for downloading mothly and annual summaries in addition to the daily
-  time-scale. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
+- Add support for downloading monthly and annual summaries in addition to the daily
+  timescale. You can pass ``time_scale`` as ``daily``, ``monthly``, or ``annual``
   to ``get_bygeom`` or ``get_bycoords`` functions to download the respective summaries.
 - Add support for getting climate data for Hawaii and Puerto Rico by passing ``region``
   to ``get_bygeom`` and ``get_bycoords`` functions. The acceptable values are ``na`` for
@@ -130,7 +137,7 @@ Internal Changes
 - Remove the ``fill_hole`` argument.
 - Improve masking by geometry.
 - Use the newly added ``async_requests`` function from ``pygeoogc`` for getting
-  datymet data to increase the performance (almost 2x faster)
+  Daymet data to increase the performance (almost 2x faster)
 
 0.1.3 (2020-08-18)
 ------------------
