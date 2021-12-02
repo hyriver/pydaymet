@@ -72,6 +72,9 @@ save_dir_opt = click.option(
     + "Extension for the outputs is .nc for geometry and .csv for coords.",
 )
 
+ssl_opt = click.option(
+    "--disable_ssl", is_flag=True, help="Pass to disable SSL certification verification."
+)
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
@@ -85,10 +88,12 @@ def cli():
 @click.argument("fpath", type=click.Path(exists=True))
 @variables_opt
 @save_dir_opt
+@ssl_opt
 def coords(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
     save_dir: Union[str, Path] = "clm_daymet",
+    disable_ssl: bool = False,
 ):
     """Retrieve climate data for a list of coordinates.
 
@@ -130,6 +135,7 @@ def coords(
     click.echo(f"Found coordinates of {count} in {fpath.resolve()}.")
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
+    ssl = False if disable_ssl else None
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting single-pixel climate data",
@@ -140,7 +146,7 @@ def coords(
             kwrgs = dict(zip(req_cols[1:], args))
             if fname.exists():
                 continue
-            clm = daymet.get_bycoords(**kwrgs, variables=variables)
+            clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=ssl)
             clm.to_csv(fname, index=False)
 
 
@@ -148,10 +154,12 @@ def coords(
 @click.argument("fpath", type=click.Path(exists=True))
 @variables_opt
 @save_dir_opt
+@ssl_opt
 def geometry(
     fpath: Path,
     variables: Optional[Union[List[str], str]] = None,
     save_dir: Union[str, Path] = "clm_daymet",
+    disable_ssl: bool = False,
 ):
     """Retrieve climate data for a dataframe of geometries.
 
@@ -193,6 +201,7 @@ def geometry(
     click.echo(f"Found {count} in {fpath.resolve()}.")
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
+    ssl = False if disable_ssl else None
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting gridded climate data",
@@ -207,5 +216,6 @@ def geometry(
                 **kwrgs,
                 crs=target_df.crs,
                 variables=variables,
+                ssl=ssl,
             )
             clm.to_netcdf(fname)

@@ -1,6 +1,8 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+import functools
 import io
 import itertools
+import ssl
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import async_retriever as ar
@@ -28,6 +30,7 @@ def get_bycoords(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
+    ssl: Union[ssl.SSLContext, bool, None] = None,
 ) -> xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -69,6 +72,9 @@ def get_bycoords(
     pet_params : dict, optional
         Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
+    ssl : bool or SSLContext, optional
+        SSLContext to use for the connection, defaults to None. Set to False to disable
+        SSL cetification verification.
 
     Returns
     -------
@@ -109,11 +115,12 @@ def get_bycoords(
     )
     url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
+    retrieve = functools.partial(ar.retrieve, read="binary", max_workers=8, ssl=ssl)
     clm = pd.concat(
         (
             pd.concat(
                 pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in ar.retrieve(u, "binary", request_kwds=k, max_workers=8)
+                for r in retrieve(u, request_kwds=k)
             )
             for u, k in url_kwd_list
         ),
@@ -140,6 +147,7 @@ def get_bygeom(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
+    ssl: Union[ssl.SSLContext, bool, None] = None,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -177,6 +185,9 @@ def get_bygeom(
     pet_params : dict, optional
         Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
+    ssl : bool or SSLContext, optional
+        SSLContext to use for the connection, defaults to None. Set to False to disable
+        SSL cetification verification.
 
     Returns
     -------
@@ -223,7 +234,10 @@ def get_bygeom(
 
     try:
         clm = xr.open_mfdataset(
-            (io.BytesIO(r) for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8)),
+            (
+                io.BytesIO(r)
+                for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8, ssl=ssl)
+            ),
             engine="scipy",
             coords="minimal",
         )
