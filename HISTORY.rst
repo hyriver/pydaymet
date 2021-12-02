@@ -8,6 +8,9 @@ History
 New Features
 ~~~~~~~~~~~~
 - Expose the ``ssl`` argument for disabling the SSL certification verification (:issue_day:`41`).
+  Now, you can pass ``ssl=False`` to disable the SSL verification in both ``get_bygeom`` and
+  ``get_bycoord`` functions. Moreover, you can pass ``--disable_ssl`` to PyDaymet's command line
+  interface to disable the SSL verification.
 
 0.11.4 (2021-11-12)
 -------------------
