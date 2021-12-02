@@ -17,6 +17,9 @@ testpaths = [
     "tests",
     "pydaymet",
 ]
+filterwarnings = [
+    "ignore:.*this is an initial implementation.*",
+]
 
 [tool.isort]
 profile = "black"
