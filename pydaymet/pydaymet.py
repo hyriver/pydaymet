@@ -86,7 +86,13 @@ def get_bycoords(
     >>> import pydaymet as daymet
     >>> coords = (-1431147.7928, 318483.4618)
     >>> dates = ("2000-01-01", "2000-12-31")
-    >>> clm = daymet.get_bycoords(coords, dates, crs="epsg:3542", pet="hargreaves_samani")
+    >>> clm = daymet.get_bycoords(
+    ...     coords,
+    ...     dates,
+    ...     crs="epsg:3542",
+    ...     pet="hargreaves_samani",
+    ...     ssl=False
+    ... )
     >>> clm["pet (mm/day)"].mean()
     3.713
 
