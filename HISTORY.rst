@@ -2,7 +2,7 @@
 History
 =======
 
-0.11.5 (unreleased)
+0.12.0 (2021-12-27)
 -------------------
 
 New Features
@@ -11,6 +11,15 @@ New Features
   Now, you can pass ``ssl=False`` to disable the SSL verification in both ``get_bygeom`` and
   ``get_bycoord`` functions. Moreover, you can pass ``--disable_ssl`` to PyDaymet's command line
   interface to disable the SSL verification.
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Set the request caching's expiration time to never expire. Add two flags to all
+  functions to control the caching: ``expire_after`` and ``disable_caching``.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Add all the missing types so ``mypy --strict`` passes.
 
 0.11.4 (2021-11-12)
 -------------------
