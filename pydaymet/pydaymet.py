@@ -19,6 +19,8 @@ from .pet import potential_et
 
 DEF_CRS = "epsg:4326"
 DATE_REQ = "%Y-%m-%dT%H:%M:%SZ"
+EXPIRE = -1
+MAX_CONN = 10
 
 
 def get_bycoords(
@@ -31,7 +33,9 @@ def get_bycoords(
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
-) -> xr.Dataset:
+    expire_after: float = EXPIRE,
+    disable_caching: bool = False,
+) -> pd.DataFrame:
     """Get point-data from the Daymet database at 1-km resolution.
 
     This function uses THREDDS data service to get the coordinates
@@ -75,6 +79,10 @@ def get_bycoords(
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL cetification verification.
+    expire_after : int, optional
+        Expiration time for response caching in seconds, defaults to -1 (never expire).
+    disable_caching : bool, optional
+        If ``True``, disable caching requests, defaults to False.
 
     Returns
     -------
@@ -121,11 +129,18 @@ def get_bycoords(
     )
     url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
-    retrieve = functools.partial(ar.retrieve, read="binary", max_workers=8, ssl=ssl)
+    retrieve = functools.partial(
+        ar.retrieve,
+        read="binary",
+        max_workers=MAX_CONN,
+        ssl=ssl,
+        disable=disable_caching,
+        expire_after=expire_after,
+    )
     clm = pd.concat(
         (
             pd.concat(
-                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])  # type: ignore
                 for r in retrieve(u, request_kwds=k)
             )
             for u, k in url_kwd_list
@@ -154,6 +169,8 @@ def get_bygeom(
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
+    expire_after: float = EXPIRE,
+    disable_caching: bool = False,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -194,6 +211,10 @@ def get_bygeom(
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL cetification verification.
+    expire_after : int, optional
+        Expiration time for response caching in seconds, defaults to -1 (never expire).
+    disable_caching : bool, optional
+        If ``True``, disable caching requests, defaults to False.
 
     Returns
     -------
@@ -239,10 +260,18 @@ def get_bygeom(
     )
 
     try:
-        clm = xr.open_mfdataset(
+        clm: xr.Dataset = xr.open_mfdataset(
             (
-                io.BytesIO(r)
-                for r in ar.retrieve(urls, "binary", request_kwds=kwds, max_workers=8, ssl=ssl)
+                io.BytesIO(r)  # type: ignore
+                for r in ar.retrieve(
+                    urls,
+                    "binary",
+                    request_kwds=list(kwds),
+                    max_workers=MAX_CONN,
+                    ssl=ssl,
+                    disable=disable_caching,
+                    expire_after=expire_after,
+                )
             ),
             engine="scipy",
             coords="minimal",
@@ -288,7 +317,8 @@ def get_bygeom(
             clm[v].attrs["crs"] = daymet_crs
             clm[v].attrs["nodatavals"] = (0.0,)
 
-    return geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
+    masked: xr.Dataset = geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
+    return masked
 
 
 def _get_filename(

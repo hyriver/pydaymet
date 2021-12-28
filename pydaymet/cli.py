@@ -80,7 +80,7 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
-def cli():
+def cli() -> None:
     """Command-line interface for PyDaymet."""
 
 
@@ -94,7 +94,7 @@ def coords(
     variables: Optional[Union[List[str], str]] = None,
     save_dir: Union[str, Path] = "clm_daymet",
     disable_ssl: bool = False,
-):
+) -> None:
     """Retrieve climate data for a list of coordinates.
 
     \b
@@ -160,7 +160,7 @@ def geometry(
     variables: Optional[Union[List[str], str]] = None,
     save_dir: Union[str, Path] = "clm_daymet",
     disable_ssl: bool = False,
-):
+) -> None:
     """Retrieve climate data for a dataframe of geometries.
 
     \b

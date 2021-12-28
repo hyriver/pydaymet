@@ -54,29 +54,27 @@ class DaymetBase(BaseModel):
     region: str = "na"
 
     @validator("pet")
-    def _valid_pet(cls, v):
+    def _valid_pet(cls, v: Optional[str]) -> Optional[str]:
         valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
         if v not in valid_methods:
             raise InvalidInputValue("pet", valid_methods)
         return v
 
     @validator("variables")
-    def _valid_variables(cls, v, values) -> List[str]:
+    def _valid_variables(cls, v: List[str], values: Dict[str, str]) -> List[str]:
         valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
         if "all" in v:
             return valid_variables
 
-        variables = [v] if isinstance(v, str) else v
-
-        if not set(variables).issubset(set(valid_variables)):
+        if not set(v).issubset(set(valid_variables)):
             raise InvalidInputValue("variables", valid_variables)
 
         if values["pet"] is not None:
-            variables = list({"tmin", "tmax", "srad", "dayl"} | set(variables))
-        return variables
+            v = list(set(v).union({"tmin", "tmax", "srad", "dayl"}))
+        return v
 
     @validator("time_scale")
-    def _valid_timescales(cls, v, values):
+    def _valid_timescales(cls, v: str, values: Dict[str, str]) -> str:
         valid_timescales = ["daily", "monthly", "annual"]
         if v not in valid_timescales:
             raise InvalidInputValue("time_scale", valid_timescales)
@@ -87,7 +85,7 @@ class DaymetBase(BaseModel):
         return v
 
     @validator("region")
-    def _valid_regions(cls, v):
+    def _valid_regions(cls, v: str) -> str:
         valid_regions = ["na", "hi", "pr"]
         if v not in valid_regions:
             raise InvalidInputValue("region", valid_regions)

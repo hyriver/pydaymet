@@ -1,5 +1,5 @@
 """Core class for the Daymet functions."""
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -10,18 +10,18 @@ import xarray as xr
 from .exceptions import InvalidInputType, InvalidInputValue, MissingItems
 
 DEF_CRS = "epsg:4326"
-
+DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 
 __all__ = ["potential_et"]
 
 
 def potential_et(
-    clm: Union[pd.DataFrame, xr.Dataset],
+    clm: DF,
     coords: Optional[Tuple[float, float]] = None,
     crs: str = "epsg:4326",
     method: str = "hargreaves_samani",
     params: Optional[Dict[str, float]] = None,
-) -> Union[pd.DataFrame, xr.Dataset]:
+) -> DF:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
 
     Parameters
@@ -79,7 +79,7 @@ def potential_et(
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
     if method not in valid_methods:
         raise InvalidInputValue("method", valid_methods)
@@ -96,7 +96,7 @@ def potential_et(
     else:
         pet = PETGridded(clm, params)
 
-    return getattr(pet, method)()
+    return getattr(pet, method)()  # type: ignore
 
 
 class PETCoords:
@@ -376,7 +376,9 @@ class PETGridded:
             / (self.clm["tmean"] + 273.0)
             * u_2m
             * (self.clm["e_s"] - self.clm["e_a"])
-        ) / (self.clm["vp_slope"] + self.clm["gamma"] * (1 + 0.34 * u_2m))
+        ) / (
+            self.clm["vp_slope"] + self.clm["gamma"] * (1.0 + 0.34 * u_2m)  # type: ignore
+        )
         self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm = self.clm.drop_vars(["vp_slope", "gamma", "rad_n", "tmean", "e_a", "lambda"])
@@ -390,11 +392,6 @@ class PETGridded:
         -----
         The method is based on :footcite:t:`Priestley_1972`
         assuming that soil heat flux density is zero.
-
-        Parameters
-        ----------
-        alpha : float, optional
-            Priestley-Taylor coefficient, defaults to ``1.26``.
 
         Returns
         -------
@@ -485,7 +482,10 @@ def vapour_pressure(
     tmax_c: Union[pd.Series, xr.DataArray],
     tmin_c: Union[pd.Series, xr.DataArray],
     rh: Optional[Union[pd.Series, xr.DataArray]] = None,
-) -> Union[Tuple[pd.Series, pd.Series], Tuple[xr.DataArray, xr.DataArray]]:
+) -> Union[
+    Tuple[Union[pd.Series, xr.DataArray], Union[pd.Series, xr.DataArray]],
+    Tuple[Union[pd.Series, xr.DataArray], Union[pd.Series, xr.DataArray]],
+]:
     """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -502,10 +502,10 @@ def vapour_pressure(
     tuple of pandas.Series or tuple of xarray.DataArray
         Saturation vapour pressure in kPa and actual vapour pressure in kPa.
 
-        References
-        ----------
-        .. footbibliography::
-    """
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
     e_max = saturation_vapour(tmax_c)
     e_min = saturation_vapour(tmin_c)
     e_s = (e_max + e_min) * 0.5
@@ -534,7 +534,7 @@ def saturation_vapour(
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))
 
 
@@ -558,7 +558,7 @@ def extraterrestrial_radiation(
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     jp = 2.0 * np.pi * dayofyear / 365.0
     d_r = 1.0 + 0.033 * np.cos(jp)
     delta_r = 0.409 * np.sin(jp - 1.39)
@@ -581,7 +581,7 @@ def net_radiation(
     tmax: Union[pd.Series, xr.DataArray],
     tmin: Union[pd.Series, xr.DataArray],
     e_a: Union[pd.Series, xr.DataArray],
-    rad_a: xr.Dataset,
+    rad_a: Union[pd.Series, xr.DataArray],
 ) -> Union[pd.Series, xr.DataArray]:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
@@ -610,7 +610,7 @@ def net_radiation(
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     r_surf = srad * dayl * 1e-6
 
     alb = 0.23
@@ -645,7 +645,7 @@ def psychrometric_constant(
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     # Atmospheric pressure [kPa]
     pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
     return 1.013e-3 * pa / (0.622 * lmbda)
@@ -654,10 +654,20 @@ def psychrometric_constant(
 def vapour_slope(tmean_c: Union[pd.Series, xr.DataArray]) -> Union[pd.Series, xr.DataArray]:
     """Compute the slope of the saturation vapour pressure curve :footcite:t:`Allen_1998` Eq. 1 [kPa].
 
+    Parameters
+    ----------
+    tmean_c : pandas.Series or xarray.DataArray
+        The mean temperature [°C].
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        The slope of the saturation vapour pressure curve in kPa.
+
     References
     ----------
     .. footbibliography::
-    """
+    """  # noqa: DAR203
     return (
         4098
         * (
@@ -670,14 +680,14 @@ def vapour_slope(tmean_c: Union[pd.Series, xr.DataArray]) -> Union[pd.Series, xr
     )
 
 
-def check_requirements(reqs: Iterable, cols: List[str]) -> None:
+def check_requirements(reqs: Iterable[str], cols: List[str]) -> None:
     """Check for all the required data.
 
     Parameters
     ----------
     reqs : iterable
         A list of required data names (str)
-    cols : list
+    cols : list of str
         A list of variable names (str)
     """
     if not isinstance(reqs, Iterable):
