@@ -18,7 +18,7 @@ from .exceptions import InvalidInputRange, InvalidInputType
 from .pet import potential_et
 
 DEF_CRS = "epsg:4326"
-DATE_REQ = "%Y-%m-%dT%H:%M:%SZ"
+DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 EXPIRE = -1
 MAX_CONN = 10
 
@@ -130,8 +130,7 @@ def get_bycoords(
     url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
     retrieve = functools.partial(
-        ar.retrieve,
-        read="binary",
+        ar.retrieve_binary,
         max_workers=MAX_CONN,
         ssl=ssl,
         disable=disable_caching,
@@ -140,8 +139,8 @@ def get_bycoords(
     clm = pd.concat(
         (
             pd.concat(
-                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])  # type: ignore
-                for r in retrieve(u, request_kwds=k)
+                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                for r in retrieve(u, k)
             )
             for u, k in url_kwd_list
         ),
@@ -260,12 +259,11 @@ def get_bygeom(
     )
 
     try:
-        clm: xr.Dataset = xr.open_mfdataset(
+        clm: xr.Dataset = xr.open_mfdataset(  # type: ignore
             (
-                io.BytesIO(r)  # type: ignore
-                for r in ar.retrieve(
+                io.BytesIO(r)
+                for r in ar.retrieve_binary(
                     urls,
-                    "binary",
                     request_kwds=list(kwds),
                     max_workers=MAX_CONN,
                     ssl=ssl,
@@ -397,8 +395,8 @@ def _coord_urls(
                         "var": v,
                         "longitude": f"{lon}",
                         "latitude": f"{lat}",
-                        "time_start": s.strftime(DATE_REQ),
-                        "time_end": e.strftime(DATE_REQ),
+                        "time_start": s.strftime(DATE_FMT),
+                        "time_end": e.strftime(DATE_FMT),
                         "accept": "csv",
                     }
                 },
@@ -462,8 +460,8 @@ def _gridded_urls(
                     "south": f"{south}",
                     "disableProjSubset": "on",
                     "horizStride": "1",
-                    "time_start": s.strftime(DATE_REQ),
-                    "time_end": e.strftime(DATE_REQ),
+                    "time_start": s.strftime(DATE_FMT),
+                    "time_end": e.strftime(DATE_FMT),
                     "timeStride": "1",
                     "addLatLon": "true",
                     "accept": "netcdf",
