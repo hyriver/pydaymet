@@ -5,12 +5,14 @@ import numpy as np
 import pandas as pd
 import py3dep
 import pygeoogc as ogc
+import pyproj
 import xarray as xr
 
 from .exceptions import InvalidInputType, InvalidInputValue, MissingItems
 
 DEF_CRS = "epsg:4326"
 DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
+DS = TypeVar("DS", pd.Series, xr.DataArray)
 
 __all__ = ["potential_et"]
 
@@ -18,7 +20,7 @@ __all__ = ["potential_et"]
 def potential_et(
     clm: DF,
     coords: Optional[Tuple[float, float]] = None,
-    crs: str = "epsg:4326",
+    crs: Union[str, pyproj.CRS] = DEF_CRS,
     method: str = "hargreaves_samani",
     params: Optional[Dict[str, float]] = None,
 ) -> DF:
@@ -91,12 +93,12 @@ def potential_et(
     if isinstance(clm, pd.DataFrame):
         if coords is None:
             raise MissingItems(["coords"])
-
+        crs = ogc.utils.validate_crs(crs)
         pet = PETCoords(clm, coords, crs, params)
     else:
         pet = PETGridded(clm, params)
-
-    return getattr(pet, method)()  # type: ignore
+    with xr.set_options(keep_attrs=True):  # type: ignore
+        return getattr(pet, method)()  # type: ignore
 
 
 class PETCoords:
@@ -124,7 +126,7 @@ class PETCoords:
         self,
         clm: pd.DataFrame,
         coords: Tuple[float, float],
-        crs: str = DEF_CRS,
+        crs: Union[str, pyproj.CRS] = DEF_CRS,
         params: Optional[Dict[str, float]] = None,
     ) -> None:
         self.clm = clm
@@ -143,7 +145,7 @@ class PETCoords:
         self.u2 = "u2 (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
-        self.clm_vars = self.clm.columns
+        self.clm_vars = list(self.clm.columns)
         self.req_vars = {
             "penman_monteith": [self.tmin, self.tmax, self.srad, self.dayl],
             "priestley_taylor": [self.tmin, self.tmax, self.srad, self.dayl],
@@ -305,6 +307,21 @@ class PETGridded:
     ) -> None:
         self.clm = clm
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
+        self.res = 1.0e3
+        self.crs = " ".join(
+            [
+                "+proj=lcc",
+                "+lat_1=25",
+                "+lat_2=60",
+                "+lat_0=42.5",
+                "+lon_0=-100",
+                "+x_0=0",
+                "+y_0=0",
+                "+ellps=WGS84",
+                "+units=km",
+                "+no_defs",
+            ]
+        )
 
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
 
@@ -318,6 +335,20 @@ class PETGridded:
             "priestley_taylor": ["tmin", "tmax", "lat", "srad", "dayl"],
             "hargreaves_samani": ["tmin", "tmax", "lat"],
         }
+
+    @staticmethod
+    def set_new_attrs(clm: xr.Dataset) -> xr.Dataset:
+        """Set new attributes to the input dataset.
+
+        Parameters
+        ----------
+        clm : xarray.DataArray
+            The dataset to which the new attributes are added.
+        """
+        if "elevation" in clm:
+            clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
+        clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
+        return clm
 
     def penman_monteith(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998` Eq. 6.
@@ -341,8 +372,7 @@ class PETGridded:
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
 
-        res = self.clm.res[0] * 1.0e3
-        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.clm.crs, res)
+        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.crs, self.res)
         self.clm = xr.merge([self.clm, elev], combine_attrs="override")
         self.clm["elevation"] = self.clm.elevation.where(
             ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
@@ -379,11 +409,12 @@ class PETGridded:
         ) / (
             self.clm["vp_slope"] + self.clm["gamma"] * (1.0 + 0.34 * u_2m)  # type: ignore
         )
-        self.clm["pet"].attrs["units"] = "mm/day"
 
-        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "rad_n", "tmean", "e_a", "lambda"])
+        self.clm = self.clm.drop_vars(
+            ["vp_slope", "gamma", "rad_n", "tmean", "e_a", "lambda", "e_s"]
+        )
 
-        return self.clm
+        return self.set_new_attrs(self.clm)
 
     def priestley_taylor(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Priestley_1972`.
@@ -407,8 +438,7 @@ class PETGridded:
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
 
-        res = self.clm.res[0] * 1.0e3
-        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.clm.crs, res)
+        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.crs, self.res)
         self.clm = xr.merge([self.clm, elev], combine_attrs="override")
         self.clm["elevation"] = self.clm.elevation.where(
             ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
@@ -443,11 +473,10 @@ class PETGridded:
             * (self.clm["rad_n"] - self.params["soil_heat"])
             / ((self.clm["vp_slope"] + self.clm["gamma"]) * self.clm["lambda"])
         )
-        self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean", "e_a"])
 
-        return self.clm
+        return self.set_new_attrs(self.clm)
 
     def hargreaves_samani(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Hargreaves_1982`.
@@ -471,21 +500,17 @@ class PETGridded:
             * np.sqrt(self.clm["tmax"] - self.clm["tmin"])
             * rad_a
         )
-        self.clm["pet"].attrs["units"] = "mm/day"
 
         self.clm = self.clm.drop_vars("tmean")
 
-        return self.clm
+        return self.set_new_attrs(self.clm)
 
 
 def vapour_pressure(
-    tmax_c: Union[pd.Series, xr.DataArray],
-    tmin_c: Union[pd.Series, xr.DataArray],
-    rh: Optional[Union[pd.Series, xr.DataArray]] = None,
-) -> Union[
-    Tuple[Union[pd.Series, xr.DataArray], Union[pd.Series, xr.DataArray]],
-    Tuple[Union[pd.Series, xr.DataArray], Union[pd.Series, xr.DataArray]],
-]:
+    tmax_c: DS,
+    tmin_c: DS,
+    rh: Optional[DS] = None,
+) -> Union[Tuple[DS, DS], Tuple[DS, DS]]:
     """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -516,9 +541,7 @@ def vapour_pressure(
     return e_s, e_a
 
 
-def saturation_vapour(
-    temperature: Union[pd.Series, xr.DataArray]
-) -> Union[pd.Series, xr.DataArray]:
+def saturation_vapour(temperature: DS) -> DS:
     """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
 
     Parameters
@@ -535,12 +558,12 @@ def saturation_vapour(
     ----------
     .. footbibliography::
     """  # noqa: DAR203
-    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))
+    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
 
 
 def extraterrestrial_radiation(
-    dayofyear: Union[pd.Series, xr.DataArray], lat: Union[float, xr.DataArray]
-) -> Union[pd.Series, xr.DataArray]:
+    dayofyear: Union[pd.Int64Index, xr.DataArray], lat: Union[float, xr.DataArray]
+) -> Union[pd.Float64Index, xr.DataArray]:
     """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
 
     Parameters
@@ -575,14 +598,14 @@ def extraterrestrial_radiation(
 
 
 def net_radiation(
-    srad: Union[pd.Series, xr.DataArray],
-    dayl: Union[pd.Series, xr.DataArray],
-    elevation: Union[pd.Series, xr.DataArray],
-    tmax: Union[pd.Series, xr.DataArray],
-    tmin: Union[pd.Series, xr.DataArray],
-    e_a: Union[pd.Series, xr.DataArray],
-    rad_a: Union[pd.Series, xr.DataArray],
-) -> Union[pd.Series, xr.DataArray]:
+    srad: DS,
+    dayl: DS,
+    elevation: Union[float, xr.DataArray],
+    tmax: DS,
+    tmin: DS,
+    e_a: DS,
+    rad_a: Union[pd.Float64Index, xr.DataArray],
+) -> DS:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
     Parameters
@@ -591,7 +614,7 @@ def net_radiation(
         Solar radiation [MJ m^-2 day^-1].
     dayl : pandas.Series or xarray.DataArray
         Daylength [h].
-    elevation : pandas.Series or xarray.DataArray
+    elevation : float or xarray.DataArray
         Elevation [m].
     tmax : pandas.Series or xarray.DataArray
         Maximum temperature [°C].
@@ -622,17 +645,15 @@ def net_radiation(
         * (0.34 - 0.14 * np.sqrt(e_a))
         * ((1.35 * r_surf / rad_s) - 0.35)
     )
-    return rad_ns - rad_nl
+    return rad_ns - rad_nl  # type: ignore
 
 
-def psychrometric_constant(
-    elevation: Union[pd.Series, xr.DataArray], lmbda: Union[pd.Series, xr.DataArray]
-) -> Union[pd.Series, xr.DataArray]:
+def psychrometric_constant(elevation: Union[float, xr.DataArray], lmbda: DS) -> DS:
     """Compute the psychrometric constant :footcite:t:`Allen_1998` Eq. 8 [kPa °C^-1]..
 
     Parameters
     ----------
-    elevation : pandas.Series or xarray.DataArray
+    elevation : float or xarray.DataArray
         Elevation of the location in meters.
     lmbda : pandas.Series or xarray.DataArray
         Latent heat of vaporization in J/kg, defaults to 0.0065.
@@ -651,7 +672,7 @@ def psychrometric_constant(
     return 1.013e-3 * pa / (0.622 * lmbda)
 
 
-def vapour_slope(tmean_c: Union[pd.Series, xr.DataArray]) -> Union[pd.Series, xr.DataArray]:
+def vapour_slope(tmean_c: DS) -> DS:
     """Compute the slope of the saturation vapour pressure curve :footcite:t:`Allen_1998` Eq. 1 [kPa].
 
     Parameters
@@ -668,7 +689,7 @@ def vapour_slope(tmean_c: Union[pd.Series, xr.DataArray]) -> Union[pd.Series, xr
     ----------
     .. footbibliography::
     """  # noqa: DAR203
-    return (
+    return (  # type: ignore
         4098
         * (
             0.6108
