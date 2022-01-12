@@ -122,8 +122,9 @@ class TestCLI:
         else:
             geo_gpkg.unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
-        assert ret.exit_code == 0
-        assert "Found 1 geometry" in ret.output
+        assert (
+            str(ret.exception) == "None" and ret.exit_code == 0 and "Found 1 geometry" in ret.output
+        )
 
     def test_coords(self, runner):
         params = {
@@ -162,8 +163,11 @@ class TestCLI:
         )
         Path(coord_csv).unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
-        assert ret.exit_code == 0
-        assert "Found coordinates of 1 point" in ret.output
+        assert (
+            str(ret.exception) == "None"
+            and ret.exit_code == 0
+            and "Found coordinates of 1 point" in ret.output
+        )
 
 
 def test_show_versions():

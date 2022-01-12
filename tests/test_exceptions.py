@@ -17,6 +17,13 @@ from pydaymet import (
 )
 from pydaymet.cli import cli
 
+try:
+    import typeguard  # noqa: F401
+except ImportError:
+    has_typeguard = False
+else:
+    has_typeguard = True
+
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
 )
@@ -66,12 +73,14 @@ def test_invalid_year():
     assert "1980" in str(ex.value)
 
 
+@pytest.mark.skipif(has_typeguard, reason="Broken if Typeguard is enabled")
 def test_invalid_year_type():
     with pytest.raises(InvalidInputType) as ex:
         _ = daymet.get_bycoords(COORDS, "1950")
     assert "or int" in str(ex.value)
 
 
+@pytest.mark.skipif(has_typeguard, reason="Broken if Typeguard is enabled")
 def test_invalid_date_tuple():
     with pytest.raises(InvalidInputType) as ex:
         _ = daymet.get_bycoords(COORDS, ("2010-01-01"))
