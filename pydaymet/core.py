@@ -236,9 +236,7 @@ class Daymet:
 
         return {"years": ",".join(str(y) for y in years)}
 
-    def dates_tolist(
-        self, dates: Tuple[str, str]
-    ) -> List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]]:
+    def dates_tolist(self, dates: Tuple[str, str]) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when
@@ -265,9 +263,7 @@ class Daymet:
         years = [_period[_period.year == y] for y in _period.year.unique()]
         return [(y[0], y[-1]) for y in years]
 
-    def years_tolist(
-        self, years: Union[List[int], int]
-    ) -> List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]]:
+    def years_tolist(self, years: Union[List[int], int]) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when

@@ -25,7 +25,7 @@ def get_target_df(
     return tdf[req_cols]
 
 
-def get_required_cols(geom_type: str, columns: List[str]) -> List[str]:
+def get_required_cols(geom_type: str, columns: pd.Index) -> List[str]:
     """Get the required columns for a given geometry type."""
     req_cols = ["id", geom_type, "dates", "region"]
     for var in ["time_scale", "pet", "alpha"]:
@@ -148,6 +148,7 @@ def coords(
                 continue
             clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=ssl)
             clm.to_csv(fname, index=False)
+    click.echo("Done.")
 
 
 @cli.command("geometry", context_settings=CONTEXT_SETTINGS)
@@ -218,4 +219,5 @@ def geometry(
                 variables=variables,
                 ssl=ssl,
             )
-            clm.to_netcdf(fname)
+            clm.to_netcdf(fname, mode="w")
+    click.echo("Done.")

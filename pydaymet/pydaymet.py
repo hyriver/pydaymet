@@ -8,6 +8,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 import async_retriever as ar
 import pandas as pd
 import pygeoutils as geoutils
+import pyproj
+import rioxarray  # noqa: F401
 import xarray as xr
 from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
@@ -26,7 +28,7 @@ MAX_CONN = 10
 def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    crs: str = DEF_CRS,
+    crs: Union[str, pyproj.CRS] = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
     region: str = "na",
     time_scale: str = "daily",
@@ -161,7 +163,7 @@ def get_bycoords(
 def get_bygeom(
     geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    crs: str = DEF_CRS,
+    crs: Union[str, pyproj.CRS] = DEF_CRS,
     variables: Optional[Union[Iterable[str], str]] = None,
     region: str = "na",
     time_scale: str = "daily",
@@ -243,6 +245,7 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
+    crs = ogcutils.validate_crs(crs)
     _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
@@ -264,7 +267,7 @@ def get_bygeom(
                 io.BytesIO(r)
                 for r in ar.retrieve_binary(
                     urls,
-                    request_kwds=list(kwds),
+                    request_kwds=kwds,
                     max_workers=MAX_CONN,
                     ssl=ssl,
                     disable=disable_caching,
@@ -281,13 +284,7 @@ def get_bygeom(
         )
         raise ServiceError(msg) from ex
 
-    for k, v in daymet.units.items():
-        if k in clm.variables:
-            clm[k].attrs["units"] = v
-
-    clm = clm.drop_vars(["lambert_conformal_conic"])
-
-    daymet_crs = " ".join(
+    clm.attrs["crs"] = " ".join(
         [
             "+proj=lcc",
             "+lat_1=25",
@@ -301,43 +298,21 @@ def get_bygeom(
             "+no_defs",
         ]
     )
-    clm.attrs["crs"] = daymet_crs
-    clm.attrs["nodatavals"] = (0.0,)
-    transform, _, _ = geoutils.get_transform(clm, ("y", "x"))
-    clm.attrs["transform"] = transform
-    clm.attrs["res"] = (transform.a, transform.e)
-
+    clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
+    clm = geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
+    clm = clm.drop_vars(["spatial_ref"])
+    for v in clm:
+        if "grid_mapping" in clm[v].attrs:
+            _ = clm[v].attrs.pop("grid_mapping")
     if pet is not None:
         clm = potential_et(clm, method=pet, params=pet_params)
-
-    if isinstance(clm, xr.Dataset):
-        for v in clm:
-            clm[v].attrs["crs"] = daymet_crs
-            clm[v].attrs["nodatavals"] = (0.0,)
-
-    masked: xr.Dataset = geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
-    return masked
+    return clm
 
 
 def _get_filename(
     region: str,
 ) -> Dict[int, Callable[[str], str]]:
-    """Generate an iterable URL list for downloading Daymet data.
-
-    Parameters
-    ----------
-    region : str
-        Region in the US. Acceptable values are:
-
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
-
-    Returns
-    -------
-    generator
-        An iterator of generated URLs.
-    """
+    """Get correct filenames based on region and variable of interest."""
     return {
         1840: lambda v: f"daily_{region}_{v}",
         1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
@@ -350,7 +325,7 @@ def _coord_urls(
     coord: Tuple[float, float],
     region: str,
     variables: Iterable[str],
-    dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
+    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
 ) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
@@ -412,7 +387,7 @@ def _gridded_urls(
     bounds: Tuple[float, float, float, float],
     region: str,
     variables: Iterable[str],
-    dates: List[Tuple[pd.DatetimeIndex, pd.DatetimeIndex]],
+    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
 ) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
