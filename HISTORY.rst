@@ -2,6 +2,19 @@
 History
 =======
 
+0.12.2 (2022-01-15)
+-------------------
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Clean up the PET computation functions' output by removing temporary
+  variables that are created during the computation.
+- Add more attributes for ``elevation`` and ``pet`` variables.
+- Add type checking with ``typeguard`` and fixed typing issues raised by
+  ``typeguard``.
+- Refactor ``show_versions`` to ensure getting correct versions of all
+  dependencies.
+
 0.12.1 (2021-12-31)
 -------------------
 
