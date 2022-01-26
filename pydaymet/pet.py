@@ -562,8 +562,8 @@ def saturation_vapour(temperature: DS) -> DS:
 
 
 def extraterrestrial_radiation(
-    dayofyear: Union[pd.Int64Index, xr.DataArray], lat: Union[float, xr.DataArray]
-) -> Union[pd.Float64Index, xr.DataArray]:
+    dayofyear: Union[pd.Index, xr.DataArray], lat: Union[float, xr.DataArray]
+) -> Union[pd.Index, xr.DataArray]:
     """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
 
     Parameters
@@ -604,7 +604,7 @@ def net_radiation(
     tmax: DS,
     tmin: DS,
     e_a: DS,
-    rad_a: Union[pd.Float64Index, xr.DataArray],
+    rad_a: Union[pd.Index, xr.DataArray],
 ) -> DS:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
