@@ -2,6 +2,21 @@
 History
 =======
 
+0.12.3 (unreleased)
+-------------------
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Add elevation data when computing PET regardless of the ``pet`` method.
+- Match the chunk size of ``elevation`` with that of the climate data.
+- Drop ``time`` dimension from ``elevation``, ``lon``, and ``lat`` variables.
+
+Bug Fixes
+~~~~~~~~~
+- Fix a bug in setting dates for monthly timescale. For monthly timescale
+  Daymet data is at 15th or 16th of the month so input dates need to be
+  adjusted accordingly.
+
 0.12.2 (2022-01-15)
 -------------------
 
