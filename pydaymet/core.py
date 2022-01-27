@@ -218,6 +218,9 @@ class Daymet:
 
         start = pd.to_datetime(dates[0])
         end = pd.to_datetime(dates[1])
+        if self.time_scale == "monthly":
+            start = start.replace(day=14)
+            end = end.replace(day=17)
 
         if start < self.valid_start or end > self.valid_end:
             raise InvalidInputRange(self._invalid_yr)

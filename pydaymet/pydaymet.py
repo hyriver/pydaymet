@@ -284,6 +284,10 @@ def get_bygeom(
         )
         raise ServiceError(msg) from ex
 
+    if len(clm.lat.dims) > 2:
+        clm["lat"] = clm.lat.isel(time=0, drop=True)
+        clm["lon"] = clm.lon.isel(time=0, drop=True)
+
     clm.attrs["crs"] = " ".join(
         [
             "+proj=lcc",
@@ -304,6 +308,7 @@ def get_bygeom(
     for v in clm:
         if "grid_mapping" in clm[v].attrs:
             _ = clm[v].attrs.pop("grid_mapping")
+
     if pet is not None:
         clm = potential_et(clm, method=pet, params=pet_params)
     return clm

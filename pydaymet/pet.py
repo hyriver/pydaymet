@@ -382,7 +382,7 @@ class PETGridded:
         rh = self.clm["rh"] if "rh" in self.clm_vars else None
         self.clm["e_s"], self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
 
-        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.isel(time=0).lat)
+        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
             self.clm["dayl"],
@@ -442,7 +442,7 @@ class PETGridded:
         rh = self.clm["rh"] if "rh" in self.clm_vars else None
         _, self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
 
-        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.isel(time=0).lat)
+        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
             self.clm["dayl"],
@@ -482,7 +482,7 @@ class PETGridded:
         """
         check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
-        lat = self.clm.isel(time=0).lat
+        lat = self.clm.lat
         rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, lat) / 2.43
         self.clm["pet"] = (
             0.0023
