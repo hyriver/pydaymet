@@ -348,8 +348,11 @@ class PETGridded:
         clm : xarray.DataArray
             The dataset to which the new attributes are added.
         """
+        dtype = clm[next(iter(clm.keys()))].dtype
         clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
+        clm["elevation"] = clm["elevation"].astype(dtype)
         clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
+        clm["pet"] = clm["pet"].astype(dtype)
         return clm
 
     def penman_monteith(self) -> xr.Dataset:
