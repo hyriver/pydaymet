@@ -133,7 +133,7 @@ class PETCoords:
         self.coords = ogc.utils.match_crs([coords], crs, DEF_CRS)[0]
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
 
-        # recommended when nodata is not available
+        # recommended when no data is not available to estimate soil heat flux
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
@@ -193,7 +193,7 @@ class PETCoords:
             rad_a,
         )
 
-        # recommended when no data is available
+        # recommended when no data is not available to estimate wind speed
         u_2m = self.clm[self.u2] if self.u2 in self.clm else 2.0
         self.clm["pet (mm/day)"] = (
             0.408 * vp_slope * (rad_n - self.params["soil_heat"])
@@ -324,8 +324,11 @@ class PETGridded:
         )
 
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
+        self.clm["elevation"] = py3dep.elevation_bygrid(
+            self.clm.x.values, self.clm.y.values, self.crs, self.res
+        ).chunk({"x": clm.chunksizes["x"], "y": clm.chunksizes["y"]})
 
-        # recommended when nodata is not available
+        # recommended when no data is not available to estimate soil heat flux
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
@@ -345,8 +348,7 @@ class PETGridded:
         clm : xarray.DataArray
             The dataset to which the new attributes are added.
         """
-        if "elevation" in clm:
-            clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
+        clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
         clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
         return clm
 
@@ -372,12 +374,6 @@ class PETGridded:
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
 
-        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.crs, self.res)
-        self.clm = xr.merge([self.clm, elev], combine_attrs="override")
-        self.clm["elevation"] = self.clm.elevation.where(
-            ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
-        )
-
         # Latent Heat of Vaporization [MJ/kg]
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
@@ -397,7 +393,7 @@ class PETGridded:
             rad_a,
         )
 
-        # recommended when no data is available
+        # recommended when no data is not available to estimate wind speed
         u_2m = self.clm["u2"] if "u2" in self.clm_vars else 2.0
         self.clm["pet"] = (
             0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params["soil_heat"])
@@ -437,12 +433,6 @@ class PETGridded:
 
         # Slope of saturation vapour pressure [kPa/°C]
         self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
-
-        elev = py3dep.elevation_bygrid(self.clm.x.values, self.clm.y.values, self.crs, self.res)
-        self.clm = xr.merge([self.clm, elev], combine_attrs="override")
-        self.clm["elevation"] = self.clm.elevation.where(
-            ~np.isnan(self.clm.isel(time=0)[self.clm_vars[0]]), drop=True
-        )
 
         # Latent Heat of Vaporization [MJ/kg]
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
