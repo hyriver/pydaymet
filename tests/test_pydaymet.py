@@ -34,6 +34,10 @@ class TestByCoords:
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method, ssl=False)
         assert abs(clm["pet (mm/day)"].mean() - expected) < SMALL
 
+    def test_snow(self):
+        clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS, ssl=False)
+        assert abs(clm["snow (mm/day)"].mean()) < SMALL
+
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, ssl=False)
         assert abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
@@ -60,21 +64,25 @@ class TestByGeom:
         clm = daymet.get_bygeom(GEOM, DAY, pet=method, ssl=False)
         assert abs(clm.pet.mean().values - expected) < SMALL
 
+    def test_snow(self):
+        clm = daymet.get_bygeom(GEOM, DAY, snow=True, ssl=False)
+        assert abs(clm.snow.mean().values - 3.4999) < SMALL
+
     def test_bounds(self):
-        prcp = daymet.get_bygeom(GEOM.bounds, DAY, ssl=False)
-        assert abs(prcp.prcp.mean().values - 3.4999) < SMALL
+        clm = daymet.get_bygeom(GEOM.bounds, DAY, ssl=False)
+        assert abs(clm.prcp.mean().values - 3.4999) < SMALL
 
     def test_daily(self):
-        daily = daymet.get_bygeom(GEOM, DAY, variables=VAR, ssl=False)
-        assert abs(daily.tmin.mean().values - (-9.421)) < SMALL
+        clm = daymet.get_bygeom(GEOM, DAY, variables=VAR, ssl=False)
+        assert abs(clm.tmin.mean().values - (-9.421)) < SMALL
 
     def test_monthly(self):
-        monthly = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly", ssl=False)
-        assert abs(monthly.tmin.mean().values - 1.311) < SMALL
+        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly", ssl=False)
+        assert abs(clm.tmin.mean().values - 1.311) < SMALL
 
     def test_annual(self):
-        annual = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual", ssl=False)
-        assert abs(annual.tmin.mean().values - 1.361) < SMALL
+        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual", ssl=False)
+        assert abs(clm.tmin.mean().values - 1.361) < SMALL
 
     def test_region(self):
         hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
