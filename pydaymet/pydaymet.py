@@ -34,6 +34,8 @@ def get_bycoords(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
+    snow: bool = False,
+    snow_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
     expire_after: float = EXPIRE,
     disable_caching: bool = False,
@@ -78,6 +80,14 @@ def get_bycoords(
     pet_params : dict, optional
         Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
+    snow : bool, optional
+        Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
+    snow_params : dict, optional
+        Model-specific parameters as a dictionary that is passed to the snowfall function.
+        These parameters are only used if ``snow`` is ``True``. Two parameters are required:
+        ``t_rain`` (deg C) which is the threshold for temperature for considering rain and
+        ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
+        The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL cetification verification.
@@ -110,7 +120,7 @@ def get_bycoords(
     ----------
     .. footbibliography::
     """
-    daymet = Daymet(variables, pet, time_scale, region)
+    daymet = Daymet(variables, pet, snow, time_scale, region)
     daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
@@ -157,6 +167,10 @@ def get_bycoords(
 
     if pet is not None:
         clm = potential_et(clm, coords, method=pet, params=pet_params)
+
+    if snow:
+        params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
+        clm = daymet.separate_snow(clm, **params)
     return clm
 
 
@@ -169,6 +183,8 @@ def get_bygeom(
     time_scale: str = "daily",
     pet: Optional[str] = None,
     pet_params: Optional[Dict[str, float]] = None,
+    snow: bool = False,
+    snow_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
     expire_after: float = EXPIRE,
     disable_caching: bool = False,
@@ -209,6 +225,14 @@ def get_bygeom(
     pet_params : dict, optional
         Model-specific parameters as a dictionary that is passed to the PET function.
         Defaults to ``None``.
+    snow : bool, optional
+        Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
+    snow_params : dict, optional
+        Model-specific parameters as a dictionary that is passed to the snowfall function.
+        These parameters are only used if ``snow`` is ``True``. Two parameters are required:
+        ``t_rain`` (deg C) which is the threshold for temperature for considering rain and
+        ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
+        The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL cetification verification.
@@ -237,7 +261,7 @@ def get_bygeom(
     ----------
     .. footbibliography::
     """
-    daymet = Daymet(variables, pet, time_scale, region)
+    daymet = Daymet(variables, pet, snow, time_scale, region)
     daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
@@ -311,6 +335,10 @@ def get_bygeom(
 
     if pet is not None:
         clm = potential_et(clm, method=pet, params=pet_params)
+
+    if snow:
+        params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
+        clm = daymet.separate_snow(clm, **params)
     return clm
 
 

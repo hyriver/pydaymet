@@ -1,12 +1,37 @@
 """Core class for the Daymet functions."""
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+import functools
+import warnings
+from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
+import numpy as np
 import pandas as pd
 import shapely.geometry as sgeom
+import xarray as xr
 from pydantic import BaseModel, validator
 
 from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue
 
+try:
+    from numba import njit, prange
+
+    ngjit = functools.partial(njit, cache=True, nogil=True, parallel=True)
+    HAS_NUMBA = True
+except ImportError:
+    HAS_NUMBA = False
+    prange = range
+
+    def ngjit(ntypes):  # type: ignore
+        def decorator_njit(func):  # type: ignore
+            @functools.wraps(func)
+            def wrapper_decorator(*args, **kwargs):  # type: ignore
+                return func(*args, **kwargs)
+
+            return wrapper_decorator
+
+        return decorator_njit
+
+
+DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
 
@@ -28,6 +53,8 @@ class DaymetBase(BaseModel):
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``None``.
+    snow : bool, optional
+        Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -49,19 +76,20 @@ class DaymetBase(BaseModel):
     """
 
     pet: Optional[str] = None
+    snow: bool = False
     time_scale: str = "daily"
     variables: List[str] = ["all"]
     region: str = "na"
 
     @validator("pet")
-    def _valid_pet(cls, v: Optional[str]) -> Optional[str]:
+    def _pet(cls, v: Optional[str]) -> Optional[str]:
         valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
         if v not in valid_methods:
             raise InvalidInputValue("pet", valid_methods)
         return v
 
     @validator("variables")
-    def _valid_variables(cls, v: List[str], values: Dict[str, str]) -> List[str]:
+    def _variables(cls, v: List[str], values: Dict[str, str]) -> List[str]:
         valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
         if "all" in v:
             return valid_variables
@@ -71,10 +99,13 @@ class DaymetBase(BaseModel):
 
         if values["pet"] is not None:
             v = list(set(v).union({"tmin", "tmax", "srad", "dayl"}))
+
+        if values["snow"]:
+            v = list(set(v).union({"tmin"}))
         return v
 
     @validator("time_scale")
-    def _valid_timescales(cls, v: str, values: Dict[str, str]) -> str:
+    def _timescales(cls, v: str, values: Dict[str, str]) -> str:
         valid_timescales = ["daily", "monthly", "annual"]
         if v not in valid_timescales:
             raise InvalidInputValue("time_scale", valid_timescales)
@@ -85,7 +116,7 @@ class DaymetBase(BaseModel):
         return v
 
     @validator("region")
-    def _valid_regions(cls, v: str) -> str:
+    def _regions(cls, v: str) -> str:
         valid_regions = ["na", "hi", "pr"]
         if v not in valid_regions:
             raise InvalidInputValue("region", valid_regions)
@@ -111,6 +142,8 @@ class Daymet:
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``None``.
+    snow : bool, optional
+        Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     time_scale : str, optional
         Data time scale which can be daily, monthly (monthly summaries),
         or annual (annual summaries). Defaults to daily.
@@ -130,17 +163,21 @@ class Daymet:
         self,
         variables: Optional[Union[Iterable[str], str]] = None,
         pet: Optional[str] = None,
+        snow: bool = False,
         time_scale: str = "daily",
         region: str = "na",
     ) -> None:
 
         _variables = ["all"] if variables is None else variables
         _variables = [_variables] if isinstance(_variables, str) else _variables
-        validated = DaymetBase(variables=_variables, pet=pet, time_scale=time_scale, region=region)
+        validated = DaymetBase(
+            variables=_variables, pet=pet, snow=snow, time_scale=time_scale, region=region
+        )
         self.variables = validated.variables
         self.pet = validated.pet
         self.time_scale = validated.time_scale
         self.region = validated.region
+        self.snow = validated.snow
 
         self.region_bbox = {
             "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
@@ -290,3 +327,97 @@ class Daymet:
             e = pd.to_datetime(f"{year}1230") if s.is_leap_year else pd.to_datetime(f"{year}1231")
             end_list.append(e + pd.DateOffset(hour=12))
         return list(zip(start_list, end_list))
+
+    def separate_snow(self, clm: DF, t_rain: float = 2.5, t_snow: float = 0.0) -> DF:
+        """Separate snow based on :footcite:t:`Martinez_2010`.
+
+        Parameters
+        ----------
+        clm : pandas.DataFrame or xarray.Dataset
+            Climate data that should include ``prcp`` and ``tmin``.
+        t_rain : float, optional
+            Threshold for temperature for considering rain, defaults to 2.5 degrees C.
+        t_snow : float, optional
+            Threshold for temperature for considering snow, defaults to 0.0 degrees C.
+
+        Returns
+        -------
+        pandas.DataFrame or xarray.Dataset
+            Input data with ``snow (mm/day)`` column if input is a ``pandas.DataFrame``,
+            or ``snow`` variable if input is an ``xarray.Dataset``.
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        if not HAS_NUMBA:
+            warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
+
+        if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
+            raise InvalidInputType("clm", "pandas.DataFrame or xarray.Dataset")
+
+        if isinstance(clm, xr.Dataset):
+            return self._snow_gridded(clm, t_rain, t_snow)
+        return self._snow_point(clm, t_rain, t_snow)
+
+    @staticmethod
+    def _snow_point(climate: pd.DataFrame, t_rain: float, t_snow: float) -> pd.DataFrame:
+        """Separate snow from precipitation."""
+        clm = climate.copy()
+        clm["snow (mm/day)"] = _separate_snow(
+            clm["prcp (mm/day)"].to_numpy("f8"),
+            clm["tmin (degrees C)"].to_numpy("f8"),
+            np.float64(t_rain),
+            np.float64(t_snow),
+        )
+        return clm
+
+    @staticmethod
+    def _snow_gridded(climate: xr.Dataset, t_rain: float, t_snow: float) -> xr.Dataset:
+        """Separate snow from precipitation."""
+        clm = climate.copy().chunk({"time": -1})
+
+        def snow_func(
+            prcp: xr.DataArray, tmin: xr.DataArray, t_rain: float, t_snow: float
+        ) -> xr.DataArray:
+            """Separate snow based on Martinez and Gupta (2010)."""
+            return _separate_snow(  # type: ignore
+                np.array(prcp, dtype="f8"),
+                np.array(tmin, dtype="f8"),
+                np.float64(t_rain),
+                np.float64(t_snow),
+            )
+
+        clm["snow"] = xr.apply_ufunc(
+            snow_func,
+            clm.prcp,
+            clm.tmin,
+            t_rain,
+            t_snow,
+            input_core_dims=[["time"], ["time"], [], []],
+            output_core_dims=[["time"]],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[clm.prcp.dtype],
+        ).transpose("time", "y", "x")
+        clm["snow"].attrs["units"] = "mm/day"
+        clm["snow"].attrs["long_name"] = "daily snowfall"
+        return clm
+
+
+@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore
+def _separate_snow(
+    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = 2.5, t_snow: float = 0.0  # type: ignore
+) -> np.ndarray:  # type: ignore
+    """Separate snow in precipitation."""
+    t_rng = t_rain - t_snow
+    snow = np.zeros_like(prcp)
+
+    for t in prange(prcp.shape[0]):
+        if tmin[t] > t_rain:
+            snow[t] = 0.0
+        elif tmin[t] < t_snow:
+            snow[t] = prcp[t]
+        else:
+            snow[t] = prcp[t] * (t_rain - tmin[t]) / t_rng
+    return snow
