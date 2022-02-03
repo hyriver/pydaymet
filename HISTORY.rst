@@ -2,6 +2,15 @@
 History
 =======
 
+0.12.4 (2022-02-04)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Add a new flag to both ``get_bycoords`` and ``get_bygeom`` functions
+  called ``snow`` which separates snow from the precipitation using
+  the `Martinez and Gupta (2010) <https://doi.org/10.1029/2009WR008294>`__ method.
+
 0.12.3 (2022-01-29)
 -------------------
 
