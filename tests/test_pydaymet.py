@@ -109,6 +109,7 @@ class TestCLI:
             "start": "2000-01-01",
             "end": "2000-05-31",
             "time_scale": "monthly",
+            "snow": "flase",
         }
         geo_gpkg = Path("nat_geo.gpkg")
         save_dir = "test_geometry"
@@ -142,6 +143,7 @@ class TestCLI:
             "start": DAY[0],
             "end": DAY[1],
             "pet": "hargreaves_samani",
+            "snow": "TRUE",
         }
         coord_csv = "coords.csv"
         save_dir = "test_coords"
