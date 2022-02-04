@@ -2,7 +2,7 @@
 History
 =======
 
-0.12.4 (2022-02-04)
+0.12.3 (2022-02-04)
 -------------------
 
 New Features
@@ -10,9 +10,6 @@ New Features
 - Add a new flag to both ``get_bycoords`` and ``get_bygeom`` functions
   called ``snow`` which separates snow from the precipitation using
   the `Martinez and Gupta (2010) <https://doi.org/10.1029/2009WR008294>`__ method.
-
-0.12.3 (2022-01-29)
--------------------
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
@@ -22,8 +19,8 @@ Internal Changes
 
 Bug Fixes
 ~~~~~~~~~
-- Fix a bug in setting dates for monthly timescale. For monthly timescale
-  Daymet data is at 15th or 16th of the month so input dates need to be
+- Fix a bug in setting dates for monthly timescales. For monthly timescale
+  Daymet calendar is at 15th or 16th of the month, so input dates need to be
   adjusted accordingly.
 
 0.12.2 (2022-01-15)
