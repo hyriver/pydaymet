@@ -51,20 +51,23 @@ dependencies:
   - lxml
   - matplotlib-base>=3.0
 
-  # optional deps to speed up xarray and geopandas
+  # optional deps to speed up xarray and pydaymet
   - bottleneck
   - numba
 
-  # plotting deps
+  # example notebooks' deps
   - cartopy
   - mapclassify
   - contextily
-  - colorcet
+  - geoviews
   - hvplot
   - osmnx
-  - rich
+  - tqdm
   - pytables
+  - ffmpeg
+  - jupyterlab_widgets
   - ipywidgets
+  - pygmo
 
   # dev deps
   - codespell
