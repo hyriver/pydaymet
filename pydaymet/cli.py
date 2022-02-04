@@ -9,7 +9,23 @@ import shapely.geometry as sgeom
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from . import pydaymet as daymet
-from .exceptions import InvalidInputRange, InvalidInputType, MissingCRS, MissingItems
+from .exceptions import (
+    InvalidInputRange,
+    InvalidInputType,
+    InvalidInputValue,
+    MissingCRS,
+    MissingItems,
+)
+
+
+def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
+    """Parse the snow dataframe."""
+    if target_df["snow"].dtype != bool:
+        target_df["snow"] = target_df.snow.str.lower().str.strip()
+        if not target_df.snow.str.contains("true|false").all():
+            raise InvalidInputValue("snow", "true or false")
+        target_df["snow"] = target_df.snow == "true"
+    return target_df
 
 
 def get_target_df(
@@ -28,10 +44,7 @@ def get_target_df(
 def get_required_cols(geom_type: str, columns: pd.Index) -> List[str]:
     """Get the required columns for a given geometry type."""
     req_cols = ["id", geom_type, "dates", "region"]
-    for var in ["time_scale", "pet", "alpha"]:
-        if var in columns:
-            req_cols.append(var)
-    return req_cols
+    return req_cols + list({"time_scale", "pet", "snow"}.intersection(columns))
 
 
 def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
@@ -107,7 +120,7 @@ def coords(
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
         - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
                    ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
-        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
+        - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 
     \b
     Examples:
@@ -127,6 +140,8 @@ def coords(
     target_df["region"] = get_region(points)
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
     target_df["coords"] = list(target_df[["lon", "lat"]].itertuples(index=False, name=None))
+    if "snow" in target_df:
+        target_df = parse_snow(target_df)
 
     req_cols = get_required_cols("coords", target_df.columns)
     target_df = target_df[req_cols]
@@ -143,9 +158,9 @@ def coords(
     ) as bar:
         for i, *args in bar:
             fname = Path(save_dir, f"{i}.csv")
-            kwrgs = dict(zip(req_cols[1:], args))
             if fname.exists():
                 continue
+            kwrgs = dict(zip(req_cols[1:], args))
             clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=ssl)
             clm.to_csv(fname, index=False)
     click.echo("Done.")
@@ -174,8 +189,7 @@ def geometry(
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
         - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
                    ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
-        - ``alpha``: (optional) Alpha parameter for Priestley-Taylor method for computing PET. Defaults to 1.26.
-
+        - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 
     \b
     Examples:
@@ -219,5 +233,5 @@ def geometry(
                 variables=variables,
                 ssl=ssl,
             )
-            clm.to_netcdf(fname, mode="w")
+            clm.to_netcdf(fname)
     click.echo("Done.")
