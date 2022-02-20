@@ -90,7 +90,7 @@ def get_bycoords(
         The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
-        SSL cetification verification.
+        SSL certification verification.
     expire_after : int, optional
         Expiration time for response caching in seconds, defaults to -1 (never expire).
     disable_caching : bool, optional
@@ -235,7 +235,7 @@ def get_bygeom(
         The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
-        SSL cetification verification.
+        SSL certification verification.
     expire_after : int, optional
         Expiration time for response caching in seconds, defaults to -1 (never expire).
     disable_caching : bool, optional
