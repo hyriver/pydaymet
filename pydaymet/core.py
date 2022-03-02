@@ -123,6 +123,24 @@ class DaymetBase(BaseModel):
         return v
 
 
+@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore
+def _separate_snow(
+    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = 2.5, t_snow: float = 0.0  # type: ignore
+) -> np.ndarray:  # type: ignore
+    """Separate snow in precipitation."""
+    t_rng = t_rain - t_snow
+    snow = np.zeros_like(prcp)
+
+    for t in prange(prcp.shape[0]):
+        if tmin[t] > t_rain:
+            snow[t] = 0.0
+        elif tmin[t] < t_snow:
+            snow[t] = prcp[t]
+        else:
+            snow[t] = prcp[t] * (t_rain - tmin[t]) / t_rng
+    return snow
+
+
 class Daymet:
     """Base class for Daymet requests.
 
@@ -328,38 +346,6 @@ class Daymet:
             end_list.append(e + pd.DateOffset(hour=12))
         return list(zip(start_list, end_list))
 
-    def separate_snow(self, clm: DF, t_rain: float = 2.5, t_snow: float = 0.0) -> DF:
-        """Separate snow based on :footcite:t:`Martinez_2010`.
-
-        Parameters
-        ----------
-        clm : pandas.DataFrame or xarray.Dataset
-            Climate data that should include ``prcp`` and ``tmin``.
-        t_rain : float, optional
-            Threshold for temperature for considering rain, defaults to 2.5 degrees C.
-        t_snow : float, optional
-            Threshold for temperature for considering snow, defaults to 0.0 degrees C.
-
-        Returns
-        -------
-        pandas.DataFrame or xarray.Dataset
-            Input data with ``snow (mm/day)`` column if input is a ``pandas.DataFrame``,
-            or ``snow`` variable if input is an ``xarray.Dataset``.
-
-        References
-        ----------
-        .. footbibliography::
-        """
-        if not HAS_NUMBA:
-            warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
-
-        if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
-            raise InvalidInputType("clm", "pandas.DataFrame or xarray.Dataset")
-
-        if isinstance(clm, xr.Dataset):
-            return self._snow_gridded(clm, t_rain, t_snow)
-        return self._snow_point(clm, t_rain, t_snow)
-
     @staticmethod
     def _snow_point(climate: pd.DataFrame, t_rain: float, t_snow: float) -> pd.DataFrame:
         """Separate snow from precipitation."""
@@ -404,20 +390,34 @@ class Daymet:
         clm["snow"].attrs["long_name"] = "daily snowfall"
         return clm
 
+    def separate_snow(self, clm: DF, t_rain: float = 2.5, t_snow: float = 0.0) -> DF:
+        """Separate snow based on :footcite:t:`Martinez_2010`.
 
-@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore
-def _separate_snow(
-    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = 2.5, t_snow: float = 0.0  # type: ignore
-) -> np.ndarray:  # type: ignore
-    """Separate snow in precipitation."""
-    t_rng = t_rain - t_snow
-    snow = np.zeros_like(prcp)
+        Parameters
+        ----------
+        clm : pandas.DataFrame or xarray.Dataset
+            Climate data that should include ``prcp`` and ``tmin``.
+        t_rain : float, optional
+            Threshold for temperature for considering rain, defaults to 2.5 degrees C.
+        t_snow : float, optional
+            Threshold for temperature for considering snow, defaults to 0.0 degrees C.
 
-    for t in prange(prcp.shape[0]):
-        if tmin[t] > t_rain:
-            snow[t] = 0.0
-        elif tmin[t] < t_snow:
-            snow[t] = prcp[t]
-        else:
-            snow[t] = prcp[t] * (t_rain - tmin[t]) / t_rng
-    return snow
+        Returns
+        -------
+        pandas.DataFrame or xarray.Dataset
+            Input data with ``snow (mm/day)`` column if input is a ``pandas.DataFrame``,
+            or ``snow`` variable if input is an ``xarray.Dataset``.
+
+        References
+        ----------
+        .. footbibliography::
+        """
+        if not HAS_NUMBA:
+            warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
+
+        if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
+            raise InvalidInputType("clm", "pandas.DataFrame or xarray.Dataset")
+
+        if isinstance(clm, xr.Dataset):
+            return self._snow_gridded(clm, t_rain, t_snow)
+        return self._snow_point(clm, t_rain, t_snow)

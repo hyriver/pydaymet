@@ -25,6 +25,79 @@ EXPIRE = -1
 MAX_CONN = 10
 
 
+def _get_filename(
+    region: str,
+) -> Dict[int, Callable[[str], str]]:
+    """Get correct filenames based on region and variable of interest."""
+    return {
+        1840: lambda v: f"daily_{region}_{v}",
+        1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
+        1852: lambda v: f"{v}_annttl_{region}" if v == "prcp" else f"{v}_annavg_{region}",
+    }
+
+
+def _coord_urls(
+    code: int,
+    coord: Tuple[float, float],
+    region: str,
+    variables: Iterable[str],
+    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
+) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
+    """Generate an iterable URL list for downloading Daymet data.
+
+    Parameters
+    ----------
+    code : int
+        Endpoint code which should be one of the following:
+
+        * 1840: Daily
+        * 1855: Monthly average
+        * 1852: Annual average
+
+    coord : tuple of length 2
+        Coordinates in EPSG:4326 CRS (lon, lat)
+    region : str
+        Region in the US. Acceptable values are:
+
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
+
+    variables : list
+        A list of Daymet variables
+    dates : list
+        A list of dates
+
+    Returns
+    -------
+    generator
+        An iterator of generated URLs.
+    """
+    time_scale = _get_filename(region)
+
+    lon, lat = coord
+    base_url = f"{ServiceURL().restful.daymet}/{code}"
+    return [
+        [
+            (
+                f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+                {
+                    "params": {
+                        "var": v,
+                        "longitude": f"{lon}",
+                        "latitude": f"{lat}",
+                        "time_start": s.strftime(DATE_FMT),
+                        "time_end": e.strftime(DATE_FMT),
+                        "accept": "csv",
+                    }
+                },
+            )
+            for s, e in dates
+        ]
+        for v in variables
+    ]
+
+
 def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
@@ -172,6 +245,71 @@ def get_bycoords(
         params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
     return clm
+
+
+def _gridded_urls(
+    code: int,
+    bounds: Tuple[float, float, float, float],
+    region: str,
+    variables: Iterable[str],
+    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
+) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
+    """Generate an iterable URL list for downloading Daymet data.
+
+    Parameters
+    ----------
+    code : int
+        Endpoint code which should be one of the following:
+
+        * 1840: Daily
+        * 1855: Monthly average
+        * 1852: Annual average
+
+    bounds : tuple of length 4
+        Bounding box (west, south, east, north)
+    region : str
+        Region in the US. Acceptable values are:
+
+        * na: Continental North America
+        * hi: Hawaii
+        * pr: Puerto Rico
+
+    variables : list
+        A list of Daymet variables
+    dates : list
+        A list of dates
+
+    Returns
+    -------
+    generator
+        An iterator of generated URLs.
+    """
+    time_scale = _get_filename(region)
+
+    west, south, east, north = bounds
+    base_url = f"{ServiceURL().restful.daymet}/{code}"
+    return [
+        (
+            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+            {
+                "params": {
+                    "var": v,
+                    "north": f"{north}",
+                    "west": f"{west}",
+                    "east": f"{east}",
+                    "south": f"{south}",
+                    "disableProjSubset": "on",
+                    "horizStride": "1",
+                    "time_start": s.strftime(DATE_FMT),
+                    "time_end": e.strftime(DATE_FMT),
+                    "timeStride": "1",
+                    "addLatLon": "true",
+                    "accept": "netcdf",
+                }
+            },
+        )
+        for v, (s, e) in itertools.product(variables, dates)
+    ]
 
 
 def get_bygeom(
@@ -340,141 +478,3 @@ def get_bygeom(
         params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
     return clm
-
-
-def _get_filename(
-    region: str,
-) -> Dict[int, Callable[[str], str]]:
-    """Get correct filenames based on region and variable of interest."""
-    return {
-        1840: lambda v: f"daily_{region}_{v}",
-        1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
-        1852: lambda v: f"{v}_annttl_{region}" if v == "prcp" else f"{v}_annavg_{region}",
-    }
-
-
-def _coord_urls(
-    code: int,
-    coord: Tuple[float, float],
-    region: str,
-    variables: Iterable[str],
-    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
-) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
-    """Generate an iterable URL list for downloading Daymet data.
-
-    Parameters
-    ----------
-    code : int
-        Endpoint code which should be one of the following:
-
-        * 1840: Daily
-        * 1855: Monthly average
-        * 1852: Annual average
-
-    coord : tuple of length 2
-        Coordinates in EPSG:4326 CRS (lon, lat)
-    region : str
-        Region in the US. Acceptable values are:
-
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
-
-    variables : list
-        A list of Daymet variables
-    dates : list
-        A list of dates
-
-    Returns
-    -------
-    generator
-        An iterator of generated URLs.
-    """
-    time_scale = _get_filename(region)
-
-    lon, lat = coord
-    base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return [
-        [
-            (
-                f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
-                {
-                    "params": {
-                        "var": v,
-                        "longitude": f"{lon}",
-                        "latitude": f"{lat}",
-                        "time_start": s.strftime(DATE_FMT),
-                        "time_end": e.strftime(DATE_FMT),
-                        "accept": "csv",
-                    }
-                },
-            )
-            for s, e in dates
-        ]
-        for v in variables
-    ]
-
-
-def _gridded_urls(
-    code: int,
-    bounds: Tuple[float, float, float, float],
-    region: str,
-    variables: Iterable[str],
-    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
-) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
-    """Generate an iterable URL list for downloading Daymet data.
-
-    Parameters
-    ----------
-    code : int
-        Endpoint code which should be one of the following:
-
-        * 1840: Daily
-        * 1855: Monthly average
-        * 1852: Annual average
-
-    bounds : tuple of length 4
-        Bounding box (west, south, east, north)
-    region : str
-        Region in the US. Acceptable values are:
-
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
-
-    variables : list
-        A list of Daymet variables
-    dates : list
-        A list of dates
-
-    Returns
-    -------
-    generator
-        An iterator of generated URLs.
-    """
-    time_scale = _get_filename(region)
-
-    west, south, east, north = bounds
-    base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return [
-        (
-            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
-            {
-                "params": {
-                    "var": v,
-                    "north": f"{north}",
-                    "west": f"{west}",
-                    "east": f"{east}",
-                    "south": f"{south}",
-                    "disableProjSubset": "on",
-                    "horizStride": "1",
-                    "time_start": s.strftime(DATE_FMT),
-                    "time_end": e.strftime(DATE_FMT),
-                    "timeStride": "1",
-                    "addLatLon": "true",
-                    "accept": "netcdf",
-                }
-            },
-        )
-        for v, (s, e) in itertools.product(variables, dates)
-    ]

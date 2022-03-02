@@ -17,88 +17,217 @@ DS = TypeVar("DS", pd.Series, xr.DataArray)
 __all__ = ["potential_et"]
 
 
-def potential_et(
-    clm: DF,
-    coords: Optional[Tuple[float, float]] = None,
-    crs: Union[str, pyproj.CRS] = DEF_CRS,
-    method: str = "hargreaves_samani",
-    params: Optional[Dict[str, float]] = None,
-) -> DF:
-    """Compute Potential EvapoTranspiration for both gridded and a single location.
+def saturation_vapour(temperature: DS) -> DS:
+    """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
 
     Parameters
     ----------
-    clm : pandas.DataFrame or xarray.Dataset
-        The dataset must include at least the following variables:
-
-        * Minimum temperature in degree celsius
-        * Maximum temperature in degree celsius
-        * Solar radiation in in W/m2
-        * Daylight duration in seconds
-
-        Optionally, relative humidity and wind speed at 2-m level will be used if available.
-
-        Table below shows the variable names that the function looks for in the input data.
-
-        ==================== ========
-        DataFrame            Dataset
-        ==================== ========
-        ``tmin (degrees C)`` ``tmin``
-        ``tmax (degrees C)`` ``tmax``
-        ``srad (W/m2)``      ``srad``
-        ``dayl (s)``         ``dayl``
-        ``rh (-)``           ``rh``
-        ``u2 (m/s)``         ``u2``
-        ==================== ========
-
-        If relative humidity and wind speed at 2-m level are not available,
-        actual vapour pressure is assumed to be saturation vapour pressure at daily minimum
-        temperature and 2-m wind speed is considered to be 2 m/s.
-    coords : tuple of floats, optional
-        Coordinates of the daymet data location as a tuple, (x, y). This is required when ``clm``
-        is a ``DataFrame``.
-    crs : str, optional
-        The spatial reference of the input coordinate, defaults to ``epsg:4326``. This is only used
-        when ``clm`` is a ``DataFrame``.
-    method : str, optional
-        Method for computing PET. Supported methods are
-        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
-        None (don't compute PET). The ``penman_monteith`` method is based on
-        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
-        The ``priestley_taylor`` method is based on
-        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
-        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
-        Defaults to ``hargreaves_samani``.
-    params : dict, optional
-        Model-specific parameters as a dictionary, defaults to ``None``.
+    temperature : xarray.DataArray or pandas.Series
+        Temperature in °C.
 
     Returns
     -------
-    pandas.DataFrame or xarray.Dataset
-        The input DataFrame/Dataset with an additional variable named ``pet (mm/day)`` for
-        DataFrame and ``pet`` for Dataset.
+    xarray.DataArray or pandas.Series
+        Saturation vapour pressure in kPa.
 
     References
     ----------
     .. footbibliography::
     """  # noqa: DAR203
-    valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
-    if method not in valid_methods:
-        raise InvalidInputValue("method", valid_methods)
+    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
 
-    if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
-        raise InvalidInputType("clm", "pd.DataFrame or xr.Dataset")
 
-    pet: Union[PETCoords, PETGridded]
-    if isinstance(clm, pd.DataFrame):
-        if coords is None:
-            raise MissingItems(["coords"])
-        crs = ogc.utils.validate_crs(crs)
-        pet = PETCoords(clm, coords, crs, params)
+def vapour_pressure(
+    tmax_c: DS,
+    tmin_c: DS,
+    rh: Optional[DS] = None,
+) -> Union[Tuple[DS, DS], Tuple[DS, DS]]:
+    """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
+
+    Parameters
+    ----------
+    tmax_c : pandas.Series or xarray.DataArray
+        Maximum temperature in degrees Celsius.
+    tmin_c : pandas.Series or xarray.DataArray
+        Minimum temperature in degrees Celsius.
+    rh : pandas.Series or xarray.DataArray, optional
+        Relative humidity in %.
+
+    Returns
+    -------
+    tuple of pandas.Series or tuple of xarray.DataArray
+        Saturation vapour pressure in kPa and actual vapour pressure in kPa.
+
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
+    e_max = saturation_vapour(tmax_c)
+    e_min = saturation_vapour(tmin_c)
+    e_s = (e_max + e_min) * 0.5
+    if rh is not None:
+        e_a = rh * e_s * 1e-2
     else:
-        pet = PETGridded(clm, params)
-    with xr.set_options(keep_attrs=True):  # type: ignore
-        return getattr(pet, method)()  # type: ignore
+        e_a = e_min
+    return e_s, e_a
+
+
+def extraterrestrial_radiation(
+    dayofyear: Union[pd.Index, xr.DataArray], lat: Union[float, xr.DataArray]
+) -> Union[pd.Index, xr.DataArray]:
+    """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
+
+    Parameters
+    ----------
+    dayofyear : pandas.Series or xarray.DataArray
+        Time as day of year.
+    lat : float or xarray.DataArray
+        Latitude.
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        Extraterrestrial Radiation in MJ m^-2 h^-1.
+
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
+    jp = 2.0 * np.pi * dayofyear / 365.0
+    d_r = 1.0 + 0.033 * np.cos(jp)
+    delta_r = 0.409 * np.sin(jp - 1.39)
+    phi = lat * np.pi / 180.0
+    w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
+    return (
+        24.0
+        * 60.0
+        / np.pi
+        * 0.082
+        * d_r
+        * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
+    )
+
+
+def net_radiation(
+    srad: DS,
+    dayl: DS,
+    elevation: Union[float, xr.DataArray],
+    tmax: DS,
+    tmin: DS,
+    e_a: DS,
+    rad_a: Union[pd.Index, xr.DataArray],
+) -> DS:
+    """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
+
+    Parameters
+    ----------
+    srad : pandas.Series or xarray.DataArray
+        Solar radiation [MJ m^-2 day^-1].
+    dayl : pandas.Series or xarray.DataArray
+        Daylength [h].
+    elevation : float or xarray.DataArray
+        Elevation [m].
+    tmax : pandas.Series or xarray.DataArray
+        Maximum temperature [°C].
+    tmin : pandas.Series or xarray.DataArray
+        Minimum temperature [°C].
+    e_a : pandas.Series or xarray.DataArray
+        Actual vapour pressure [kPa].
+    rad_a : pandas.Series or xarray.Dataset
+        Extraterrestrial radiation [MJ m^-2 day^-1].
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        Net radiation in MJ m^-2 day^-1.
+
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
+    r_surf = srad * dayl * 1e-6
+
+    alb = 0.23
+    rad_s = (0.75 + 2e-5 * elevation) * rad_a
+    rad_ns = (1.0 - alb) * r_surf
+    rad_nl = (
+        4.903e-9
+        * (((tmax + 273.16) ** 4 + (tmin + 273.16) ** 4) * 0.5)
+        * (0.34 - 0.14 * np.sqrt(e_a))
+        * ((1.35 * r_surf / rad_s) - 0.35)
+    )
+    return rad_ns - rad_nl  # type: ignore
+
+
+def psychrometric_constant(elevation: Union[float, xr.DataArray], lmbda: DS) -> DS:
+    """Compute the psychrometric constant :footcite:t:`Allen_1998` Eq. 8 [kPa °C^-1]..
+
+    Parameters
+    ----------
+    elevation : float or xarray.DataArray
+        Elevation of the location in meters.
+    lmbda : pandas.Series or xarray.DataArray
+        Latent heat of vaporization in J/kg, defaults to 0.0065.
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        The psychrometric constant in kPa °C^-1.
+
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
+    # Atmospheric pressure [kPa]
+    pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
+    return 1.013e-3 * pa / (0.622 * lmbda)
+
+
+def vapour_slope(tmean_c: DS) -> DS:
+    """Compute the slope of the saturation vapour pressure curve :footcite:t:`Allen_1998` Eq. 1 [kPa].
+
+    Parameters
+    ----------
+    tmean_c : pandas.Series or xarray.DataArray
+        The mean temperature [°C].
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        The slope of the saturation vapour pressure curve in kPa.
+
+    References
+    ----------
+    .. footbibliography::
+    """  # noqa: DAR203
+    return (  # type: ignore
+        4098
+        * (
+            0.6108
+            * np.exp(
+                17.27 * tmean_c / (tmean_c + 237.3),
+            )
+        )
+        / ((tmean_c + 237.3) ** 2)
+    )
+
+
+def check_requirements(reqs: Iterable[str], cols: List[str]) -> None:
+    """Check for all the required data.
+
+    Parameters
+    ----------
+    reqs : iterable
+        A list of required data names (str)
+    cols : list of str
+        A list of variable names (str)
+    """
+    if not isinstance(reqs, Iterable):
+        raise InvalidInputType("reqs", "iterable")
+
+    missing = [r for r in reqs if r not in cols]
+    if missing:
+        raise MissingItems(missing)
 
 
 class PETCoords:
@@ -499,214 +628,85 @@ class PETGridded:
         return self.set_new_attrs(self.clm)
 
 
-def vapour_pressure(
-    tmax_c: DS,
-    tmin_c: DS,
-    rh: Optional[DS] = None,
-) -> Union[Tuple[DS, DS], Tuple[DS, DS]]:
-    """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
+def potential_et(
+    clm: DF,
+    coords: Optional[Tuple[float, float]] = None,
+    crs: Union[str, pyproj.CRS] = DEF_CRS,
+    method: str = "hargreaves_samani",
+    params: Optional[Dict[str, float]] = None,
+) -> DF:
+    """Compute Potential EvapoTranspiration for both gridded and a single location.
 
     Parameters
     ----------
-    tmax_c : pandas.Series or xarray.DataArray
-        Maximum temperature in degrees Celsius.
-    tmin_c : pandas.Series or xarray.DataArray
-        Minimum temperature in degrees Celsius.
-    rh : pandas.Series or xarray.DataArray, optional
-        Relative humidity in %.
+    clm : pandas.DataFrame or xarray.Dataset
+        The dataset must include at least the following variables:
+
+        * Minimum temperature in degree celsius
+        * Maximum temperature in degree celsius
+        * Solar radiation in in W/m2
+        * Daylight duration in seconds
+
+        Optionally, relative humidity and wind speed at 2-m level will be used if available.
+
+        Table below shows the variable names that the function looks for in the input data.
+
+        ==================== ========
+        DataFrame            Dataset
+        ==================== ========
+        ``tmin (degrees C)`` ``tmin``
+        ``tmax (degrees C)`` ``tmax``
+        ``srad (W/m2)``      ``srad``
+        ``dayl (s)``         ``dayl``
+        ``rh (-)``           ``rh``
+        ``u2 (m/s)``         ``u2``
+        ==================== ========
+
+        If relative humidity and wind speed at 2-m level are not available,
+        actual vapour pressure is assumed to be saturation vapour pressure at daily minimum
+        temperature and 2-m wind speed is considered to be 2 m/s.
+    coords : tuple of floats, optional
+        Coordinates of the daymet data location as a tuple, (x, y). This is required when ``clm``
+        is a ``DataFrame``.
+    crs : str, optional
+        The spatial reference of the input coordinate, defaults to ``epsg:4326``. This is only used
+        when ``clm`` is a ``DataFrame``.
+    method : str, optional
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
+        None (don't compute PET). The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
+        Defaults to ``hargreaves_samani``.
+    params : dict, optional
+        Model-specific parameters as a dictionary, defaults to ``None``.
 
     Returns
     -------
-    tuple of pandas.Series or tuple of xarray.DataArray
-        Saturation vapour pressure in kPa and actual vapour pressure in kPa.
+    pandas.DataFrame or xarray.Dataset
+        The input DataFrame/Dataset with an additional variable named ``pet (mm/day)`` for
+        DataFrame and ``pet`` for Dataset.
 
     References
     ----------
     .. footbibliography::
     """  # noqa: DAR203
-    e_max = saturation_vapour(tmax_c)
-    e_min = saturation_vapour(tmin_c)
-    e_s = (e_max + e_min) * 0.5
-    if rh is not None:
-        e_a = rh * e_s * 1e-2
+    valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
+    if method not in valid_methods:
+        raise InvalidInputValue("method", valid_methods)
+
+    if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
+        raise InvalidInputType("clm", "pd.DataFrame or xr.Dataset")
+
+    pet: Union[PETCoords, PETGridded]
+    if isinstance(clm, pd.DataFrame):
+        if coords is None:
+            raise MissingItems(["coords"])
+        crs = ogc.utils.validate_crs(crs)
+        pet = PETCoords(clm, coords, crs, params)
     else:
-        e_a = e_min
-    return e_s, e_a
-
-
-def saturation_vapour(temperature: DS) -> DS:
-    """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
-
-    Parameters
-    ----------
-    temperature : xarray.DataArray or pandas.Series
-        Temperature in °C.
-
-    Returns
-    -------
-    xarray.DataArray or pandas.Series
-        Saturation vapour pressure in kPa.
-
-    References
-    ----------
-    .. footbibliography::
-    """  # noqa: DAR203
-    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
-
-
-def extraterrestrial_radiation(
-    dayofyear: Union[pd.Index, xr.DataArray], lat: Union[float, xr.DataArray]
-) -> Union[pd.Index, xr.DataArray]:
-    """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
-
-    Parameters
-    ----------
-    dayofyear : pandas.Series or xarray.DataArray
-        Time as day of year.
-    lat : float or xarray.DataArray
-        Latitude.
-
-    Returns
-    -------
-    pandas.Series or xarray.DataArray
-        Extraterrestrial Radiation in MJ m^-2 h^-1.
-
-    References
-    ----------
-    .. footbibliography::
-    """  # noqa: DAR203
-    jp = 2.0 * np.pi * dayofyear / 365.0
-    d_r = 1.0 + 0.033 * np.cos(jp)
-    delta_r = 0.409 * np.sin(jp - 1.39)
-    phi = lat * np.pi / 180.0
-    w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-    return (
-        24.0
-        * 60.0
-        / np.pi
-        * 0.082
-        * d_r
-        * (w_s * np.sin(phi) * np.sin(delta_r) + np.cos(phi) * np.cos(delta_r) * np.sin(w_s))
-    )
-
-
-def net_radiation(
-    srad: DS,
-    dayl: DS,
-    elevation: Union[float, xr.DataArray],
-    tmax: DS,
-    tmin: DS,
-    e_a: DS,
-    rad_a: Union[pd.Index, xr.DataArray],
-) -> DS:
-    """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
-
-    Parameters
-    ----------
-    srad : pandas.Series or xarray.DataArray
-        Solar radiation [MJ m^-2 day^-1].
-    dayl : pandas.Series or xarray.DataArray
-        Daylength [h].
-    elevation : float or xarray.DataArray
-        Elevation [m].
-    tmax : pandas.Series or xarray.DataArray
-        Maximum temperature [°C].
-    tmin : pandas.Series or xarray.DataArray
-        Minimum temperature [°C].
-    e_a : pandas.Series or xarray.DataArray
-        Actual vapour pressure [kPa].
-    rad_a : pandas.Series or xarray.Dataset
-        Extraterrestrial radiation [MJ m^-2 day^-1].
-
-    Returns
-    -------
-    pandas.Series or xarray.DataArray
-        Net radiation in MJ m^-2 day^-1.
-
-    References
-    ----------
-    .. footbibliography::
-    """  # noqa: DAR203
-    r_surf = srad * dayl * 1e-6
-
-    alb = 0.23
-    rad_s = (0.75 + 2e-5 * elevation) * rad_a
-    rad_ns = (1.0 - alb) * r_surf
-    rad_nl = (
-        4.903e-9
-        * (((tmax + 273.16) ** 4 + (tmin + 273.16) ** 4) * 0.5)
-        * (0.34 - 0.14 * np.sqrt(e_a))
-        * ((1.35 * r_surf / rad_s) - 0.35)
-    )
-    return rad_ns - rad_nl  # type: ignore
-
-
-def psychrometric_constant(elevation: Union[float, xr.DataArray], lmbda: DS) -> DS:
-    """Compute the psychrometric constant :footcite:t:`Allen_1998` Eq. 8 [kPa °C^-1]..
-
-    Parameters
-    ----------
-    elevation : float or xarray.DataArray
-        Elevation of the location in meters.
-    lmbda : pandas.Series or xarray.DataArray
-        Latent heat of vaporization in J/kg, defaults to 0.0065.
-
-    Returns
-    -------
-    pandas.Series or xarray.DataArray
-        The psychrometric constant in kPa °C^-1.
-
-    References
-    ----------
-    .. footbibliography::
-    """  # noqa: DAR203
-    # Atmospheric pressure [kPa]
-    pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
-    return 1.013e-3 * pa / (0.622 * lmbda)
-
-
-def vapour_slope(tmean_c: DS) -> DS:
-    """Compute the slope of the saturation vapour pressure curve :footcite:t:`Allen_1998` Eq. 1 [kPa].
-
-    Parameters
-    ----------
-    tmean_c : pandas.Series or xarray.DataArray
-        The mean temperature [°C].
-
-    Returns
-    -------
-    pandas.Series or xarray.DataArray
-        The slope of the saturation vapour pressure curve in kPa.
-
-    References
-    ----------
-    .. footbibliography::
-    """  # noqa: DAR203
-    return (  # type: ignore
-        4098
-        * (
-            0.6108
-            * np.exp(
-                17.27 * tmean_c / (tmean_c + 237.3),
-            )
-        )
-        / ((tmean_c + 237.3) ** 2)
-    )
-
-
-def check_requirements(reqs: Iterable[str], cols: List[str]) -> None:
-    """Check for all the required data.
-
-    Parameters
-    ----------
-    reqs : iterable
-        A list of required data names (str)
-    cols : list of str
-        A list of variable names (str)
-    """
-    if not isinstance(reqs, Iterable):
-        raise InvalidInputType("reqs", "iterable")
-
-    missing = [r for r in reqs if r not in cols]
-    if missing:
-        raise MissingItems(missing)
+        pet = PETGridded(clm, params)
+    with xr.set_options(keep_attrs=True):  # type: ignore
+        return getattr(pet, method)()  # type: ignore
