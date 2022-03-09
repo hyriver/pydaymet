@@ -104,7 +104,7 @@ Features
 --------
 
 PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
-is designed to aid in watershed analysis through web services. This package provides
+is designed to aid in hydroclimate analysis through web services. This package provides
 access to climate data from
 `Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ database using NetCDF
 Subset Service (NCSS). Both single pixel (using ``get_bycoords`` function) and gridded data (using
