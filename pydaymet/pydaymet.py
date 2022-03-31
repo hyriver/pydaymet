@@ -110,8 +110,6 @@ def get_bycoords(
     snow: bool = False,
     snow_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
-    expire_after: float = EXPIRE,
-    disable_caching: bool = False,
 ) -> pd.DataFrame:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -164,10 +162,6 @@ def get_bycoords(
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL certification verification.
-    expire_after : int, optional
-        Expiration time for response caching in seconds, defaults to -1 (never expire).
-    disable_caching : bool, optional
-        If ``True``, disable caching requests, defaults to False.
 
     Returns
     -------
@@ -214,13 +208,7 @@ def get_bycoords(
     )
     url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
-    retrieve = functools.partial(
-        ar.retrieve_binary,
-        max_workers=MAX_CONN,
-        ssl=ssl,
-        disable=disable_caching,
-        expire_after=expire_after,
-    )
+    retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
     clm = pd.concat(
         (
             pd.concat(
@@ -324,8 +312,6 @@ def get_bygeom(
     snow: bool = False,
     snow_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
-    expire_after: float = EXPIRE,
-    disable_caching: bool = False,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -374,10 +360,6 @@ def get_bygeom(
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL certification verification.
-    expire_after : int, optional
-        Expiration time for response caching in seconds, defaults to -1 (never expire).
-    disable_caching : bool, optional
-        If ``True``, disable caching requests, defaults to False.
 
     Returns
     -------
@@ -427,14 +409,7 @@ def get_bygeom(
         clm: xr.Dataset = xr.open_mfdataset(  # type: ignore
             (
                 io.BytesIO(r)
-                for r in ar.retrieve_binary(
-                    urls,
-                    request_kwds=kwds,
-                    max_workers=MAX_CONN,
-                    ssl=ssl,
-                    disable=disable_caching,
-                    expire_after=expire_after,
-                )
+                for r in ar.retrieve_binary(urls, request_kwds=kwds, max_workers=MAX_CONN, ssl=ssl)
             ),
             engine="scipy",
             coords="minimal",
