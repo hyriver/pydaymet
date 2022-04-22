@@ -45,7 +45,7 @@ dependencies:
   - numba
 
   # test deps
-  - pyarrow
+  - pyarrow>=1.0.1
   - psutil
   - pytest-cov
   - pytest-xdist
