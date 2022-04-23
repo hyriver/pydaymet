@@ -36,8 +36,8 @@ DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
 
 # Default snow params from https://doi.org/10.5194/gmd-11-1077-2018
-T_RAIN = np.float64(2.5)  # degC
-T_SNOW = np.float64(0.6)  # degC
+T_RAIN = 2.5  # degC
+T_SNOW = 0.6  # degC
 
 __all__ = ["Daymet"]
 

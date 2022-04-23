@@ -15,7 +15,7 @@ from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
 from shapely.geometry import MultiPolygon, Point, Polygon
 
-from .core import Daymet, T_RAIN, T_SNOW
+from .core import T_RAIN, T_SNOW, Daymet
 from .exceptions import InvalidInputRange, InvalidInputType
 from .pet import potential_et
 
