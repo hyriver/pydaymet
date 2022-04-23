@@ -2,6 +2,14 @@
 History
 =======
 
+0.13.1 (unreleased)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Adopt the default snow parameters' values from a new source
+  https://doi.org/10.5194/gmd-11-1077-2018 and add the citation.
+
 0.13.0 (2022-03-03)
 -------------------
 
