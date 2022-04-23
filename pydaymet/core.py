@@ -35,6 +35,9 @@ DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
 
+# Default snow params from https://doi.org/10.5194/gmd-11-1077-2018
+T_RAIN = np.float64(2.5)  # degC
+T_SNOW = np.float64(0.6)  # degC
 
 __all__ = ["Daymet"]
 
@@ -125,7 +128,7 @@ class DaymetBase(BaseModel):
 
 @ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore
 def _separate_snow(
-    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = 2.5, t_snow: float = 0.0  # type: ignore
+    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = T_RAIN, t_snow: float = T_SNOW  # type: ignore
 ) -> np.ndarray:  # type: ignore
     """Separate snow in precipitation."""
     t_rng = t_rain - t_snow
@@ -390,7 +393,7 @@ class Daymet:
         clm["snow"].attrs["long_name"] = "daily snowfall"
         return clm
 
-    def separate_snow(self, clm: DF, t_rain: float = 2.5, t_snow: float = 0.0) -> DF:
+    def separate_snow(self, clm: DF, t_rain: float = T_RAIN, t_snow: float = T_SNOW) -> DF:
         """Separate snow based on :footcite:t:`Martinez_2010`.
 
         Parameters
@@ -400,7 +403,7 @@ class Daymet:
         t_rain : float, optional
             Threshold for temperature for considering rain, defaults to 2.5 degrees C.
         t_snow : float, optional
-            Threshold for temperature for considering snow, defaults to 0.0 degrees C.
+            Threshold for temperature for considering snow, defaults to 0.6 degrees C.
 
         Returns
         -------

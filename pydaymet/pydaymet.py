@@ -15,7 +15,7 @@ from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
 from shapely.geometry import MultiPolygon, Point, Polygon
 
-from .core import Daymet
+from .core import Daymet, T_RAIN, T_SNOW
 from .exceptions import InvalidInputRange, InvalidInputType
 from .pet import potential_et
 
@@ -158,7 +158,8 @@ def get_bycoords(
         These parameters are only used if ``snow`` is ``True``. Two parameters are required:
         ``t_rain`` (deg C) which is the threshold for temperature for considering rain and
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
-        The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
+        The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
+        https://doi.org/10.5194/gmd-11-1077-2018.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL certification verification.
@@ -230,7 +231,7 @@ def get_bycoords(
         clm = potential_et(clm, coords, method=pet, params=pet_params)
 
     if snow:
-        params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
+        params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
     return clm
 
@@ -356,7 +357,8 @@ def get_bygeom(
         These parameters are only used if ``snow`` is ``True``. Two parameters are required:
         ``t_rain`` (deg C) which is the threshold for temperature for considering rain and
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
-        The default values are ``{'t_rain': 2.5, 't_snow': 0}``.
+        The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
+        https://doi.org/10.5194/gmd-11-1077-2018.
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL certification verification.
@@ -450,6 +452,6 @@ def get_bygeom(
         clm = potential_et(clm, method=pet, params=pet_params)
 
     if snow:
-        params = {"t_rain": 2.5, "t_snow": 0} if snow_params is None else snow_params
+        params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
     return clm
