@@ -215,9 +215,8 @@ class Daymet:
             self.valid_start = pd.to_datetime("1950-01-01")
         else:
             self.valid_start = pd.to_datetime("1980-01-01")
-        self.valid_end = pd.to_datetime("2020-12-31")
         self._invalid_yr = (
-            "Daymet database ranges from " + f"{self.valid_start.year} to {self.valid_end.year}."
+            "Daymet database dates must be greater than " + f"{self.valid_start.year}."
         )
         self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
 
@@ -280,7 +279,7 @@ class Daymet:
             start = start.replace(day=14)
             end = end.replace(day=17)
 
-        if start < self.valid_start or end > self.valid_end:
+        if start < self.valid_start:
             raise InvalidInputRange(self._invalid_yr)
 
         return {
@@ -292,7 +291,7 @@ class Daymet:
         """Set date by list of year(s)."""
         years = [years] if isinstance(years, int) else years
 
-        if min(years) < self.valid_start.year or max(years) > self.valid_end.year:
+        if min(years) < self.valid_start.year:
             raise InvalidInputRange(self._invalid_yr)
 
         return {"years": ",".join(str(y) for y in years)}
