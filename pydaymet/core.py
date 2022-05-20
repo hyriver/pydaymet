@@ -278,6 +278,9 @@ class Daymet:
         if self.time_scale == "monthly":
             start = start.replace(day=14)
             end = end.replace(day=17)
+        if self.time_scale == "annual":
+            start = start.replace(month=6)
+            end = end.replace(month=8)
 
         if start < self.valid_start:
             raise InvalidInputRange(self._invalid_yr)
