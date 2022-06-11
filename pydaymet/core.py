@@ -1,4 +1,5 @@
 """Core class for the Daymet functions."""
+from datetime import datetime
 import functools
 import warnings
 from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
@@ -215,7 +216,7 @@ class Daymet:
             self.valid_start = pd.to_datetime("1950-01-01")
         else:
             self.valid_start = pd.to_datetime("1980-01-01")
-        self.valid_end = pd.to_datetime("2020-12-31")
+        self.valid_end = pd.to_datetime(f"{datetime.now().year - 1}-12-31")
         self._invalid_yr = (
             "Daymet database ranges from " + f"{self.valid_start.year} to {self.valid_end.year}."
         )
@@ -279,6 +280,10 @@ class Daymet:
         if self.time_scale == "monthly":
             start = start.replace(day=14)
             end = end.replace(day=17)
+
+        if self.time_scale == "annual":
+            start = start.replace(day=6)
+            end = end.replace(day=8)
 
         if start < self.valid_start or end > self.valid_end:
             raise InvalidInputRange(self._invalid_yr)
