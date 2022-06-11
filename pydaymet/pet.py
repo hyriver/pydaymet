@@ -156,7 +156,7 @@ def net_radiation(
         * (0.34 - 0.14 * np.sqrt(e_a))
         * ((1.35 * r_surf / rad_s) - 0.35)
     )
-    return rad_ns - rad_nl  # type: ignore
+    return rad_ns - rad_nl
 
 
 def psychrometric_constant(elevation: Union[float, xr.DataArray], lmbda: DS) -> DS:
@@ -200,8 +200,8 @@ def vapour_slope(tmean_c: DS) -> DS:
     ----------
     .. footbibliography::
     """  # noqa: DAR203
-    return (  # type: ignore
-        4098
+    return (
+        4098  # type: ignore
         * (
             0.6108
             * np.exp(

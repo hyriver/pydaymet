@@ -1,7 +1,7 @@
 """Core class for the Daymet functions."""
-from datetime import datetime
 import functools
 import warnings
+from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
