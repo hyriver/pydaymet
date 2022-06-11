@@ -10,6 +10,13 @@ New Features
 - Adopt the default snow parameters' values from a new source
   https://doi.org/10.5194/gmd-11-1077-2018 and add the citation.
 
+Bug Fixes
+~~~~~~~~~
+- Set the end year based on the current year since Daymet data get updated
+  every year (:pull_day:`55`) by `Tim Cera <https://github.com/timcera>`__.
+- Set the months for the annual timescale to correct values (:pull_day:`55`)
+  by `Tim Cera <https://github.com/timcera>`__.
+
 0.13.0 (2022-03-03)
 -------------------
 
