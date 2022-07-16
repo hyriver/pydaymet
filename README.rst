@@ -1,5 +1,5 @@
-.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pydaymet_logo.png
-    :target: https://github.com/cheginit/HyRiver
+.. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/pydaymet_logo.png
+    :target: https://github.com/hyriver/HyRiver
 
 |
 
@@ -9,32 +9,32 @@
 
 |
 
-.. |pygeohydro| image:: https://github.com/cheginit/pygeohydro/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/pygeohydro/actions/workflows/test.yml
+.. |pygeohydro| image:: https://github.com/hyriver/pygeohydro/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/pygeohydro/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |pygeoogc| image:: https://github.com/cheginit/pygeoogc/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/pygeoogc/actions/workflows/test.yml
+.. |pygeoogc| image:: https://github.com/hyriver/pygeoogc/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/pygeoogc/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |pygeoutils| image:: https://github.com/cheginit/pygeoutils/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/pygeoutils/actions/workflows/test.yml
+.. |pygeoutils| image:: https://github.com/hyriver/pygeoutils/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/pygeoutils/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |pynhd| image:: https://github.com/cheginit/pynhd/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/pynhd/actions/workflows/test.yml
+.. |pynhd| image:: https://github.com/hyriver/pynhd/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/pynhd/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |py3dep| image:: https://github.com/cheginit/py3dep/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/py3dep/actions/workflows/test.yml
+.. |py3dep| image:: https://github.com/hyriver/py3dep/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/py3dep/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |pydaymet| image:: https://github.com/cheginit/pydaymet/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/pydaymet/actions/workflows/test.yml
+.. |pydaymet| image:: https://github.com/hyriver/pydaymet/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/pydaymet/actions/workflows/test.yml
     :alt: Github Actions
 
-.. |async| image:: https://github.com/cheginit/async_retriever/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/cheginit/async_retriever/actions/workflows/test.yml
+.. |async| image:: https://github.com/hyriver/async_retriever/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/hyriver/async_retriever/actions/workflows/test.yml
     :alt: Github Actions
 
 =============== ==================================================================== ============
@@ -49,13 +49,13 @@ PyGeoOGC_       Send queries to any ArcGIS RESTful-, WMS-, and WFS-based service
 PyGeoUtils_     Convert responses from PyGeoOGC's supported web services to datasets |pygeoutils|
 =============== ==================================================================== ============
 
-.. _PyGeoHydro: https://github.com/cheginit/pygeohydro
-.. _AsyncRetriever: https://github.com/cheginit/async_retriever
-.. _PyGeoOGC: https://github.com/cheginit/pygeoogc
-.. _PyGeoUtils: https://github.com/cheginit/pygeoutils
-.. _PyNHD: https://github.com/cheginit/pynhd
-.. _Py3DEP: https://github.com/cheginit/py3dep
-.. _PyDaymet: https://github.com/cheginit/pydaymet
+.. _PyGeoHydro: https://github.com/hyriver/pygeohydro
+.. _AsyncRetriever: https://github.com/hyriver/async_retriever
+.. _PyGeoOGC: https://github.com/hyriver/pygeoogc
+.. _PyGeoUtils: https://github.com/hyriver/pygeoutils
+.. _PyNHD: https://github.com/hyriver/pynhd
+.. _Py3DEP: https://github.com/hyriver/py3dep
+.. _PyDaymet: https://github.com/hyriver/pydaymet
 
 PyDaymet: Daily climate data through Daymet
 -------------------------------------------
@@ -68,8 +68,8 @@ PyDaymet: Daily climate data through Daymet
     :target: https://anaconda.org/conda-forge/pydaymet
     :alt: Conda Version
 
-.. image:: https://codecov.io/gh/cheginit/pydaymet/branch/main/graph/badge.svg
-    :target: https://codecov.io/gh/cheginit/pydaymet
+.. image:: https://codecov.io/gh/hyriver/pydaymet/branch/main/graph/badge.svg
+    :target: https://codecov.io/gh/hyriver/pydaymet
     :alt: CodeCov
 
 .. image:: https://img.shields.io/pypi/pyversions/pydaymet.svg
@@ -82,8 +82,8 @@ PyDaymet: Daily climate data through Daymet
 
 |
 
-.. image:: https://www.codefactor.io/repository/github/cheginit/pydaymet/badge
-   :target: https://www.codefactor.io/repository/github/cheginit/pydaymet
+.. image:: https://www.codefactor.io/repository/github/hyriver/pydaymet/badge
+   :target: https://www.codefactor.io/repository/github/hyriver/pydaymet
    :alt: CodeFactor
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
@@ -95,7 +95,7 @@ PyDaymet: Daily climate data through Daymet
     :alt: pre-commit
 
 .. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/cheginit/HyRiver-examples/main?urlpath=lab/tree/notebooks
+    :target: https://mybinder.org/v2/gh/hyriver/HyRiver-examples/main?urlpath=lab/tree/notebooks
     :alt: Binder
 
 |
@@ -103,7 +103,7 @@ PyDaymet: Daily climate data through Daymet
 Features
 --------
 
-PyDaymet is a part of `HyRiver <https://github.com/cheginit/HyRiver>`__ software stack that
+PyDaymet is a part of `HyRiver <https://github.com/hyriver/HyRiver>`__ software stack that
 is designed to aid in hydroclimate analysis through web services. This package provides
 access to climate data from
 `Daymet V4 <https://daac.ornl.gov/DAYMET/guides/Daymet_Daily_V4.html>`__ database using NetCDF
@@ -115,10 +115,10 @@ and annual. Additionally, PyDaymet can compute Potential EvapoTranspiration (PET
 using three methods: ``penman_monteith``, ``priestley_taylor``, and ``hargreaves_samani`` for
 both single pixel and gridded data.
 
-You can find some example notebooks `here <https://github.com/cheginit/HyRiver-examples>`__.
+You can find some example notebooks `here <https://github.com/hyriver/HyRiver-examples>`__.
 
 Moreover, under the hood, PyDaymet uses
-`AsyncRetriever <https://github.com/cheginit/async_retriever>`__
+`AsyncRetriever <https://github.com/hyriver/async_retriever>`__
 for making requests asynchronously with persistent caching. This improves the
 reliability and speed of data retrieval significantly. AsyncRetriever caches all request/response
 pairs and upon making an already cached request, it will retrieve the responses from the cache
@@ -153,7 +153,7 @@ functionalities should be stable, changes in APIs are possible in new releases. 
 appreciate it if you give this project a try and provide feedback. Contributions are most welcome.
 
 Moreover, requests for additional functionalities can be submitted via
-`issue tracker <https://github.com/cheginit/pydaymet/issues>`__.
+`issue tracker <https://github.com/hyriver/pydaymet/issues>`__.
 
 Installation
 ------------
@@ -301,8 +301,8 @@ by default is set to daily.
     )
     monthly = daymet.get_bygeom(geometry, dates, variables=var, time_scale="monthly")
 
-.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/daymet_grid.png
-    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/daymet_grid.png
+    :target: https://github.com/hyriver/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
 If the input geometry (or coordinate) is in a CRS other than ``EPSG:4326``, we should pass
 it to the functions.
@@ -316,8 +316,8 @@ it to the functions.
         coords, dates, variables=var, loc_crs=crs, time_scale="annual"
     )
 
-.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/daymet_loc.png
-    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/daymet_loc.png
+    :target: https://github.com/hyriver/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
 Also, we can use the ``potential_et`` function to compute PET by passing the daily climate data.
 We can either pass a ``pandas.DataFrame`` or a ``xarray.Dataset``. Note that, ``penman_monteith``
@@ -341,17 +341,17 @@ Next, let's get annual total precipitation for Hawaii and Puerto Rico for 2010.
 
 Some example plots are shown below:
 
-.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/hi.png
-    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/hi.png
+    :target: https://github.com/hyriver/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
-.. image:: https://raw.githubusercontent.com/cheginit/HyRiver-examples/main/notebooks/_static/pr.png
-    :target: https://github.com/cheginit/HyRiver-examples/blob/main/notebooks/daymet.ipynb
+.. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/pr.png
+    :target: https://github.com/hyriver/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
 Contributing
 ------------
 
 Contributions are very welcomed. Please read
-`CONTRIBUTING.rst <https://github.com/cheginit/pygeoogc/blob/main/CONTRIBUTING.rst>`__
+`CONTRIBUTING.rst <https://github.com/hyriver/pygeoogc/blob/main/CONTRIBUTING.rst>`__
 file for instructions.
 
 Credits
