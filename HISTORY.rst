@@ -2,6 +2,16 @@
 History
 =======
 
+0.13.3 (2022-07-20)
+-------------------
+
+Bug Fixes
+~~~~~~~~~
+- Fix a bug in ``PETGridded`` where the wrong data type was being set for
+  ``pet`` and ``elevation`` variables.
+- When initializing ``PETGridded``, only chunk the elevation if the input
+  climate data is chunked.
+
 0.13.2 (2022-06-14)
 -------------------
 
