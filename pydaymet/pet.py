@@ -434,28 +434,20 @@ class PETGridded:
         clm: xr.Dataset,
         params: Optional[Dict[str, float]] = None,
     ) -> None:
-        self.clm = clm
+        self.clm = clm.copy()
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
         self.res = 1.0e3
-        self.crs = " ".join(
-            [
-                "+proj=lcc",
-                "+lat_1=25",
-                "+lat_2=60",
-                "+lat_0=42.5",
-                "+lon_0=-100",
-                "+x_0=0",
-                "+y_0=0",
-                "+ellps=WGS84",
-                "+units=km",
-                "+no_defs",
-            ]
-        )
+        self.crs = clm.rio.crs
 
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
-        self.clm["elevation"] = py3dep.elevation_bygrid(
+        dem = py3dep.elevation_bygrid(
             self.clm.x.values, self.clm.y.values, self.crs, self.res
-        ).chunk({"x": clm.chunksizes["x"], "y": clm.chunksizes["y"]})
+        ).where(~self.clm.tmin.isel(time=0).isnull())
+
+        if "x" in self.clm.chunksizes and "y" in self.clm.chunksizes:
+            dem = dem.chunk({"x": self.clm.chunksizes["x"], "y": self.clm.chunksizes["y"]})
+
+        self.clm["elevation"] = dem
 
         # recommended when no data is not available to estimate soil heat flux
         if "soil_heat" not in self.params:
@@ -477,7 +469,7 @@ class PETGridded:
         clm : xarray.DataArray
             The dataset to which the new attributes are added.
         """
-        dtype = clm[next(iter(clm.keys()))].dtype
+        dtype = clm.tmin.dtype
         clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
         clm["elevation"] = clm["elevation"].astype(dtype)
         clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
