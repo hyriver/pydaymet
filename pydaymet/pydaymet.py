@@ -408,8 +408,8 @@ def get_bygeom(
     )
 
     try:
-        clm: xr.Dataset = xr.open_mfdataset(  # type: ignore
-            (
+        clm: xr.Dataset = xr.open_mfdataset(
+            (  # type: ignore
                 io.BytesIO(r)
                 for r in ar.retrieve_binary(urls, request_kwds=kwds, max_workers=MAX_CONN, ssl=ssl)
             ),

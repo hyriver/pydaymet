@@ -1,5 +1,5 @@
 """Core class for the Daymet functions."""
-from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, Hashable, Iterable, KeysView, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -212,7 +212,7 @@ def vapour_slope(tmean_c: DS) -> DS:
     )
 
 
-def check_requirements(reqs: Iterable[str], cols: List[str]) -> None:
+def check_requirements(reqs: Iterable[str], cols: Union[KeysView[Hashable], pd.Index]) -> None:
     """Check for all the required data.
 
     Parameters
@@ -274,7 +274,7 @@ class PETCoords:
         self.u2 = "u2 (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
-        self.clm_vars = list(self.clm.columns)
+        self.clm_vars = self.clm.columns
         self.req_vars = {
             "penman_monteith": [self.tmin, self.tmax, self.srad, self.dayl],
             "priestley_taylor": [self.tmin, self.tmax, self.srad, self.dayl],
@@ -453,7 +453,7 @@ class PETGridded:
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
-        self.clm_vars = list(self.clm.keys())
+        self.clm_vars = self.clm.keys()
         self.req_vars = {
             "penman_monteith": ["tmin", "tmax", "lat", "srad", "dayl"],
             "priestley_taylor": ["tmin", "tmax", "lat", "srad", "dayl"],
