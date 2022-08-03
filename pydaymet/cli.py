@@ -2,9 +2,9 @@
 from pathlib import Path
 from typing import List, Optional, Union
 
-import click
 import geopandas as gpd
 import pandas as pd
+import rich_click as click
 import shapely.geometry as sgeom
 from shapely.geometry import MultiPolygon, Point, Polygon
 
