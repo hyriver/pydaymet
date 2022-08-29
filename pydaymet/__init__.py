@@ -1,5 +1,5 @@
 """Top-level package for PyDaymet."""
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 from .core import Daymet
 from .exceptions import (

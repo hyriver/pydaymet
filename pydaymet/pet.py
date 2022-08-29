@@ -8,7 +8,7 @@ import pygeoogc as ogc
 import pyproj
 import xarray as xr
 
-from .exceptions import InvalidInputType, InvalidInputValue, MissingItems
+from .exceptions import InputTypeError, InputValueError, MissingItemError
 
 DEF_CRS = "epsg:4326"
 DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
@@ -223,11 +223,11 @@ def check_requirements(reqs: Iterable[str], cols: Union[KeysView[Hashable], pd.I
         A list of variable names (str)
     """
     if not isinstance(reqs, Iterable):
-        raise InvalidInputType("reqs", "iterable")
+        raise InputTypeError("reqs", "iterable")
 
     missing = [r for r in reqs if r not in cols]
     if missing:
-        raise MissingItems(missing)
+        raise MissingItemError(missing)
 
 
 class PETCoords:
@@ -687,15 +687,15 @@ def potential_et(
     """  # noqa: DAR203
     valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
     if method not in valid_methods:
-        raise InvalidInputValue("method", valid_methods)
+        raise InputValueError("method", valid_methods)
 
     if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
-        raise InvalidInputType("clm", "pd.DataFrame or xr.Dataset")
+        raise InputTypeError("clm", "pd.DataFrame or xr.Dataset")
 
     pet: Union[PETCoords, PETGridded]
     if isinstance(clm, pd.DataFrame):
         if coords is None:
-            raise MissingItems(["coords"])
+            raise MissingItemError(["coords"])
         crs = ogc.utils.validate_crs(crs)
         pet = PETCoords(clm, coords, crs, params)
     else:

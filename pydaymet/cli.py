@@ -2,19 +2,19 @@
 from pathlib import Path
 from typing import List, Optional, Union
 
+import click
 import geopandas as gpd
 import pandas as pd
-import rich_click as click
 import shapely.geometry as sgeom
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from . import pydaymet as daymet
 from .exceptions import (
-    InvalidInputRange,
-    InvalidInputType,
-    InvalidInputValue,
-    MissingCRS,
-    MissingItems,
+    InputRangeError,
+    InputTypeError,
+    InputValueError,
+    MissingCRSError,
+    MissingItemError,
 )
 
 
@@ -23,7 +23,7 @@ def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
     if target_df["snow"].dtype != bool:
         target_df["snow"] = target_df.snow.str.lower().str.strip()
         if not target_df.snow.str.contains("true|false").all():
-            raise InvalidInputValue("snow", "true or false")
+            raise InputValueError("snow", "true or false")
         target_df["snow"] = target_df.snow == "true"
     return target_df
 
@@ -37,7 +37,7 @@ def get_target_df(
     """
     missing = [c for c in req_cols if c not in tdf]
     if len(missing) > 0:
-        raise MissingItems(missing)
+        raise MissingItemError(missing)
     return tdf[req_cols]
 
 
@@ -58,7 +58,7 @@ def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
         if bbox.contains(geom):
             return region
     msg = f"Input location with ID of {gid} is outside the Daymet spatial range."
-    raise InvalidInputRange(msg)
+    raise InputRangeError(msg)
 
 
 def get_region(geodf: gpd.GeoDataFrame) -> List[str]:
@@ -131,7 +131,7 @@ def coords(
     """  # noqa: D301
     fpath = Path(fpath)
     if fpath.suffix != ".csv":
-        raise InvalidInputType("file", ".csv")
+        raise InputTypeError("file", ".csv")
 
     target_df = get_target_df(pd.read_csv(fpath), ["id", "start", "end", "lon", "lat"])
     points = gpd.GeoDataFrame(
@@ -197,14 +197,14 @@ def geometry(
     """  # noqa: D301
     fpath = Path(fpath)
     if fpath.suffix not in (".shp", ".gpkg"):
-        raise InvalidInputType("file", ".shp or .gpkg")
+        raise InputTypeError("file", ".shp or .gpkg")
 
     target_df = gpd.read_file(fpath)
     if target_df.crs is None:
-        raise MissingCRS
+        raise MissingCRSError
 
     if "undefined geographic" in target_df.crs.name.lower():
-        raise MissingCRS
+        raise MissingCRSError
 
     target_df = get_target_df(target_df, ["id", "start", "end", "geometry"])
     target_df["region"] = get_region(target_df)

@@ -16,7 +16,7 @@ from pygeoogc import utils as ogcutils
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from .core import T_RAIN, T_SNOW, Daymet
-from .exceptions import InvalidInputRange, InvalidInputType
+from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
 
 DEF_CRS = "epsg:4326"
@@ -197,12 +197,12 @@ def get_bycoords(
         dates_itr = daymet.years_tolist(dates)
 
     if not (isinstance(coords, tuple) and len(coords) == 2):
-        raise InvalidInputType("coords", "tuple", "(lon, lat)")
+        raise InputTypeError("coords", "tuple", "(lon, lat)")
 
     coords = ogcutils.match_crs([coords], crs, DEF_CRS)[0]
 
     if not Point(*coords).within(daymet.region_bbox[region]):
-        raise InvalidInputRange(daymet.invalid_bbox_msg)
+        raise InputRangeError(daymet.invalid_bbox_msg)
 
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
@@ -395,7 +395,7 @@ def get_bygeom(
     _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
-        raise InvalidInputRange(daymet.invalid_bbox_msg)
+        raise InputRangeError(daymet.invalid_bbox_msg)
 
     urls, kwds = zip(
         *_gridded_urls(

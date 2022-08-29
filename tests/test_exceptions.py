@@ -9,11 +9,11 @@ from shapely.geometry import Polygon
 
 import pydaymet as daymet
 from pydaymet import (
-    InvalidInputRange,
-    InvalidInputType,
-    InvalidInputValue,
-    MissingCRS,
-    MissingItems,
+    InputRangeError,
+    InputTypeError,
+    InputValueError,
+    MissingCRSError,
+    MissingItemError,
 )
 from pydaymet.cli import cli
 
@@ -32,7 +32,7 @@ DATES = ("2000-01-01", "2000-12-31")
 
 
 def test_invalid_variable():
-    with pytest.raises(InvalidInputValue) as ex:
+    with pytest.raises(InputValueError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, variables="tt")
     assert "Given variables" in str(ex.value)
 
@@ -44,45 +44,45 @@ def test_invalid_pet_timescale():
 
 
 def test_invalid_timescale():
-    with pytest.raises(InvalidInputValue) as ex:
+    with pytest.raises(InputValueError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, time_scale="subdaily")
     assert "time_scale" in str(ex.value)
 
 
 def test_invalid_region():
-    with pytest.raises(InvalidInputValue) as ex:
+    with pytest.raises(InputValueError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, region="nn")
     assert "region" in str(ex.value)
 
 
 def test_invalid_coords():
-    with pytest.raises(InvalidInputRange) as ex:
+    with pytest.raises(InputRangeError) as ex:
         _ = daymet.get_bycoords((0, 0), DATES)
     assert "Valid bounding box" in str(ex.value)
 
 
 def test_invalid_date():
-    with pytest.raises(InvalidInputRange) as ex:
+    with pytest.raises(InputRangeError) as ex:
         _ = daymet.get_bycoords(COORDS, ("1950-01-01", "2010-01-01"))
     assert "1980" in str(ex.value)
 
 
 def test_invalid_year():
-    with pytest.raises(InvalidInputRange) as ex:
+    with pytest.raises(InputRangeError) as ex:
         _ = daymet.get_bycoords(COORDS, 1950)
     assert "1980" in str(ex.value)
 
 
 @pytest.mark.skipif(has_typeguard, reason="Broken if Typeguard is enabled")
 def test_invalid_year_type():
-    with pytest.raises(InvalidInputType) as ex:
+    with pytest.raises(InputTypeError) as ex:
         _ = daymet.get_bycoords(COORDS, "1950")
     assert "or int" in str(ex.value)
 
 
 @pytest.mark.skipif(has_typeguard, reason="Broken if Typeguard is enabled")
 def test_invalid_date_tuple():
-    with pytest.raises(InvalidInputType) as ex:
+    with pytest.raises(InputTypeError) as ex:
         _ = daymet.get_bycoords(COORDS, ("2010-01-01"))
     assert "(start, end)" in str(ex.value)
 
@@ -114,7 +114,7 @@ class TestCLIFails:
         Path(coord_csv).unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
-        assert isinstance(ret.exception, MissingItems)
+        assert isinstance(ret.exception, MissingItemError)
         assert "lat" in str(ret.exception)
 
     def test_wrong_geo_format(self, runner):
@@ -139,7 +139,7 @@ class TestCLIFails:
         Path(geo_feather).unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
-        assert isinstance(ret.exception, InvalidInputType)
+        assert isinstance(ret.exception, InputTypeError)
         assert "gpkg" in str(ret.exception)
 
     def test_wrong_geo_crs(self, runner):
@@ -167,7 +167,7 @@ class TestCLIFails:
             geo_gpkg.unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
-        assert isinstance(ret.exception, MissingCRS)
+        assert isinstance(ret.exception, MissingCRSError)
         assert "CRS" in str(ret.exception)
 
     def test_wrong_coords_format(self, runner):
@@ -194,5 +194,5 @@ class TestCLIFails:
         Path(coord_paquet).unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
         assert ret.exit_code == 1
-        assert isinstance(ret.exception, InvalidInputType)
+        assert isinstance(ret.exception, InputTypeError)
         assert "csv" in str(ret.exception)

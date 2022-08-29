@@ -2,7 +2,7 @@
 from typing import Any, Generator, Iterable, List, Optional, Union
 
 
-class InvalidInputValue(Exception):
+class InputValueError(Exception):
     """Exception raised for invalid input.
 
     Parameters
@@ -25,7 +25,7 @@ class InvalidInputValue(Exception):
         return self.message
 
 
-class InvalidInputType(Exception):
+class InputTypeError(Exception):
     """Exception raised when a function argument type is invalid.
 
     Parameters
@@ -48,11 +48,11 @@ class InvalidInputType(Exception):
         return self.message
 
 
-class InvalidInputRange(ValueError):
+class InputRangeError(ValueError):
     """Exception raised when a function argument is not in the valid range."""
 
 
-class MissingItems(Exception):
+class MissingItemError(Exception):
     """Exception raised when a required item is missing.
 
     Parameters
@@ -69,7 +69,7 @@ class MissingItems(Exception):
         return self.message
 
 
-class MissingCRS(Exception):
+class MissingCRSError(Exception):
     """Exception raised when input GeoDataFrame is missing CRS."""
 
     def __init__(self) -> None:

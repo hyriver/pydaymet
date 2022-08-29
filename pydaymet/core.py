@@ -10,7 +10,7 @@ import shapely.geometry as sgeom
 import xarray as xr
 from pydantic import BaseModel, validator
 
-from .exceptions import InvalidInputRange, InvalidInputType, InvalidInputValue
+from .exceptions import InputRangeError, InputTypeError, InputValueError
 
 try:
     from numba import njit, prange
@@ -86,20 +86,22 @@ class DaymetBase(BaseModel):
     region: str = "na"
 
     @validator("pet")
+    @classmethod
     def _pet(cls, v: Optional[str]) -> Optional[str]:
         valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
         if v not in valid_methods:
-            raise InvalidInputValue("pet", valid_methods)
+            raise InputValueError("pet", valid_methods)
         return v
 
     @validator("variables")
+    @classmethod
     def _variables(cls, v: List[str], values: Dict[str, str]) -> List[str]:
         valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
         if "all" in v:
             return valid_variables
 
         if not set(v).issubset(set(valid_variables)):
-            raise InvalidInputValue("variables", valid_variables)
+            raise InputValueError("variables", valid_variables)
 
         if values["pet"] is not None:
             v = list(set(v).union({"tmin", "tmax", "srad", "dayl"}))
@@ -109,21 +111,23 @@ class DaymetBase(BaseModel):
         return v
 
     @validator("time_scale")
+    @classmethod
     def _timescales(cls, v: str, values: Dict[str, str]) -> str:
         valid_timescales = ["daily", "monthly", "annual"]
         if v not in valid_timescales:
-            raise InvalidInputValue("time_scale", valid_timescales)
+            raise InputValueError("time_scale", valid_timescales)
 
         if values["pet"] is not None and v != "daily":
             msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
-            raise InvalidInputRange(msg)
+            raise InputRangeError(msg)
         return v
 
     @validator("region")
+    @classmethod
     def _regions(cls, v: str) -> str:
         valid_regions = ["na", "hi", "pr"]
         if v not in valid_regions:
-            raise InvalidInputValue("region", valid_regions)
+            raise InputValueError("region", valid_regions)
         return v
 
 
@@ -261,19 +265,17 @@ class Daymet:
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
         """Check if input dates are in correct format and valid."""
         if not isinstance(dates, (tuple, list, int)):
-            raise InvalidInputType(
+            raise InputTypeError(
                 "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
             )
 
         if isinstance(dates, tuple) and len(dates) != 2:
-            raise InvalidInputType(
-                "dates", "Start and end should be passed as a tuple of length 2."
-            )
+            raise InputTypeError("dates", "Start and end should be passed as a tuple of length 2.")
 
     def dates_todict(self, dates: Tuple[str, str]) -> Dict[str, str]:
         """Set dates by start and end dates as a tuple, (start, end)."""
         if not isinstance(dates, tuple) or len(dates) != 2:
-            raise InvalidInputType("dates", "tuple", "(start, end)")
+            raise InputTypeError("dates", "tuple", "(start, end)")
 
         start = pd.to_datetime(dates[0])
         end = pd.to_datetime(dates[1])
@@ -286,7 +288,7 @@ class Daymet:
             end = end.replace(day=8)
 
         if start < self.valid_start or end > self.valid_end:
-            raise InvalidInputRange(self._invalid_yr)
+            raise InputRangeError(self._invalid_yr)
 
         return {
             "start": start.strftime(DATE_FMT),
@@ -298,7 +300,7 @@ class Daymet:
         years = [years] if isinstance(years, int) else years
 
         if min(years) < self.valid_start.year or max(years) > self.valid_end.year:
-            raise InvalidInputRange(self._invalid_yr)
+            raise InputRangeError(self._invalid_yr)
 
         return {"years": ",".join(str(y) for y in years)}
 
@@ -424,7 +426,7 @@ class Daymet:
             warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
 
         if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
-            raise InvalidInputType("clm", "pandas.DataFrame or xarray.Dataset")
+            raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
 
         if isinstance(clm, xr.Dataset):
             return self._snow_gridded(clm, t_rain, t_snow)
