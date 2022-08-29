@@ -2,12 +2,17 @@
 History
 =======
 
-0.13.5 (unreleased)
+0.13.5 (2022-08-29)
 -------------------
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
 - Append "Error" to all exception classes for conforming to PEP-8 naming conventions.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Bump the minimum versions of ``pygeoogc``, ``pygeoutils``, ``py3dep`` to 0.13.5 and
+  that of ``async-retriever`` to 0.3.5.
 
 0.13.3 (2022-07-31)
 -------------------
