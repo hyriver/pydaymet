@@ -1,19 +1,22 @@
 """Top-level package for PyDaymet."""
-import importlib.metadata
+from importlib.metadata import version, PackageNotFoundError
 
 from .core import Daymet
 from .exceptions import (
-    InvalidInputRange,
-    InvalidInputType,
-    InvalidInputValue,
-    MissingCRS,
-    MissingItems,
+    InputRangeError,
+    InputTypeError,
+    InputValueError,
+    MissingCRSError,
+    MissingItemError,
 )
 from .pet import potential_et
 from .print_versions import show_versions
 from .pydaymet import get_bycoords, get_bygeom
 
-__version__ = importlib.metadata.version("pydaymet")
+try:
+    __version__ = version("pydaymet")
+except PackageNotFoundError:
+    __version__ = "999"
 
 __all__ = [
     "Daymet",
@@ -21,9 +24,9 @@ __all__ = [
     "get_bygeom",
     "potential_et",
     "show_versions",
-    "InvalidInputRange",
-    "InvalidInputType",
-    "InvalidInputValue",
-    "MissingItems",
-    "MissingCRS",
+    "InputRangeError",
+    "InputTypeError",
+    "InputValueError",
+    "MissingItemError",
+    "MissingCRSError",
 ]
