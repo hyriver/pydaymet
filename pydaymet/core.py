@@ -1,6 +1,7 @@
 """Core class for the Daymet functions."""
 import functools
 import warnings
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
@@ -8,7 +9,6 @@ import numpy as np
 import pandas as pd
 import shapely.geometry as sgeom
 import xarray as xr
-from pydantic import BaseModel, validator
 
 from .exceptions import InputRangeError, InputTypeError, InputValueError
 
@@ -43,7 +43,8 @@ T_SNOW = 0.6  # degC
 __all__ = ["Daymet"]
 
 
-class DaymetBase(BaseModel):
+@dataclass
+class DaymetBase:
     """Base class for validating Daymet requests.
 
     Parameters
@@ -79,56 +80,41 @@ class DaymetBase(BaseModel):
     .. footbibliography::
     """
 
-    pet: Optional[str] = None
-    snow: bool = False
-    time_scale: str = "daily"
-    variables: List[str] = ["all"]
-    region: str = "na"
+    pet: Optional[str]
+    snow: bool
+    time_scale: str
+    variables: Iterable[str]
+    region: str
 
-    @validator("pet")
-    @classmethod
-    def _pet(cls, v: Optional[str]) -> Optional[str]:
+    def __post_init__(self) -> None:
         valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
-        if v not in valid_methods:
+        if self.pet not in valid_methods:
             raise InputValueError("pet", valid_methods)
-        return v
 
-    @validator("variables")
-    @classmethod
-    def _variables(cls, v: List[str], values: Dict[str, str]) -> List[str]:
         valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
-        if "all" in v:
-            return valid_variables
+        if "all" in self.variables:
+            self.variables = valid_variables
 
-        if not set(v).issubset(set(valid_variables)):
+        if not set(self.variables).issubset(set(valid_variables)):
             raise InputValueError("variables", valid_variables)
 
-        if values["pet"] is not None:
-            v = list(set(v).union({"tmin", "tmax", "srad", "dayl"}))
+        if self.pet is not None:
+            self.variables = list(set(self.variables).union({"tmin", "tmax", "srad", "dayl"}))
 
-        if values["snow"]:
-            v = list(set(v).union({"tmin"}))
-        return v
+        if self.snow:
+            self.variables = list(set(self.variables).union({"tmin"}))
 
-    @validator("time_scale")
-    @classmethod
-    def _timescales(cls, v: str, values: Dict[str, str]) -> str:
         valid_timescales = ["daily", "monthly", "annual"]
-        if v not in valid_timescales:
+        if self.time_scale not in valid_timescales:
             raise InputValueError("time_scale", valid_timescales)
 
-        if values["pet"] is not None and v != "daily":
+        if self.pet is not None and self.time_scale != "daily":
             msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
             raise InputRangeError(msg)
-        return v
 
-    @validator("region")
-    @classmethod
-    def _regions(cls, v: str) -> str:
         valid_regions = ["na", "hi", "pr"]
-        if v not in valid_regions:
+        if self.region not in valid_regions:
             raise InputValueError("region", valid_regions)
-        return v
 
 
 @ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore

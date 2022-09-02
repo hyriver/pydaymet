@@ -4,7 +4,6 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 import pytest
-from pydantic import ValidationError
 from shapely.geometry import Polygon
 
 import pydaymet as daymet
@@ -38,7 +37,7 @@ def test_invalid_variable():
 
 
 def test_invalid_pet_timescale():
-    with pytest.raises(ValidationError) as ex:
+    with pytest.raises(InputRangeError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, pet="hargreaves_samani", time_scale="monthly")
     assert "PET can only" in str(ex.value)
 
