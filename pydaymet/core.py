@@ -250,9 +250,9 @@ class Daymet:
     @staticmethod
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
         """Check if input dates are in correct format and valid."""
-        if not isinstance(dates, (tuple, list, int)):
+        if not isinstance(dates, (tuple, list, int, range)):
             raise InputTypeError(
-                "dates", "tuple, list, or int", "(start, end), year, or [years, ...]"
+                "dates", "tuple, list, range, or int", "(start, end), range(start, end), or [years, ...]"
             )
 
         if isinstance(dates, tuple) and len(dates) != 2:
@@ -281,9 +281,9 @@ class Daymet:
             "end": end.strftime(DATE_FMT),
         }
 
-    def years_todict(self, years: Union[List[int], int]) -> Dict[str, str]:
+    def years_todict(self, years: Union[List[int], int, range]) -> Dict[str, str]:
         """Set date by list of year(s)."""
-        years = [years] if isinstance(years, int) else years
+        years = [years] if isinstance(years, int) else list(years)
 
         if min(years) < self.valid_start.year or max(years) > self.valid_end.year:
             raise InputRangeError(self._invalid_yr)
