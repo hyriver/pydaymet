@@ -7,8 +7,20 @@ History
 
 New Features
 ~~~~~~~~~~~~
+- Add support for passing a list of coordinates to the ``by_coords`` function.
+  Also, optionally, you can pass a list of IDs for the input coordinates that
+  will be used as ``keys`` for the returned ``pandas.DataFrame`` or a dimension
+  called ``id`` in the returned ``xarray.Dataset`` if ``to_xarray`` is enabled.
+- Add a new argument called ``to_xarray`` to the ``by_coords`` function for
+  returning the results as a ``xarray.Dataset`` instead of a ``pandas.DataFrame``.
 - The ``date`` argument of both ``by_coords`` and ``by_geom`` functions
   now accepts ``range``-type objects for passing years, e.g., ``range(2000-2005)``.
+
+.. code-block:: python
+
+  coords = [(-94.986, 29.973), (-95.478, 30.134)]
+  idx = ["P1", "P2"]
+  clm = daymet.get_bycoords(coords, range(2000, 2021), coords_id=idx, to_xarray=True)
 
 0.13.6 (2022-08-30)
 -------------------
