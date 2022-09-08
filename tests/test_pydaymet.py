@@ -55,7 +55,13 @@ class TestByCoords:
 
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, ssl=False)
-        assert abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
+        clm_ds = daymet.get_bycoords(
+            COORDS, DATES, variables=VAR, crs=ALT_CRS, ssl=False, to_xarray=True
+        )
+        assert (
+            abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
+            and abs(clm_ds.prcp.mean() - 1.005) < SMALL
+        )
 
     def test_monthly(self):
         clm = daymet.get_bycoords(
