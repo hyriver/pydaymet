@@ -19,9 +19,8 @@ from .core import T_RAIN, T_SNOW, Daymet
 from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
 
-DEF_CRS = "epsg:4326"
+CRSTYPE = Union[int, str, pyproj.CRS]
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
-EXPIRE = -1
 MAX_CONN = 10
 
 
@@ -101,7 +100,7 @@ def _coord_urls(
 def get_bycoords(
     coords: Tuple[float, float],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    crs: Union[str, pyproj.CRS] = DEF_CRS,
+    crs: CRSTYPE = 4326,
     variables: Optional[Union[Iterable[str], str]] = None,
     region: str = "na",
     time_scale: str = "daily",
@@ -123,7 +122,7 @@ def get_bycoords(
         Coordinates of the location of interest as a tuple (lon, lat)
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years ``[2001, 2010, ...]``.
-    crs : str, optional
+    crs : str, int, or pyproj.CRS, optional
         The CRS of the input geometry, defaults to ``"epsg:4326"``.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
@@ -199,7 +198,7 @@ def get_bycoords(
     if not (isinstance(coords, tuple) and len(coords) == 2):
         raise InputTypeError("coords", "tuple", "(lon, lat)")
 
-    coords = ogcutils.match_crs([coords], crs, DEF_CRS)[0]
+    coords = ogcutils.match_crs([coords], crs, 4326)[0]
 
     if not Point(*coords).within(daymet.region_bbox[region]):
         raise InputRangeError(daymet.invalid_bbox_msg)
@@ -304,7 +303,7 @@ def _gridded_urls(
 def get_bygeom(
     geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
-    crs: Union[str, pyproj.CRS] = DEF_CRS,
+    crs: CRSTYPE = 4326,
     variables: Optional[Union[Iterable[str], str]] = None,
     region: str = "na",
     time_scale: str = "daily",
@@ -322,7 +321,7 @@ def get_bygeom(
         The geometry of the region of interest.
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
-    crs : str, optional
+    crs : str, int, or pyproj.CRS, optional
         The CRS of the input geometry, defaults to epsg:4326.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
@@ -392,7 +391,7 @@ def get_bygeom(
         dates_itr = daymet.years_tolist(dates)
 
     crs = ogcutils.validate_crs(crs)
-    _geometry = geoutils.geo2polygon(geometry, crs, DEF_CRS)
+    _geometry = geoutils.geo2polygon(geometry, crs, 4326)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
         raise InputRangeError(daymet.invalid_bbox_msg)
@@ -442,7 +441,7 @@ def get_bygeom(
         ]
     )
     clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
-    clm = geoutils.xarray_geomask(clm, _geometry, DEF_CRS)
+    clm = geoutils.xarray_geomask(clm, _geometry, 4326)
     clm = clm.drop_vars(["spatial_ref"])
     for v in clm:
         if "grid_mapping" in clm[v].attrs:

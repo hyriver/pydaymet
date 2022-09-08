@@ -10,7 +10,7 @@ import xarray as xr
 
 from .exceptions import InputTypeError, InputValueError, MissingItemError
 
-DEF_CRS = "epsg:4326"
+CRSTYPE = Union[int, str, pyproj.CRS]
 DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 DS = TypeVar("DS", pd.Series, xr.DataArray)
 
@@ -245,7 +245,7 @@ class PETCoords:
         must include ``tmin (degrees C)`` and ``tmax (degrees C)``.
     coords : tuple of floats
         Coordinates of the daymet data location as a tuple, (x, y).
-    crs : str, optional
+    crs : str, int, or pyproj.CRS, optional
         The spatial reference of the input coordinate, defaults to epsg:4326.
     params : dict, optional
         Model-specific parameters as a dictionary, defaults to ``None``.
@@ -255,11 +255,11 @@ class PETCoords:
         self,
         clm: pd.DataFrame,
         coords: Tuple[float, float],
-        crs: Union[str, pyproj.CRS] = DEF_CRS,
+        crs: CRSTYPE = 4326,
         params: Optional[Dict[str, float]] = None,
     ) -> None:
         self.clm = clm
-        self.coords = ogc.utils.match_crs([coords], crs, DEF_CRS)[0]
+        self.coords = ogc.utils.match_crs([coords], crs, 4326)[0]
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
 
         # recommended when no data is not available to estimate soil heat flux
@@ -623,7 +623,7 @@ class PETGridded:
 def potential_et(
     clm: DF,
     coords: Optional[Tuple[float, float]] = None,
-    crs: Union[str, pyproj.CRS] = DEF_CRS,
+    crs: CRSTYPE = 4326,
     method: str = "hargreaves_samani",
     params: Optional[Dict[str, float]] = None,
 ) -> DF:
@@ -660,7 +660,7 @@ def potential_et(
     coords : tuple of floats, optional
         Coordinates of the daymet data location as a tuple, (x, y). This is required when ``clm``
         is a ``DataFrame``.
-    crs : str, optional
+    crs : str, int, or pyproj.CRS, optional
         The spatial reference of the input coordinate, defaults to ``epsg:4326``. This is only used
         when ``clm`` is a ``DataFrame``.
     method : str, optional
