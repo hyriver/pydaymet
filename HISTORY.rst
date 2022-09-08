@@ -2,6 +2,14 @@
 History
 =======
 
+0.13.7 (unreleased)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- The ``date`` argument of both ``by_coords`` and ``by_geom`` functions
+  now accepts ``range``-type objects for passing years, e.g., ``range(2000-2005)``.
+
 0.13.6 (2022-08-30)
 -------------------
 
