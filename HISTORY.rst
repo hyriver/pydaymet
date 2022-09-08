@@ -18,9 +18,11 @@ New Features
 
 .. code-block:: python
 
-  coords = [(-94.986, 29.973), (-95.478, 30.134)]
-  idx = ["P1", "P2"]
-  clm = daymet.get_bycoords(coords, range(2000, 2021), coords_id=idx, to_xarray=True)
+    import pydaymet as daymet
+
+    coords = [(-94.986, 29.973), (-95.478, 30.134)]
+    idx = ["P1", "P2"]
+    clm = daymet.get_bycoords(coords, range(2000, 2021), coords_id=idx, to_xarray=True)
 
 0.13.6 (2022-08-30)
 -------------------
