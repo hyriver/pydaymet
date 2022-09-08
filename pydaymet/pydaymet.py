@@ -2,8 +2,9 @@
 import functools
 import io
 import itertools
+import re
 from ssl import SSLContext
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import async_retriever as ar
 import pandas as pd
@@ -13,7 +14,8 @@ import rioxarray  # noqa: F401
 import xarray as xr
 from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
-from shapely.geometry import MultiPolygon, Point, Polygon
+from pygeoutils import Coordinates
+from shapely.geometry import MultiPolygon, Polygon
 
 from .core import T_RAIN, T_SNOW, Daymet
 from .exceptions import InputRangeError, InputTypeError
@@ -98,8 +100,9 @@ def _coord_urls(
 
 
 def get_bycoords(
-    coords: Tuple[float, float],
+    coords: Union[List[Tuple[float, float]], Tuple[float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
+    coords_id: Optional[Sequence[Union[str, int]]] = None,
     crs: CRSTYPE = 4326,
     variables: Optional[Union[Iterable[str], str]] = None,
     region: str = "na",
@@ -109,7 +112,8 @@ def get_bycoords(
     snow: bool = False,
     snow_params: Optional[Dict[str, float]] = None,
     ssl: Union[SSLContext, bool, None] = None,
-) -> pd.DataFrame:
+    to_xarray: bool = False,
+) -> Union[pd.DataFrame, xr.Dataset]:
     """Get point-data from the Daymet database at 1-km resolution.
 
     This function uses THREDDS data service to get the coordinates
@@ -118,10 +122,13 @@ def get_bycoords(
 
     Parameters
     ----------
-    coords : tuple
-        Coordinates of the location of interest as a tuple (lon, lat)
+    coords : tuple or list of tuples
+        Coordinates of the location(s) of interest as a tuple (x, y)
     dates : tuple or list, optional
         Start and end dates as a tuple (start, end) or a list of years ``[2001, 2010, ...]``.
+    coords_id : list of int or str, optional
+        A list of identifiers for the coordinates. This option only applies when ``to_xarray``
+        is set to ``True``. If not provided, the coordinates will be enumerated.
     crs : str, int, or pyproj.CRS, optional
         The CRS of the input geometry, defaults to ``"epsg:4326"``.
     variables : str or list
@@ -162,11 +169,13 @@ def get_bycoords(
     ssl : bool or SSLContext, optional
         SSLContext to use for the connection, defaults to None. Set to False to disable
         SSL certification verification.
+    to_xarray : bool, optional
+        Return the data as an ``xarray.Dataset``. Defaults to ``False``.
 
     Returns
     -------
-    pandas.DataFrame
-        Daily climate data for a location.
+    pandas.DataFrame or xarray.Dataset
+        Daily climate data for a single or list of locations.
 
     Examples
     --------
@@ -194,45 +203,68 @@ def get_bycoords(
         dates_itr = daymet.dates_tolist(dates)
     else:
         dates_itr = daymet.years_tolist(dates)
+    coords_list = coords if isinstance(coords, list) else [coords]
+    if any(not (isinstance(c, tuple) and len(c) == 2) for c in coords_list):
+        raise InputTypeError("coords", "tuple of len 2 or a list of them", "(lon, lat)")
 
-    if not (isinstance(coords, tuple) and len(coords) == 2):
-        raise InputTypeError("coords", "tuple", "(lon, lat)")
+    if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
+        raise InputTypeError("coords_id", "list with length the same as coords")
 
-    coords = ogcutils.match_crs([coords], crs, 4326)[0]
-
-    if not Point(*coords).within(daymet.region_bbox[region]):
+    coords_list = ogcutils.match_crs(coords_list, crs, 4326)
+    lon, lat = zip(*coords_list)
+    coords_df = Coordinates(list(lon), list(lat), daymet.region_bbox[region].bounds)
+    pts = coords_df.points
+    if len(pts) == 0:
         raise InputRangeError(daymet.invalid_bbox_msg)
 
-    url_kwds = _coord_urls(
-        daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates_itr
-    )
-    url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
+    clm_list: List[pd.DataFrame] = []
+    for xy in zip(pts.x, pts.y):
+        url_kwds = _coord_urls(
+            daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
+        )
+        url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
-    retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
-    clm = pd.concat(
-        (
-            pd.concat(
-                pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in retrieve(u, k)
-            )
-            for u, k in url_kwd_list
-        ),
-        axis=1,
-    )
-    clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
+        retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
+        clm = pd.concat(
+            (
+                pd.concat(
+                    pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                    for r in retrieve(u, k)
+                )
+                for u, k in url_kwd_list
+            ),
+            axis=1,
+        )
+        clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
 
-    if "prcp (mm)" in clm:
-        clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
+        if "prcp (mm)" in clm:
+            clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
 
-    clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
+        clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
-    if pet is not None:
-        clm = potential_et(clm, coords, method=pet, params=pet_params)
+        if pet is not None:
+            clm = potential_et(clm, xy, method=pet, params=pet_params)
 
-    if snow:
-        params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
-        clm = daymet.separate_snow(clm, **params)
-    return clm
+        if snow:
+            params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
+            clm = daymet.separate_snow(clm, **params)
+        clm_list.append(clm)
+
+    if not to_xarray and len(clm_list) == 1:
+        return clm_list[0]
+
+    idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
+    if to_xarray:
+        clm_ds = xr.concat(
+            [xr.Dataset.from_dataframe(clm) for clm in clm_list], dim=pd.Index(idx, name="id")
+        )
+        clm_ds = clm_ds.rename(
+            {n: re.sub(r"\([^\)]*\)", "", str(n)).strip() for n in clm_ds.data_vars}
+        )
+        for v in clm_ds.data_vars:
+            clm_ds[v].attrs["units"] = daymet.units[v]
+        return clm_ds
+    return pd.concat(clm_list, keys=idx)
 
 
 def _gridded_urls(
