@@ -246,13 +246,17 @@ class Daymet:
         )
 
         self.units = dict(zip(self.daymet_table["Abbr"], self.daymet_table["Units"]))
+        self.units["snow"] = "mm/day"
+        self.units["pet"] = "mm/day"
 
     @staticmethod
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
         """Check if input dates are in correct format and valid."""
         if not isinstance(dates, (tuple, list, int, range)):
             raise InputTypeError(
-                "dates", "tuple, list, range, or int", "(start, end), range(start, end), or [years, ...]"
+                "dates",
+                "tuple, list, range, or int",
+                "(start, end), range(start, end), or [years, ...]",
             )
 
         if isinstance(dates, tuple) and len(dates) != 2:
