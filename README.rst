@@ -329,6 +329,16 @@ it to the functions.
 .. image:: https://raw.githubusercontent.com/hyriver/HyRiver-examples/main/notebooks/_static/daymet_loc.png
     :target: https://github.com/hyriver/HyRiver-examples/blob/main/notebooks/daymet.ipynb
 
+Additionally, the ``get_bycoords`` function accepts a list of coordinates and by setting the
+``to_xarray`` flag to ``True`` it can return the results as a ``xarray.Dataset`` instead of
+a ``pandas.DataFrame``:
+
+.. code-block:: python
+
+    coords = [(-94.986, 29.973), (-95.478, 30.134)]
+    idx = ["P1", "P2"]
+    clm_ds = daymet.get_bycoords(coords, range(2000, 2021), coords_id=idx, to_xarray=True)
+
 Also, we can use the ``potential_et`` function to compute PET by passing the daily climate data.
 We can either pass a ``pandas.DataFrame`` or a ``xarray.Dataset``. Note that, ``penman_monteith``
 and ``priestley_taylor`` methods have parameters that can be passed via the ``params`` argument,
