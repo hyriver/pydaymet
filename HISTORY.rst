@@ -13,6 +13,8 @@ New Features
   called ``id`` in the returned ``xarray.Dataset`` if ``to_xarray`` is enabled.
 - Add a new argument called ``to_xarray`` to the ``get_bycoords`` function for
   returning the results as a ``xarray.Dataset`` instead of a ``pandas.DataFrame``.
+  When set to ``True``, the returned ``xarray.Dataset`` will have three attributes
+  called ``units``, ``description``, and ``long_name``.
 - The ``date`` argument of both ``get_bycoords`` and ``by_geom`` functions
   now accepts ``range``-type objects for passing years, e.g., ``range(2000-2005)``.
 
