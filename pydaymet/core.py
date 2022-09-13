@@ -33,7 +33,6 @@ except ImportError:
 
 
 DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
-DEF_CRS = "epsg:4326"
 DATE_FMT = "%Y-%m-%d"
 
 # Default snow params from https://doi.org/10.5194/gmd-11-1077-2018
@@ -226,21 +225,42 @@ class Daymet:
                 "Abbr": ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"],
                 "Units": ["s/day", "mm/day", "W/m2", "kg/m2", "degrees C", "degrees C", "Pa"],
                 "Description": [
-                    "Duration of the daylight period in seconds per day. "
-                    + "This calculation is based on the period of the day during which the "
-                    + "sun is above a hypothetical flat horizon",
-                    "Daily total precipitation in millimeters per day, sum of"
-                    + " all forms converted to water-equivalent. Precipitation occurrence on "
-                    + "any given day may be ascertained.",
-                    "Incident shortwave radiation flux density in watts per square meter, "
-                    + "taken as an average over the daylight period of the day. "
-                    + "NOTE: Daily total radiation (MJ/m2/day) can be calculated as follows: "
-                    + "((srad (W/m2) * dayl (s/day)) / l,000,000)",
-                    "Snow water equivalent in kilograms per square meter."
-                    + " The amount of water contained within the snowpack.",
+                    " ".join(
+                        [
+                            "Duration of the daylight period in seconds per day.",
+                            "This calculation is based on the period of the day during which the",
+                            "sun is above a hypothetical flat horizon",
+                        ]
+                    ),
+                    " ".join(
+                        [
+                            "Daily total precipitation in millimeters per day, sum of",
+                            "all forms converted to water-equivalent. Precipitation occurrence on",
+                            "any given day may be ascertained.",
+                        ]
+                    ),
+                    " ".join(
+                        [
+                            "Incident shortwave radiation flux density in watts per square meter,",
+                            "taken as an average over the daylight period of the day.",
+                            "NOTE: Daily total radiation (MJ/m2/day) can be calculated as",
+                            "follows: ((srad (W/m2) * dayl (s/day)) / l,000,000)",
+                        ]
+                    ),
+                    " ".join(
+                        [
+                            "Snow water equivalent in kilograms per square meter."
+                            "The amount of water contained within the snowpack."
+                        ]
+                    ),
                     "Daily maximum 2-meter air temperature in degrees Celsius.",
                     "Daily minimum 2-meter air temperature in degrees Celsius.",
-                    "Water vapor pressure in pascals. Daily average partial pressure of water vapor.",
+                    " ".join(
+                        [
+                            "Water vapor pressure in pascals. Daily average partial",
+                            "pressure of water vapor.",
+                        ]
+                    ),
                 ],
             }
         )
@@ -248,6 +268,25 @@ class Daymet:
         self.units = dict(zip(self.daymet_table["Abbr"], self.daymet_table["Units"]))
         self.units["snow"] = "mm/day"
         self.units["pet"] = "mm/day"
+
+        self.long_names = dict(zip(self.daymet_table["Abbr"], self.daymet_table["Parameter"]))
+        self.long_names["snow"] = "Snow"
+        self.long_names["pet"] = "Potential Evapotranspiration"
+
+        self.descriptions = dict(zip(self.daymet_table["Abbr"], self.daymet_table["Description"]))
+        self.descriptions["snow"] = " ".join(
+            [
+                "Daily total snow in millimeters per day,",
+                "computed by partitioning the total precipitation into snow and rain.",
+            ]
+        )
+        if self.pet:
+            self.descriptions["pet"] = " ".join(
+                [
+                    "Daily potential evapotranspiration in millimeters per day,",
+                    f"computed using the {self.pet.replace('_', '-').title()} method.",
+                ]
+            )
 
     @staticmethod
     def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:

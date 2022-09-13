@@ -130,7 +130,7 @@ def get_bycoords(
         A list of identifiers for the coordinates. This option only applies when ``to_xarray``
         is set to ``True``. If not provided, the coordinates will be enumerated.
     crs : str, int, or pyproj.CRS, optional
-        The CRS of the input geometry, defaults to ``"epsg:4326"``.
+        The CRS of the input geometry, defaults to ``EPSG:4326``.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
@@ -263,6 +263,8 @@ def get_bycoords(
         )
         for v in clm_ds.data_vars:
             clm_ds[v].attrs["units"] = daymet.units[v]
+            clm_ds[v].attrs["long_name"] = daymet.long_names[v]
+            clm_ds[v].attrs["description"] = daymet.descriptions[v]
         return clm_ds
     return pd.concat(clm_list, keys=idx)
 
