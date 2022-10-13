@@ -238,7 +238,7 @@ class PETCoords:
     clm : DataFrame
         For ``penman_monteith`` method, the dataset must include at least the following variables:
         ``tmin (degrees C)``, ``tmax (degrees C)``, ``srad (W/m2)``, and ``dayl (s)``.
-        Also, if ``rh (-)`` (relative humidity) and ``u2 (m/s)`` (wind at 2 m level)
+        Also, if ``rh (-)`` (relative humidity) and ``u2m (m/s)`` (wind at 2 m level)
         are available, they are used. Otherwise, actual vapour pressure is assumed
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
         speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
@@ -271,7 +271,7 @@ class PETCoords:
         self.srad = "srad (W/m2)"
         self.dayl = "dayl (s)"
         self.rh = "rh (-)"
-        self.u2 = "u2 (m/s)"
+        self.u2m = "u2m (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         self.clm_vars = self.clm.columns
@@ -323,7 +323,7 @@ class PETCoords:
         )
 
         # recommended when no data is not available to estimate wind speed
-        u_2m = self.clm[self.u2] if self.u2 in self.clm else 2.0
+        u_2m = self.clm[self.u2m] if self.u2m in self.clm else 2.0
         self.clm["pet (mm/day)"] = (
             0.408 * vp_slope * (rad_n - self.params["soil_heat"])
             + gamma * 900.0 / (self.tmean + 273.0) * u_2m * (e_s - e_a)
@@ -420,7 +420,7 @@ class PETGridded:
     clm : xarray.DataArray
         For ``penman_monteith`` method, the dataset must include at least the following variables:
         ``tmin``, ``tmax``, ``lat``, ``lon``, ``srad``, ``dayl``. Also, if
-        ``rh`` (relative humidity) and ``u2`` (wind at 2 m level)
+        ``rh`` (relative humidity) and ``u2m`` (wind at 2 m level)
         are available, they are used. Otherwise, actual vapour pressure is assumed
         to be saturation vapour pressure at daily minimum temperature and 2-m wind
         speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
@@ -518,7 +518,7 @@ class PETGridded:
         )
 
         # recommended when no data is not available to estimate wind speed
-        u_2m = self.clm["u2"] if "u2" in self.clm_vars else 2.0
+        u_2m = self.clm["u2m"] if "u2m" in self.clm_vars else 2.0
         self.clm["pet"] = (
             0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params["soil_heat"])
             + self.clm["gamma"]
@@ -651,7 +651,7 @@ def potential_et(
         ``srad (W/m2)``      ``srad``
         ``dayl (s)``         ``dayl``
         ``rh (-)``           ``rh``
-        ``u2 (m/s)``         ``u2``
+        ``u2m (m/s)``        ``u2``
         ==================== ========
 
         If relative humidity and wind speed at 2-m level are not available,

@@ -57,8 +57,7 @@ def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
     for region, bbox in region_bbox.items():
         if bbox.contains(geom):
             return region
-    msg = f"Input location with ID of {gid} is outside the Daymet spatial range."
-    raise InputRangeError(msg)
+    raise InputRangeError(f"geometry ID of {gid}", f"within {bbox.bounds}")
 
 
 def get_region(geodf: gpd.GeoDataFrame) -> List[str]:

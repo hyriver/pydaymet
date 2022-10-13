@@ -99,6 +99,28 @@ def _coord_urls(
     ]
 
 
+def _get_lon_lat(
+    coords: Union[List[Tuple[float, float]], Tuple[float, float]],
+    coords_id: Optional[Sequence[Union[str, int]]] = None,
+    crs: CRSTYPE = 4326,
+    to_xarray: bool = False,
+) -> Tuple[List[float], List[float]]:
+    """Get longitude and latitude from a list of coordinates."""
+    if not isinstance(coords, list) and not (isinstance(coords, tuple) and len(coords) == 2):
+        raise InputTypeError("coords", "list of tuples or a tuple of length 2")
+
+    coords_list = coords if isinstance(coords, list) else [coords]
+    if any(not (isinstance(c, tuple) and len(c) == 2) for c in coords_list):
+        raise InputTypeError("coords", "tuple of len 2 or a list of them", "(lon, lat)")
+
+    if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
+        raise InputTypeError("coords_id", "list with the same length as of coords")
+
+    coords_list = ogcutils.match_crs(coords_list, crs, 4326)
+    lon, lat = zip(*coords_list)
+    return list(lon), list(lat)
+
+
 def get_bycoords(
     coords: Union[List[Tuple[float, float]], Tuple[float, float]],
     dates: Union[Tuple[str, str], Union[int, List[int]]],
@@ -130,7 +152,7 @@ def get_bycoords(
         A list of identifiers for the coordinates. This option only applies when ``to_xarray``
         is set to ``True``. If not provided, the coordinates will be enumerated.
     crs : str, int, or pyproj.CRS, optional
-        The CRS of the input geometry, defaults to ``EPSG:4326``.
+        The CRS of the input coordinates, defaults to ``EPSG:4326``.
     variables : str or list
         List of variables to be downloaded. The acceptable variables are:
         ``tmin``, ``tmax``, ``prcp``, ``srad``, ``vp``, ``swe``, ``dayl``
@@ -203,19 +225,12 @@ def get_bycoords(
         dates_itr = daymet.dates_tolist(dates)
     else:
         dates_itr = daymet.years_tolist(dates)
-    coords_list = coords if isinstance(coords, list) else [coords]
-    if any(not (isinstance(c, tuple) and len(c) == 2) for c in coords_list):
-        raise InputTypeError("coords", "tuple of len 2 or a list of them", "(lon, lat)")
 
-    if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
-        raise InputTypeError("coords_id", "list with length the same as coords")
-
-    coords_list = ogcutils.match_crs(coords_list, crs, 4326)
-    lon, lat = zip(*coords_list)
-    coords_df = Coordinates(list(lon), list(lat), daymet.region_bbox[region].bounds)
+    lon, lat = _get_lon_lat(coords, coords_id, crs, to_xarray)
+    coords_df = Coordinates(lon, lat, daymet.region_bbox[region].bounds)
     pts = coords_df.points
     if len(pts) == 0:
-        raise InputRangeError(daymet.invalid_bbox_msg)
+        raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
 
     clm_list: List[pd.DataFrame] = []
     for xy in zip(pts.x, pts.y):
@@ -428,7 +443,7 @@ def get_bygeom(
     _geometry = geoutils.geo2polygon(geometry, crs, 4326)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
-        raise InputRangeError(daymet.invalid_bbox_msg)
+        raise InputRangeError("geometry", f"within {daymet.region_bbox[region].bounds}")
 
     urls, kwds = zip(
         *_gridded_urls(

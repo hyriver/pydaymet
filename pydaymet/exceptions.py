@@ -16,9 +16,8 @@ class InputValueError(Exception):
     def __init__(
         self, inp: str, valid_inputs: Union[Iterable[Any], Generator[str, None, None]]
     ) -> None:
-        self.message = f"Given {inp} is invalid. Valid {inp}s are:\n" + ", ".join(
-            str(i) for i in valid_inputs
-        )
+        valid = ", ".join(str(i) for i in valid_inputs)
+        self.message = f"Valid values for {inp} are:\n{valid}"
         super().__init__(self.message)
 
     def __str__(self) -> str:
@@ -48,8 +47,23 @@ class InputTypeError(Exception):
         return self.message
 
 
-class InputRangeError(ValueError):
-    """Exception raised when a function argument is not in the valid range."""
+class InputRangeError(Exception):
+    """Exception raised when a function argument is not in the valid range.
+
+    Parameters
+    ----------
+    variable : str
+        Variable with invalid value
+    valid_range : str
+        Valid range
+    """
+
+    def __init__(self, variable: str, valid_range: str) -> None:
+        self.message = f"Valid range for {variable} is {valid_range}."
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message
 
 
 class MissingItemError(Exception):

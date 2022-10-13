@@ -108,8 +108,8 @@ class DaymetBase:
             raise InputValueError("time_scale", valid_timescales)
 
         if self.pet is not None and self.time_scale != "daily":
-            msg = "PET can only be computed at daily scale i.e., time_scale must be daily."
-            raise InputRangeError(msg)
+            msg = "time_scale when pet is True"
+            raise InputValueError(msg, ["daily"])
 
         valid_regions = ["na", "hi", "pr"]
         if self.region not in valid_regions:
@@ -195,20 +195,11 @@ class Daymet:
             "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
             "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
         }
-        self.invalid_bbox_msg = "\n".join(
-            [
-                f"Input coordinates are outside the Daymet range for region ``{region}``.",
-                f"Valid bounding box is: {self.region_bbox[region].bounds}",
-            ]
-        )
         if self.region == "pr":
             self.valid_start = pd.to_datetime("1950-01-01")
         else:
             self.valid_start = pd.to_datetime("1980-01-01")
         self.valid_end = pd.to_datetime(f"{datetime.now().year - 1}-12-31")
-        self._invalid_yr = (
-            "Daymet database ranges from " + f"{self.valid_start.year} to {self.valid_end.year}."
-        )
         self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
 
         self.daymet_table = pd.DataFrame(
@@ -317,7 +308,7 @@ class Daymet:
             end = end.replace(day=8)
 
         if start < self.valid_start or end > self.valid_end:
-            raise InputRangeError(self._invalid_yr)
+            raise InputRangeError("start/end", f"from {self.valid_start} to {self.valid_end}")
 
         return {
             "start": start.strftime(DATE_FMT),
@@ -329,7 +320,9 @@ class Daymet:
         years = [years] if isinstance(years, int) else list(years)
 
         if min(years) < self.valid_start.year or max(years) > self.valid_end.year:
-            raise InputRangeError(self._invalid_yr)
+            raise InputRangeError(
+                "start/end", f"from {self.valid_start.year} to {self.valid_end.year}"
+            )
 
         return {"years": ",".join(str(y) for y in years)}
 
