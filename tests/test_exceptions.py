@@ -33,13 +33,13 @@ DATES = ("2000-01-01", "2000-12-31")
 def test_invalid_variable():
     with pytest.raises(InputValueError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, variables="tt")
-    assert "Given variables" in str(ex.value)
+    assert "variables" in str(ex.value)
 
 
 def test_invalid_pet_timescale():
-    with pytest.raises(InputRangeError) as ex:
+    with pytest.raises(InputValueError) as ex:
         _ = daymet.get_bycoords(COORDS, DATES, pet="hargreaves_samani", time_scale="monthly")
-    assert "PET can only" in str(ex.value)
+    assert "pet" in str(ex.value)
 
 
 def test_invalid_timescale():
@@ -57,7 +57,7 @@ def test_invalid_region():
 def test_invalid_coords():
     with pytest.raises(InputRangeError) as ex:
         _ = daymet.get_bycoords((0, 0), DATES)
-    assert "Valid bounding box" in str(ex.value)
+    assert "-136.8989" in str(ex.value)
 
 
 def test_invalid_date():
