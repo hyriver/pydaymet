@@ -1,10 +1,11 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+from __future__ import annotations
+
 import functools
 import io
 import itertools
 import re
-from ssl import SSLContext
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
 import async_retriever as ar
 import pandas as pd
@@ -15,11 +16,15 @@ import xarray as xr
 from pygeoogc import ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
 from pygeoutils import Coordinates
-from shapely.geometry import MultiPolygon, Polygon
 
 from .core import T_RAIN, T_SNOW, Daymet
 from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
+
+if TYPE_CHECKING:
+    from ssl import SSLContext
+
+    from shapely.geometry import MultiPolygon, Polygon
 
 CRSTYPE = Union[int, str, pyproj.CRS]
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -28,7 +33,7 @@ MAX_CONN = 10
 
 def _get_filename(
     region: str,
-) -> Dict[int, Callable[[str], str]]:
+) -> dict[int, Callable[[str], str]]:
     """Get correct filenames based on region and variable of interest."""
     return {
         1840: lambda v: f"daily_{region}_{v}",
@@ -39,11 +44,11 @@ def _get_filename(
 
 def _coord_urls(
     code: int,
-    coord: Tuple[float, float],
+    coord: tuple[float, float],
     region: str,
     variables: Iterable[str],
-    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
-) -> List[List[Tuple[str, Dict[str, Dict[str, str]]]]]:
+    dates: list[tuple[pd.Timestamp, pd.Timestamp]],
+) -> list[list[tuple[str, dict[str, dict[str, str]]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -100,11 +105,11 @@ def _coord_urls(
 
 
 def _get_lon_lat(
-    coords: Union[List[Tuple[float, float]], Tuple[float, float]],
-    coords_id: Optional[Sequence[Union[str, int]]] = None,
+    coords: list[tuple[float, float]] | tuple[float, float],
+    coords_id: Sequence[str | int] | None = None,
     crs: CRSTYPE = 4326,
     to_xarray: bool = False,
-) -> Tuple[List[float], List[float]]:
+) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
     if not isinstance(coords, list) and not (isinstance(coords, tuple) and len(coords) == 2):
         raise InputTypeError("coords", "list of tuples or a tuple of length 2")
@@ -122,20 +127,20 @@ def _get_lon_lat(
 
 
 def get_bycoords(
-    coords: Union[List[Tuple[float, float]], Tuple[float, float]],
-    dates: Union[Tuple[str, str], Union[int, List[int]]],
-    coords_id: Optional[Sequence[Union[str, int]]] = None,
+    coords: list[tuple[float, float]] | tuple[float, float],
+    dates: tuple[str, str] | int | list[int],
+    coords_id: Sequence[str | int] | None = None,
     crs: CRSTYPE = 4326,
-    variables: Optional[Union[Iterable[str], str]] = None,
+    variables: Iterable[str] | str | None = None,
     region: str = "na",
     time_scale: str = "daily",
-    pet: Optional[str] = None,
-    pet_params: Optional[Dict[str, float]] = None,
+    pet: str | None = None,
+    pet_params: dict[str, float] | None = None,
     snow: bool = False,
-    snow_params: Optional[Dict[str, float]] = None,
-    ssl: Union[SSLContext, bool, None] = None,
+    snow_params: dict[str, float] | None = None,
+    ssl: SSLContext | bool | None = None,
     to_xarray: bool = False,
-) -> Union[pd.DataFrame, xr.Dataset]:
+) -> pd.DataFrame | xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
     This function uses THREDDS data service to get the coordinates
@@ -232,7 +237,7 @@ def get_bycoords(
     if len(pts) == 0:
         raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
 
-    clm_list: List[pd.DataFrame] = []
+    clm_list: list[pd.DataFrame] = []
     for xy in zip(pts.x, pts.y):
         url_kwds = _coord_urls(
             daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
@@ -286,11 +291,11 @@ def get_bycoords(
 
 def _gridded_urls(
     code: int,
-    bounds: Tuple[float, float, float, float],
+    bounds: tuple[float, float, float, float],
     region: str,
     variables: Iterable[str],
-    dates: List[Tuple[pd.Timestamp, pd.Timestamp]],
-) -> List[Tuple[str, Dict[str, Dict[str, str]]]]:
+    dates: list[tuple[pd.Timestamp, pd.Timestamp]],
+) -> list[tuple[str, dict[str, dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -350,17 +355,17 @@ def _gridded_urls(
 
 
 def get_bygeom(
-    geometry: Union[Polygon, MultiPolygon, Tuple[float, float, float, float]],
-    dates: Union[Tuple[str, str], Union[int, List[int]]],
+    geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
+    dates: tuple[str, str] | int | list[int],
     crs: CRSTYPE = 4326,
-    variables: Optional[Union[Iterable[str], str]] = None,
+    variables: Iterable[str] | str | None = None,
     region: str = "na",
     time_scale: str = "daily",
-    pet: Optional[str] = None,
-    pet_params: Optional[Dict[str, float]] = None,
+    pet: str | None = None,
+    pet_params: dict[str, float] | None = None,
     snow: bool = False,
-    snow_params: Optional[Dict[str, float]] = None,
-    ssl: Union[SSLContext, bool, None] = None,
+    snow_params: dict[str, float] | None = None,
+    ssl: SSLContext | bool | None = None,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 

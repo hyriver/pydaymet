@@ -1,12 +1,13 @@
 """Command-line interface for PyDaymet."""
+from __future__ import annotations
+
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING
 
 import click
 import geopandas as gpd
 import pandas as pd
 import shapely.geometry as sgeom
-from shapely.geometry import MultiPolygon, Point, Polygon
 
 from . import pydaymet as daymet
 from .exceptions import (
@@ -16,6 +17,9 @@ from .exceptions import (
     MissingCRSError,
     MissingItemError,
 )
+
+if TYPE_CHECKING:
+    from shapely.geometry import MultiPolygon, Point, Polygon
 
 
 def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
@@ -29,8 +33,8 @@ def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_target_df(
-    tdf: Union[pd.DataFrame, gpd.GeoDataFrame], req_cols: List[str]
-) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+    tdf: pd.DataFrame | gpd.GeoDataFrame, req_cols: list[str]
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """Check if all required columns exists in the dataframe.
 
     It also re-orders the columns based on req_cols order.
@@ -41,13 +45,13 @@ def get_target_df(
     return tdf[req_cols]
 
 
-def get_required_cols(geom_type: str, columns: pd.Index) -> List[str]:
+def get_required_cols(geom_type: str, columns: pd.Index) -> list[str]:
     """Get the required columns for a given geometry type."""
     req_cols = ["id", geom_type, "dates", "region"]
     return req_cols + list({"time_scale", "pet", "snow"}.intersection(columns))
 
 
-def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
+def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
     """Get the Daymer region of an input geometry (point or polygon)."""
     region_bbox = {
         "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
@@ -60,7 +64,7 @@ def _get_region(gid: str, geom: Union[Polygon, MultiPolygon, Point]) -> str:
     raise InputRangeError(f"geometry ID of {gid}", f"within {bbox.bounds}")
 
 
-def get_region(geodf: gpd.GeoDataFrame) -> List[str]:
+def get_region(geodf: gpd.GeoDataFrame) -> list[str]:
     """Get the Daymer region of a geo-dataframe."""
     return [
         _get_region(i, p) for i, p in geodf[["id", "geometry"]].itertuples(index=False, name=None)
@@ -103,8 +107,8 @@ def cli() -> None:
 @ssl_opt
 def coords(
     fpath: Path,
-    variables: Optional[Union[List[str], str]] = None,
-    save_dir: Union[str, Path] = "clm_daymet",
+    variables: list[str] | str | None = None,
+    save_dir: str | Path = "clm_daymet",
     disable_ssl: bool = False,
 ) -> None:
     """Retrieve climate data for a list of coordinates.
@@ -172,8 +176,8 @@ def coords(
 @ssl_opt
 def geometry(
     fpath: Path,
-    variables: Optional[Union[List[str], str]] = None,
-    save_dir: Union[str, Path] = "clm_daymet",
+    variables: list[str] | str | None = None,
+    save_dir: str | Path = "clm_daymet",
     disable_ssl: bool = False,
 ) -> None:
     """Retrieve climate data for a dataframe of geometries.

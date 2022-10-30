@@ -1,5 +1,7 @@
 """Core class for the Daymet functions."""
-from typing import Dict, Hashable, Iterable, KeysView, Optional, Tuple, TypeVar, Union
+from __future__ import annotations
+
+from typing import Hashable, Iterable, KeysView, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -40,8 +42,8 @@ def saturation_vapour(temperature: DS) -> DS:
 def vapour_pressure(
     tmax_c: DS,
     tmin_c: DS,
-    rh: Optional[DS] = None,
-) -> Union[Tuple[DS, DS], Tuple[DS, DS]]:
+    rh: DS | None = None,
+) -> tuple[DS, DS] | tuple[DS, DS]:
     """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -73,8 +75,8 @@ def vapour_pressure(
 
 
 def extraterrestrial_radiation(
-    dayofyear: Union[pd.Index, xr.DataArray], lat: Union[float, xr.DataArray]
-) -> Union[pd.Index, xr.DataArray]:
+    dayofyear: pd.Index | xr.DataArray, lat: float | xr.DataArray
+) -> pd.Index | xr.DataArray:
     """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
 
     Parameters
@@ -111,11 +113,11 @@ def extraterrestrial_radiation(
 def net_radiation(
     srad: DS,
     dayl: DS,
-    elevation: Union[float, xr.DataArray],
+    elevation: float | xr.DataArray,
     tmax: DS,
     tmin: DS,
     e_a: DS,
-    rad_a: Union[pd.Index, xr.DataArray],
+    rad_a: pd.Index | xr.DataArray,
 ) -> DS:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
@@ -159,7 +161,7 @@ def net_radiation(
     return rad_ns - rad_nl
 
 
-def psychrometric_constant(elevation: Union[float, xr.DataArray], lmbda: DS) -> DS:
+def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     """Compute the psychrometric constant :footcite:t:`Allen_1998` Eq. 8 [kPa °C^-1]..
 
     Parameters
@@ -212,7 +214,7 @@ def vapour_slope(tmean_c: DS) -> DS:
     )
 
 
-def check_requirements(reqs: Iterable[str], cols: Union[KeysView[Hashable], pd.Index]) -> None:
+def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
     """Check for all the required data.
 
     Parameters
@@ -254,9 +256,9 @@ class PETCoords:
     def __init__(
         self,
         clm: pd.DataFrame,
-        coords: Tuple[float, float],
+        coords: tuple[float, float],
         crs: CRSTYPE = 4326,
-        params: Optional[Dict[str, float]] = None,
+        params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
         self.coords = ogc.utils.match_crs([coords], crs, 4326)[0]
@@ -432,7 +434,7 @@ class PETGridded:
     def __init__(
         self,
         clm: xr.Dataset,
-        params: Optional[Dict[str, float]] = None,
+        params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm.copy()
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
@@ -622,10 +624,10 @@ class PETGridded:
 
 def potential_et(
     clm: DF,
-    coords: Optional[Tuple[float, float]] = None,
+    coords: tuple[float, float] | None = None,
     crs: CRSTYPE = 4326,
     method: str = "hargreaves_samani",
-    params: Optional[Dict[str, float]] = None,
+    params: dict[str, float] | None = None,
 ) -> DF:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
 
@@ -692,7 +694,7 @@ def potential_et(
     if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
         raise InputTypeError("clm", "pd.DataFrame or xr.Dataset")
 
-    pet: Union[PETCoords, PETGridded]
+    pet: PETCoords | PETGridded
     if isinstance(clm, pd.DataFrame):
         if coords is None:
             raise MissingItemError(["coords"])
@@ -700,5 +702,5 @@ def potential_et(
         pet = PETCoords(clm, coords, crs, params)
     else:
         pet = PETGridded(clm, params)
-    with xr.set_options(keep_attrs=True):  # type: ignore
+    with xr.set_options(keep_attrs=True):
         return getattr(pet, method)()  # type: ignore

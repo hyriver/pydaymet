@@ -1,9 +1,11 @@
 """Core class for the Daymet functions."""
+from __future__ import annotations
+
 import functools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Iterable, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -13,9 +15,11 @@ import xarray as xr
 from .exceptions import InputRangeError, InputTypeError, InputValueError
 
 try:
+    from numba import config as numba_config
     from numba import njit, prange
 
     ngjit = functools.partial(njit, cache=True, nogil=True, parallel=True)
+    numba_config.THREADING_LAYER = "workqueue"
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
@@ -79,7 +83,7 @@ class DaymetBase:
     .. footbibliography::
     """
 
-    pet: Optional[str]
+    pet: str | None
     snow: bool
     time_scale: str
     variables: Iterable[str]
@@ -172,8 +176,8 @@ class Daymet:
 
     def __init__(
         self,
-        variables: Optional[Union[Iterable[str], str]] = None,
-        pet: Optional[str] = None,
+        variables: Iterable[str] | str | None = None,
+        pet: str | None = None,
         snow: bool = False,
         time_scale: str = "daily",
         region: str = "na",
@@ -280,7 +284,7 @@ class Daymet:
             )
 
     @staticmethod
-    def check_dates(dates: Union[Tuple[str, str], Union[int, List[int]]]) -> None:
+    def check_dates(dates: tuple[str, str] | int | list[int]) -> None:
         """Check if input dates are in correct format and valid."""
         if not isinstance(dates, (tuple, list, int, range)):
             raise InputTypeError(
@@ -292,7 +296,7 @@ class Daymet:
         if isinstance(dates, tuple) and len(dates) != 2:
             raise InputTypeError("dates", "Start and end should be passed as a tuple of length 2.")
 
-    def dates_todict(self, dates: Tuple[str, str]) -> Dict[str, str]:
+    def dates_todict(self, dates: tuple[str, str]) -> dict[str, str]:
         """Set dates by start and end dates as a tuple, (start, end)."""
         if not isinstance(dates, tuple) or len(dates) != 2:
             raise InputTypeError("dates", "tuple", "(start, end)")
@@ -315,7 +319,7 @@ class Daymet:
             "end": end.strftime(DATE_FMT),
         }
 
-    def years_todict(self, years: Union[List[int], int, range]) -> Dict[str, str]:
+    def years_todict(self, years: list[int] | int | range) -> dict[str, str]:
         """Set date by list of year(s)."""
         years = [years] if isinstance(years, int) else list(years)
 
@@ -326,7 +330,7 @@ class Daymet:
 
         return {"years": ",".join(str(y) for y in years)}
 
-    def dates_tolist(self, dates: Tuple[str, str]) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
+    def dates_tolist(self, dates: tuple[str, str]) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when
@@ -353,7 +357,7 @@ class Daymet:
         years = [_period[_period.year == y] for y in _period.year.unique()]
         return [(y[0], y[-1]) for y in years]
 
-    def years_tolist(self, years: Union[List[int], int]) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
+    def years_tolist(self, years: list[int] | int) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
         """Correct dates for Daymet accounting for leap years.
 
         Daymet doesn't account for leap years and removes Dec 31 when

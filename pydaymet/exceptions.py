@@ -1,5 +1,7 @@
 """Customized PyDaymet exceptions."""
-from typing import Any, Generator, Iterable, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Generator, Iterable
 
 
 class InputValueError(Exception):
@@ -13,9 +15,7 @@ class InputValueError(Exception):
         List of valid inputs
     """
 
-    def __init__(
-        self, inp: str, valid_inputs: Union[Iterable[Any], Generator[str, None, None]]
-    ) -> None:
+    def __init__(self, inp: str, valid_inputs: Iterable[Any] | Generator[str, None, None]) -> None:
         valid = ", ".join(str(i) for i in valid_inputs)
         self.message = f"Valid values for {inp} are:\n{valid}"
         super().__init__(self.message)
@@ -37,7 +37,7 @@ class InputTypeError(Exception):
         An example of a valid form of the argument, defaults to None.
     """
 
-    def __init__(self, arg: str, valid_type: str, example: Optional[str] = None) -> None:
+    def __init__(self, arg: str, valid_type: str, example: str | None = None) -> None:
         self.message = f"The {arg} argument should be of type {valid_type}"
         if example is not None:
             self.message += f":\n{example}"
@@ -75,7 +75,7 @@ class MissingItemError(Exception):
         A list of missing items.
     """
 
-    def __init__(self, missing: List[str]) -> None:
+    def __init__(self, missing: list[str]) -> None:
         self.message = "The following items are missing:\n" + f"{', '.join(missing)}"
         super().__init__(self.message)
 
