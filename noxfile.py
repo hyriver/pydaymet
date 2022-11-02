@@ -27,7 +27,7 @@ gh_deps = {
 nox.options.sessions = (
     "pre-commit",
     "tests",
-    "typeguard",
+    # "typeguard",
 )
 
 
