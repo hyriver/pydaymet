@@ -36,9 +36,9 @@ def _get_filename(
 ) -> dict[int, Callable[[str], str]]:
     """Get correct filenames based on region and variable of interest."""
     return {
-        1840: lambda v: f"daily_{region}_{v}",
-        1855: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
-        1852: lambda v: f"{v}_annttl_{region}" if v == "prcp" else f"{v}_annavg_{region}",
+        2129: lambda v: f"daily_{region}_{v}",
+        2131: lambda v: f"{v}_monttl_{region}" if v == "prcp" else f"{v}_monavg_{region}",
+        2130: lambda v: f"{v}_annttl_{region}" if v == "prcp" else f"{v}_annavg_{region}",
     }
 
 
@@ -56,9 +56,9 @@ def _coord_urls(
     code : int
         Endpoint code which should be one of the following:
 
-        * 1840: Daily
-        * 1855: Monthly average
-        * 1852: Annual average
+        * 2129: Daily
+        * 2131: Monthly average
+        * 2130: Annual average
 
     coord : tuple of length 2
         Coordinates in EPSG:4326 CRS (lon, lat)
@@ -303,9 +303,9 @@ def _gridded_urls(
     code : int
         Endpoint code which should be one of the following:
 
-        * 1840: Daily
-        * 1855: Monthly average
-        * 1852: Annual average
+        * 2129: Daily
+        * 2131: Monthly average
+        * 2130: Annual average
 
     bounds : tuple of length 4
         Bounding box (west, south, east, north)

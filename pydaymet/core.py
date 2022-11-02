@@ -204,7 +204,7 @@ class Daymet:
         else:
             self.valid_start = pd.to_datetime("1980-01-01")
         self.valid_end = pd.to_datetime(f"{datetime.now().year - 1}-12-31")
-        self.time_codes = {"daily": 1840, "monthly": 1855, "annual": 1852}
+        self.time_codes = {"daily": 2129, "monthly": 2131, "annual": 2130}
 
         self.daymet_table = pd.DataFrame(
             {
