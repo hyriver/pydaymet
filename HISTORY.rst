@@ -5,6 +5,10 @@ History
 0.13.7 (unreleased)
 -------------------
 
+**Since the release of Daymet v4 R1 on November 2022, the URL of Daymet's server has
+been changed. Therefore, only the latest version of PyDaymet (v0.13.7) is going
+to work, and previous versions will not work anymore.**
+
 New Features
 ~~~~~~~~~~~~
 - Add support for passing a list of coordinates to the ``get_bycoords`` function.
@@ -30,6 +34,7 @@ Internal Changes
 ~~~~~~~~~~~~~~~~
 - Use ``pyupgrade`` package to update the type hinting annotations
   to Python 3.10 style.
+- Fix the Daymet server URL.
 
 0.13.6 (2022-08-30)
 -------------------
