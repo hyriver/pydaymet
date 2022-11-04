@@ -33,7 +33,7 @@ nox.options.sessions = (
 
 def install_deps(session, extra):
     """Install package dependencies."""
-    deps = [f".[{extra}]"] + [f"git+https://github.com/cheginit/{p}.git" for p in gh_deps[package]]
+    deps = [f".[{extra}]"] + [f"git+https://github.com/hyriver/{p}.git" for p in gh_deps[package]]
     session.install(*deps)
     dirs = [".pytest_cache", "build", "dist", ".eggs"]
     for d in dirs:
