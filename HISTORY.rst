@@ -2,7 +2,7 @@
 History
 =======
 
-0.13.7 (unreleased)
+0.13.7 (2022-11-04)
 -------------------
 
 **Since the release of Daymet v4 R1 on November 2022, the URL of Daymet's server has
