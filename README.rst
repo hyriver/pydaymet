@@ -106,9 +106,11 @@ PyDaymet: Daily climate data through Daymet
 
 |
 
-:rotating_light: **Since the release of Daymet v4 R1 on November 2022, the URL of Daymet's server has
-been changed. Therefore, only the latest version of PyDaymet (v0.13.7) is going
-to work, and previous versions will not work anymore.** :rotating_light:
+.. warning::
+
+    :rotating_light:Since the release of Daymet v4 R1 on November 2022, the URL of
+    Daymet's server has been changed. Therefore, only the latest version of PyDaymet
+    (v0.13.7) is going to work, and previous versions will not work anymore.:rotating_light:
 
 Features
 --------
