@@ -242,7 +242,6 @@ def get_bycoords(
         url_kwds = _coord_urls(
             daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
         )
-        url_kwd_list = [tuple(zip(*u)) for u in url_kwds]
 
         retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
         clm = pd.concat(
@@ -251,7 +250,7 @@ def get_bycoords(
                     pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
                     for r in retrieve(u, k)
                 )
-                for u, k in url_kwd_list
+                for u, k in (zip(*u) for u in url_kwds)
             ),
             axis=1,
         )
@@ -270,9 +269,6 @@ def get_bycoords(
             clm = daymet.separate_snow(clm, **params)
         clm_list.append(clm)
 
-    if not to_xarray and len(clm_list) == 1:
-        return clm_list[0]
-
     idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
     if to_xarray:
         clm_ds = xr.concat(
@@ -286,6 +282,10 @@ def get_bycoords(
             clm_ds[v].attrs["long_name"] = daymet.long_names[v]
             clm_ds[v].attrs["description"] = daymet.descriptions[v]
         return clm_ds
+
+    if len(clm_list) == 1:
+        return clm_list[0]
+
     return pd.concat(clm_list, keys=idx)
 
 
