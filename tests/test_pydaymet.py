@@ -1,6 +1,7 @@
 """Tests for PyDaymet package."""
 import io
 import shutil
+import sys
 from pathlib import Path
 
 import cytoolz as tlz
@@ -12,19 +13,9 @@ from shapely.geometry import Polygon
 import pydaymet as daymet
 from pydaymet.cli import cli
 
-try:
-    import typeguard  # noqa: F401
 
-    hastypeguard = True
-except ImportError:
-    hastypeguard = False
-
-try:
-    import numba  # noqa: F401
-
-    hasnumba = True
-except ImportError:
-    hasnumba = False
+has_typeguard = True if sys.modules.get("typeguard") else False
+hasnumba = True if sys.modules.get("numba") else False
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
