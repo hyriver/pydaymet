@@ -13,9 +13,8 @@ from shapely.geometry import Polygon
 import pydaymet as daymet
 from pydaymet.cli import cli
 
-
 has_typeguard = True if sys.modules.get("typeguard") else False
-hasnumba = True if sys.modules.get("numba") else False
+has_numba = True if sys.modules.get("numba") else False
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
@@ -39,7 +38,7 @@ class TestByCoords:
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method, ssl=False)
         assert abs(clm["pet (mm/day)"].mean() - expected) < SMALL
 
-    @pytest.mark.skipif(hastypeguard and hasnumba, reason="typeguard doesn't work with numba")
+    @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
     def test_snow(self):
         clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS, ssl=False)
         assert abs(clm["snow (mm/day)"].mean()) < SMALL
@@ -76,7 +75,7 @@ class TestByGeom:
         clm = daymet.get_bygeom(GEOM, DAY, pet=method, ssl=False)
         assert abs(clm.pet.mean().compute().item() - expected) < SMALL
 
-    @pytest.mark.skipif(hastypeguard and hasnumba, reason="typeguard doesn't work with numba")
+    @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
     def test_snow(self):
         clm = daymet.get_bygeom(GEOM, DAY, snow=True, snow_params={"t_snow": 0.5})
         assert abs(clm.snow.mean().compute().item() - 3.4999) < SMALL
