@@ -1,10 +1,13 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 from __future__ import annotations
 
+import contextlib
 import functools
 import io
 import itertools
 import re
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
 import async_retriever as ar
@@ -13,7 +16,8 @@ import pygeoutils as geoutils
 import pyproj
 import rioxarray  # noqa: F401
 import xarray as xr
-from pygeoogc import ServiceError, ServiceURL
+from aiohttp_client_cache import cache_keys
+from pygeoogc import RetrySession, ServiceError, ServiceURL
 from pygeoogc import utils as ogcutils
 from pygeoutils import Coordinates
 
@@ -22,8 +26,6 @@ from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
 
 if TYPE_CHECKING:
-    from ssl import SSLContext
-
     from shapely.geometry import MultiPolygon, Polygon
 
 CRSTYPE = Union[int, str, pyproj.CRS]
@@ -138,7 +140,7 @@ def get_bycoords(
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
-    ssl: SSLContext | bool | None = None,
+    ssl: bool = True,
     to_xarray: bool = False,
 ) -> pd.DataFrame | xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
@@ -193,9 +195,8 @@ def get_bycoords(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
-    ssl : bool or SSLContext, optional
-        SSLContext to use for the connection, defaults to None. Set to False to disable
-        SSL certification verification.
+    ssl : bool, optional
+        Whether to verify SSL certification, defaults to ``True``.
     to_xarray : bool, optional
         Return the data as an ``xarray.Dataset``. Defaults to ``False``.
 
@@ -365,7 +366,7 @@ def get_bygeom(
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
-    ssl: SSLContext | bool | None = None,
+    ssl: bool = True,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -412,9 +413,8 @@ def get_bygeom(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
-    ssl : bool or SSLContext, optional
-        SSLContext to use for the connection, defaults to None. Set to False to disable
-        SSL certification verification.
+    ssl : bool, optional
+        Whether to verify SSL certification, defaults to ``True``.
 
     Returns
     -------
@@ -461,14 +461,24 @@ def get_bygeom(
     )
 
     try:
-        clm: xr.Dataset = xr.open_mfdataset(
-            (  # type: ignore
-                io.BytesIO(r)
-                for r in ar.retrieve_binary(urls, request_kwds=kwds, max_workers=MAX_CONN, ssl=ssl)
-            ),
-            engine="scipy",
-            coords="minimal",
-        )
+        clm_files = [
+            Path("cache", f"{cache_keys.create_key('GET', u, **p)}.nc") for u, p in zip(urls, kwds)
+        ]
+        with contextlib.suppress(ValueError), NamedTemporaryFile() as tmp:
+            session = RetrySession(cache_name=tmp.name, ssl=ssl)
+            fsizes = [
+                int(session.head(u, **k).headers["Content-length"]) for u, k in zip(urls, kwds)
+            ]
+            urls, kwds, fnames = zip(
+                *[
+                    (u, p, f)
+                    for u, p, f, s in zip(urls, kwds, clm_files, fsizes)
+                    if not f.exists() or f.stat().st_size != s
+                ]
+            )
+            ar.stream_write(urls, fnames, kwds, max_workers=MAX_CONN, ssl=ssl)
+
+        clm = xr.open_mfdataset(clm_files, engine="scipy", coords="minimal", chunks="auto")
     except ValueError as ex:
         msg = (
             "The service did NOT process your request successfully. "
