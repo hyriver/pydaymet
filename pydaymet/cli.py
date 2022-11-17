@@ -153,7 +153,6 @@ def coords(
     click.echo(f"Found coordinates of {count} in {fpath.resolve()}.")
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-    ssl = False if disable_ssl else None
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting single-pixel climate data",
@@ -164,7 +163,7 @@ def coords(
             if fname.exists():
                 continue
             kwrgs = dict(zip(req_cols[1:], args))
-            clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=ssl)
+            clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=not disable_ssl)
             clm.to_csv(fname, index=False)
     click.echo("Done.")
 
@@ -219,7 +218,6 @@ def geometry(
     click.echo(f"Found {count} in {fpath.resolve()}.")
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-    ssl = False if disable_ssl else None
     with click.progressbar(
         target_df.itertuples(index=False, name=None),
         label="Getting gridded climate data",
@@ -234,7 +232,7 @@ def geometry(
                 **kwrgs,
                 crs=target_df.crs,
                 variables=variables,
-                ssl=ssl,
+                ssl=not disable_ssl,
             )
             clm.to_netcdf(fname)
     click.echo("Done.")
