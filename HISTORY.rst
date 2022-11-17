@@ -2,6 +2,17 @@
 History
 =======
 
+0.13.8 (unreleased)
+-------------------
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- More robust handling of getting large gridded data. Instead of caching the requests/
+  responses, directly store the responses as NetCDF files to a cache folder using
+  ``async_retriever.stream_write`` and ultimately read them using ``xarray.open_mfdataset``.
+  This should make it possible to make large requests without having to worry about
+  running out of memory (:issue_day:`59`).
+
 0.13.7 (2022-11-04)
 -------------------
 
