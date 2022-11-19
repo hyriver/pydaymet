@@ -12,13 +12,15 @@ Internal Changes
   ``async_retriever.stream_write`` and ultimately read them using ``xarray.open_mfdataset``.
   This should make it possible to make large requests without having to worry about
   running out of memory (:issue_day:`59`).
+- Modify the codebase based on `Refurb <https://github.com/dosisod/refurb>`__
+  suggestions.
 
 0.13.7 (2022-11-04)
 -------------------
 
 **Since the release of Daymet v4 R1 on November 2022, the URL of Daymet's server has
-been changed. Therefore, only the latest version of PyDaymet (v0.13.7) is going
-to work, and previous versions will not work anymore.**
+been changed. Therefore, only PyDaymet v0.13.7+ is going to work, and previous
+versions will not work anymore.**
 
 New Features
 ~~~~~~~~~~~~
