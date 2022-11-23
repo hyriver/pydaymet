@@ -1,16 +1,12 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 from __future__ import annotations
 
-import contextlib
-import functools
-import io
 import itertools
 import re
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
 
-import async_retriever as ar
+import joblib
 import pandas as pd
 import pygeoutils as geoutils
 import pyproj
@@ -90,7 +86,7 @@ def _coord_urls(
             (
                 f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
                 {
-                    "params": {
+                    "payload": {
                         "var": v,
                         "longitude": f"{lon}",
                         "latitude": f"{lat}",
@@ -126,6 +122,31 @@ def _get_lon_lat(
     coords_list = ogcutils.match_crs(coords_list, crs, 4326)
     lon, lat = zip(*coords_list)
     return list(lon), list(lat)
+
+
+def __download_files(
+    urls: list[str], kwds: list[dict[str, dict[str, Any]]], ssl: bool
+) -> list[Path]:
+    """Download files from a list of URLs/Keywords."""
+    files = (
+        Path("cache", f"{cache_keys.create_key('GET', u, **p)}.nc") for u, p in zip(urls, kwds)
+    )
+    session = RetrySession(disable=True, ssl=ssl)
+    chunksize = 100 * 1024 * 1024  # 100 MB
+
+    def download(url: str, payload: dict[str, dict[str, Any]], fname: Path) -> Path:
+        resp = session.get(url, **payload, stream=True)
+        fsize = int(resp.headers.get("Content-Length", -1))
+        if not fname.exists() or fname.stat().st_size != fsize:
+            with fname.open("wb") as f:
+                f.writelines(resp.iter_content(chunksize))
+        return fname
+
+    clm_files = joblib.Parallel(n_jobs=MAX_CONN)(
+        joblib.delayed(download)(u, p, f) for u, p, f in zip(urls, kwds, files)
+    )
+    session.close()
+    return clm_files
 
 
 def get_bycoords(
@@ -241,15 +262,14 @@ def get_bycoords(
     clm_list: list[pd.DataFrame] = []
     for xy in zip(pts.x, pts.y):
         url_kwds = _coord_urls(
-            daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
-        )
+                daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
+            )
 
-        retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
         clm = pd.concat(
             (
                 pd.concat(
-                    pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                    for r in retrieve(u, k)
+                    pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0])
+                    for f in __download_files(u, k, ssl)
                 )
                 for u, k in (zip(*u) for u in url_kwds)
             ),
@@ -335,7 +355,7 @@ def _gridded_urls(
         (
             f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
             {
-                "params": {
+                "payload": {
                     "var": v,
                     "north": f"{north}",
                     "west": f"{west}",
@@ -460,24 +480,8 @@ def get_bygeom(
         )
     )
 
+    clm_files = __download_files(urls, kwds, ssl)
     try:
-        clm_files = [
-            Path("cache", f"{cache_keys.create_key('GET', u, **p)}.nc") for u, p in zip(urls, kwds)
-        ]
-        with contextlib.suppress(ValueError), NamedTemporaryFile() as tmp:
-            session = RetrySession(cache_name=tmp.name, ssl=ssl)
-            fsizes = [
-                int(session.head(u, **k).headers["Content-length"]) for u, k in zip(urls, kwds)
-            ]
-            urls, kwds, fnames = zip(
-                *[
-                    (u, p, f)
-                    for u, p, f, s in zip(urls, kwds, clm_files, fsizes)
-                    if not f.exists() or f.stat().st_size != s
-                ]
-            )
-            ar.stream_write(urls, fnames, kwds, max_workers=MAX_CONN, ssl=ssl)
-
         clm = xr.open_mfdataset(clm_files, engine="scipy", coords="minimal", chunks="auto")
     except ValueError as ex:
         msg = (
