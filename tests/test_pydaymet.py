@@ -35,18 +35,18 @@ class TestByCoords:
         [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.472)],
     )
     def test_pet(self, method, expected):
-        clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method, ssl=False)
+        clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
         assert abs(clm["pet (mm/day)"].mean() - expected) < SMALL
 
     @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
     def test_snow(self):
-        clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS, ssl=False)
+        clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS)
         assert abs(clm["snow (mm/day)"].mean()) < SMALL
 
     def test_daily(self):
-        clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, ssl=False)
+        clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
         clm_ds = daymet.get_bycoords(
-            COORDS, DATES, variables=VAR, crs=ALT_CRS, ssl=False, to_xarray=True
+            COORDS, DATES, variables=VAR, crs=ALT_CRS, to_xarray=True
         )
         assert (
             abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
@@ -55,13 +55,13 @@ class TestByCoords:
 
     def test_monthly(self):
         clm = daymet.get_bycoords(
-            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly", ssl=False
+            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly"
         )
         assert abs(clm["tmin (degrees C)"].mean() - 11.435) < SMALL
 
     def test_annual(self):
         clm = daymet.get_bycoords(
-            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual", ssl=False
+            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual"
         )
         assert abs(clm["tmin (degrees C)"].mean() - 11.458) < SMALL
 
@@ -72,7 +72,7 @@ class TestByGeom:
         [("hargreaves_samani", 0.453), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
     )
     def test_pet(self, method, expected):
-        clm = daymet.get_bygeom(GEOM, DAY, pet=method, ssl=False)
+        clm = daymet.get_bygeom(GEOM, DAY, pet=method)
         assert abs(clm.pet.mean().compute().item() - expected) < SMALL
 
     @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
@@ -81,29 +81,29 @@ class TestByGeom:
         assert abs(clm.snow.mean().compute().item() - 3.4999) < SMALL
 
     def test_bounds(self):
-        clm = daymet.get_bygeom(GEOM.bounds, DAY, ssl=False)
+        clm = daymet.get_bygeom(GEOM.bounds, DAY)
         assert abs(clm.prcp.mean().compute().item() - 3.4999) < SMALL
 
     def test_daily(self):
-        clm = daymet.get_bygeom(GEOM, DAY, variables=VAR, ssl=False)
+        clm = daymet.get_bygeom(GEOM, DAY, variables=VAR)
         assert abs(clm.tmin.mean().compute().item() - (-9.421)) < SMALL
 
     def test_monthly(self):
-        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly", ssl=False)
+        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly")
         assert abs(clm.tmin.mean().compute().item() - 1.311) < SMALL
 
     def test_annual(self):
-        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual", ssl=False)
+        clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
         assert abs(clm.tmin.mean().compute().item() - 1.361) < SMALL
 
     def test_region(self):
         hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
         pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
         hi = daymet.get_bygeom(
-            hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual", ssl=False
+            hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual"
         )
         pr = daymet.get_bygeom(
-            pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual", ssl=False
+            pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual"
         )
 
         assert (
