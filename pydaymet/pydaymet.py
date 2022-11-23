@@ -4,7 +4,7 @@ from __future__ import annotations
 import itertools
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
 import joblib
 import pandas as pd
@@ -46,7 +46,7 @@ def _coord_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[list[tuple[str, dict[str, dict[str, str]]]]]:
+) -> list[list[tuple[str, dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -86,14 +86,12 @@ def _coord_urls(
             (
                 f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
                 {
-                    "payload": {
-                        "var": v,
-                        "longitude": f"{lon}",
-                        "latitude": f"{lat}",
-                        "time_start": s.strftime(DATE_FMT),
-                        "time_end": e.strftime(DATE_FMT),
-                        "accept": "csv",
-                    }
+                    "var": v,
+                    "longitude": f"{lon}",
+                    "latitude": f"{lat}",
+                    "time_start": s.strftime(DATE_FMT),
+                    "time_end": e.strftime(DATE_FMT),
+                    "accept": "csv",
                 },
             )
             for s, e in dates
@@ -125,17 +123,17 @@ def _get_lon_lat(
 
 
 def __download_files(
-    urls: list[str], kwds: list[dict[str, dict[str, Any]]], ssl: bool
+    urls: tuple[str, ...], kwds: tuple[dict[str, str], ...], ssl: bool
 ) -> list[Path]:
     """Download files from a list of URLs/Keywords."""
     files = (
-        Path("cache", f"{cache_keys.create_key('GET', u, **p)}.nc") for u, p in zip(urls, kwds)
+        Path("cache", f"{cache_keys.create_key('GET', u, params=p)}.nc") for u, p in zip(urls, kwds)
     )
     session = RetrySession(disable=True, ssl=ssl)
     chunksize = 100 * 1024 * 1024  # 100 MB
 
-    def download(url: str, payload: dict[str, dict[str, Any]], fname: Path) -> Path:
-        resp = session.get(url, **payload, stream=True)
+    def download(url: str, params: dict[str, str], fname: Path) -> Path:
+        resp = session.get(url, params, stream=True)
         fsize = int(resp.headers.get("Content-Length", -1))
         if not fname.exists() or fname.stat().st_size != fsize:
             with fname.open("wb") as f:
@@ -146,7 +144,7 @@ def __download_files(
         joblib.delayed(download)(u, p, f) for u, p, f in zip(urls, kwds, files)
     )
     session.close()
-    return clm_files
+    return clm_files  # type: ignore[no-any-return]
 
 
 def get_bycoords(
@@ -262,8 +260,8 @@ def get_bycoords(
     clm_list: list[pd.DataFrame] = []
     for xy in zip(pts.x, pts.y):
         url_kwds = _coord_urls(
-                daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
-            )
+            daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
+        )
 
         clm = pd.concat(
             (
@@ -316,7 +314,7 @@ def _gridded_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[tuple[str, dict[str, dict[str, str]]]]:
+) -> list[tuple[str, dict[str, str]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -355,20 +353,18 @@ def _gridded_urls(
         (
             f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
             {
-                "payload": {
-                    "var": v,
-                    "north": f"{north}",
-                    "west": f"{west}",
-                    "east": f"{east}",
-                    "south": f"{south}",
-                    "disableProjSubset": "on",
-                    "horizStride": "1",
-                    "time_start": s.strftime(DATE_FMT),
-                    "time_end": e.strftime(DATE_FMT),
-                    "timeStride": "1",
-                    "addLatLon": "true",
-                    "accept": "netcdf",
-                }
+                "var": v,
+                "north": f"{north}",
+                "west": f"{west}",
+                "east": f"{east}",
+                "south": f"{south}",
+                "disableProjSubset": "on",
+                "horizStride": "1",
+                "time_start": s.strftime(DATE_FMT),
+                "time_end": e.strftime(DATE_FMT),
+                "timeStride": "1",
+                "addLatLon": "true",
+                "accept": "netcdf",
             },
         )
         for v, (s, e) in itertools.product(variables, dates)
