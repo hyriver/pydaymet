@@ -1,20 +1,20 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
 from __future__ import annotations
 
+import functools
+import io
 import itertools
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
-import joblib
+import async_retriever as ar
 import pandas as pd
+import pygeoogc as ogc
 import pygeoutils as geoutils
 import pyproj
 import rioxarray  # noqa: F401
 import xarray as xr
-from aiohttp_client_cache import cache_keys
-from pygeoogc import RetrySession, ServiceError, ServiceURL
-from pygeoogc import utils as ogcutils
+from pygeoogc import ServiceError, ServiceURL
 from pygeoutils import Coordinates
 
 from .core import T_RAIN, T_SNOW, Daymet
@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 CRSTYPE = Union[int, str, pyproj.CRS]
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 MAX_CONN = 10
+
+__all__ = ["get_bycoords", "get_bygeom"]
 
 
 def _get_filename(
@@ -46,7 +48,7 @@ def _coord_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[list[tuple[str, dict[str, str]]]]:
+) -> list[list[tuple[str, dict[str, dict[str, str]]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -63,9 +65,9 @@ def _coord_urls(
     region : str
         Region in the US. Acceptable values are:
 
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
+        * ``na``: Continental North America
+        * ``hi``: Hawaii
+        * ``pr``: Puerto Rico
 
     variables : list
         A list of Daymet variables
@@ -86,12 +88,14 @@ def _coord_urls(
             (
                 f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
                 {
-                    "var": v,
-                    "longitude": f"{lon}",
-                    "latitude": f"{lat}",
-                    "time_start": s.strftime(DATE_FMT),
-                    "time_end": e.strftime(DATE_FMT),
-                    "accept": "csv",
+                    "params": {
+                        "var": v,
+                        "longitude": f"{lon}",
+                        "latitude": f"{lat}",
+                        "time_start": s.strftime(DATE_FMT),
+                        "time_end": e.strftime(DATE_FMT),
+                        "accept": "csv",
+                    }
                 },
             )
             for s, e in dates
@@ -117,34 +121,9 @@ def _get_lon_lat(
     if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
         raise InputTypeError("coords_id", "list with the same length as of coords")
 
-    coords_list = ogcutils.match_crs(coords_list, crs, 4326)
+    coords_list = ogc.match_crs(coords_list, crs, 4326)
     lon, lat = zip(*coords_list)
     return list(lon), list(lat)
-
-
-def __download_files(
-    urls: tuple[str, ...], kwds: tuple[dict[str, str], ...], ssl: bool
-) -> list[Path]:
-    """Download files from a list of URLs/Keywords."""
-    files = (
-        Path("cache", f"{cache_keys.create_key('GET', u, params=p)}.nc") for u, p in zip(urls, kwds)
-    )
-    session = RetrySession(disable=True, ssl=ssl)
-    chunksize = 100 * 1024 * 1024  # 100 MB
-
-    def download(url: str, params: dict[str, str], fname: Path) -> Path:
-        resp = session.get(url, params, stream=True)
-        fsize = int(resp.headers.get("Content-Length", -1))
-        if not fname.exists() or fname.stat().st_size != fsize:
-            with fname.open("wb") as f:
-                f.writelines(resp.iter_content(chunksize))
-        return fname
-
-    clm_files = joblib.Parallel(n_jobs=MAX_CONN)(
-        joblib.delayed(download)(u, p, f) for u, p, f in zip(urls, kwds, files)
-    )
-    session.close()
-    return clm_files  # type: ignore[no-any-return]
 
 
 def get_bycoords(
@@ -234,7 +213,6 @@ def get_bycoords(
     ...     dates,
     ...     crs="epsg:3542",
     ...     pet="hargreaves_samani",
-    ...     ssl=False
     ... )
     >>> clm["pet (mm/day)"].mean()
     3.713
@@ -262,12 +240,12 @@ def get_bycoords(
         url_kwds = _coord_urls(
             daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
         )
-
+        retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
         clm = pd.concat(
             (
                 pd.concat(
-                    pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0])
-                    for f in __download_files(u, k, ssl)
+                    pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                    for r in retrieve(u, k)
                 )
                 for u, k in (zip(*u) for u in url_kwds)
             ),
@@ -314,7 +292,7 @@ def _gridded_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[tuple[str, dict[str, str]]]:
+) -> list[tuple[str, dict[str, dict[str, str]]]]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -331,9 +309,9 @@ def _gridded_urls(
     region : str
         Region in the US. Acceptable values are:
 
-        * na: Continental North America
-        * hi: Hawaii
-        * pr: Puerto Rico
+        * ``na``: Continental North America
+        * ``hi``: Hawaii
+        * ``pr``: Puerto Rico
 
     variables : list
         A list of Daymet variables
@@ -353,18 +331,20 @@ def _gridded_urls(
         (
             f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
             {
-                "var": v,
-                "north": f"{north}",
-                "west": f"{west}",
-                "east": f"{east}",
-                "south": f"{south}",
-                "disableProjSubset": "on",
-                "horizStride": "1",
-                "time_start": s.strftime(DATE_FMT),
-                "time_end": e.strftime(DATE_FMT),
-                "timeStride": "1",
-                "addLatLon": "true",
-                "accept": "netcdf",
+                "params": {
+                    "var": v,
+                    "north": f"{north}",
+                    "west": f"{west}",
+                    "east": f"{east}",
+                    "south": f"{south}",
+                    "disableProjSubset": "on",
+                    "horizStride": "1",
+                    "time_start": s.strftime(DATE_FMT),
+                    "time_end": e.strftime(DATE_FMT),
+                    "timeStride": "1",
+                    "addLatLon": "true",
+                    "accept": "netcdf",
+                }
             },
         )
         for v, (s, e) in itertools.product(variables, dates)
@@ -460,7 +440,7 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    crs = ogcutils.validate_crs(crs)
+    crs = ogc.validate_crs(crs)
     _geometry = geoutils.geo2polygon(geometry, crs, 4326)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
@@ -476,7 +456,13 @@ def get_bygeom(
         )
     )
 
-    clm_files = __download_files(urls, kwds, ssl)
+    clm_files = ogc.streaming_download(
+        urls,  # type: ignore
+        kwds,  # type: ignore
+        file_extention="nc",
+        ssl=ssl,
+        n_jobs=MAX_CONN,
+    )
     try:
         clm = xr.open_mfdataset(clm_files, engine="scipy", coords="minimal", chunks="auto")
     except ValueError as ex:
