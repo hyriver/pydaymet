@@ -84,7 +84,9 @@ dependencies:
   - py7zr
 
   # pydaymet deps
-  # - async-retriever >=0.3.6
+  - multidict
+  - url-normalize>=1.4
+  - yarl
   - click >=0.7
   - dask-core
   - joblib
@@ -153,7 +155,7 @@ dependencies:
 
   - pip
   - pip:
-    - git+https://github.com/hyriver/async_retriever.git
+    - git+https://github.com/hyriver/async-retriever.git
     - git+https://github.com/hyriver/hydrosignatures.git
     - git+https://github.com/hyriver/pygeoogc.git
     - git+https://github.com/hyriver/pygeoutils.git
