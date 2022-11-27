@@ -16,6 +16,9 @@ dependencies:
 
   # pygeoogc deps
   # - async-retriever >=0.3.5
+  - multidict
+  - url-normalize>=1.4
+  - yarl
   - cytoolz
   - defusedxml
   - loguru
@@ -59,9 +62,7 @@ dependencies:
   - richdem>=0.3.4
 
   # pydaymet deps
-  - multidict
-  - url-normalize>=1.4
-  - yarl
+  # - async-retriever >=0.3.6
   - click >=0.7
   - dask-core
   - joblib
