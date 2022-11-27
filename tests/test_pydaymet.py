@@ -45,24 +45,18 @@ class TestByCoords:
 
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
-        clm_ds = daymet.get_bycoords(
-            COORDS, DATES, variables=VAR, crs=ALT_CRS, to_xarray=True
-        )
+        clm_ds = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, to_xarray=True)
         assert (
             abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
             and abs(clm_ds.prcp.mean() - 1.005) < SMALL
         )
 
     def test_monthly(self):
-        clm = daymet.get_bycoords(
-            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly"
-        )
+        clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
         assert abs(clm["tmin (degrees C)"].mean() - 11.435) < SMALL
 
     def test_annual(self):
-        clm = daymet.get_bycoords(
-            COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual"
-        )
+        clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
         assert abs(clm["tmin (degrees C)"].mean() - 11.458) < SMALL
 
 
@@ -99,12 +93,8 @@ class TestByGeom:
     def test_region(self):
         hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
         pr_ext = (-67.9927, 16.8443, -64.1195, 19.9381)
-        hi = daymet.get_bygeom(
-            hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual"
-        )
-        pr = daymet.get_bygeom(
-            pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual"
-        )
+        hi = daymet.get_bygeom(hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual")
+        pr = daymet.get_bygeom(pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual")
 
         assert (
             abs(hi.prcp.mean().compute().item() - 1035.233) < SMALL
