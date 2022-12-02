@@ -9,9 +9,10 @@ Internal Changes
 ~~~~~~~~~~~~~~~~
 - More robust handling of getting large gridded data. Instead of caching the requests/
   responses, directly store the responses as NetCDF files to a cache folder using
-  ``async_retriever.stream_write`` and ultimately read them using ``xarray.open_mfdataset``.
-  This should make it possible to make large requests without having to worry about
-  running out of memory (:issue_day:`59`).
+  ``pygeoogc.streaming_download`` and ultimately read them using ``xarray.open_mfdataset``.
+  This should make the ``bygeom`` function even faster than before and also make it
+  possible to make large requests without having to worry about running out of memory
+  (:issue_day:`59`).
 - Modify the codebase based on `Refurb <https://github.com/dosisod/refurb>`__
   suggestions.
 
