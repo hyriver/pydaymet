@@ -6,7 +6,7 @@ channels:
 dependencies:
   - python>=3.10
 
-  # async_retriever deps
+  # async-retriever deps
   - aiodns
   - aiosqlite
   - aiohttp >=3.8.1
@@ -18,9 +18,6 @@ dependencies:
 
   # pygeoogc deps
   # - async-retriever >=0.3.5
-  - multidict
-  - url-normalize>=1.4
-  - yarl
   - cytoolz
   - defusedxml
   - loguru
@@ -90,7 +87,6 @@ dependencies:
   # - async-retriever >=0.3.6
   - click >=0.7
   - dask-core
-  - joblib
   - lxml
   - numpy >=1.17
   - pandas >=1.0
@@ -130,23 +126,9 @@ dependencies:
 
   # optional deps for speeding up some operations
   - bottleneck
-  - pyogrio
-
-  # example notebooks' deps
-  - contextily
-  - datashader
-  - ffmpeg
-  - hvplot
-  - ipywidgets
-  - jupyterlab_widgets
-  - mapclassify
-  - osmnx
-  - proplot
-  - pytables
-  - tqdm
-  - xarray-spatial
 
   # dev deps
+  - ipywidgets
   - codespell
   - nox
   - pre-commit

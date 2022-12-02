@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  # async_retriever deps
+  # async-retriever deps
   - aiodns
   - aiosqlite
   - aiohttp >=3.8.1
