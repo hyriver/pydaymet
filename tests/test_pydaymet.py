@@ -6,6 +6,7 @@ from pathlib import Path
 
 import cytoolz as tlz
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
@@ -22,11 +23,14 @@ GEOM = Polygon(
 DAY = ("2000-01-01", "2000-01-12")
 YEAR = 2010
 VAR = ["prcp", "tmin"]
-DEF_CRS = "epsg:4326"
-ALT_CRS = "epsg:3542"
+DEF_CRS = 4326
+ALT_CRS = 3542
 COORDS = (-1431147.7928, 318483.4618)
 DATES = ("2000-01-01", "2000-12-31")
-SMALL = 1e-3
+
+
+def assert_close(a: float, b: float, rtol: float = 1e-3) -> bool:
+    assert np.isclose(a, b, rtol=rtol).all()
 
 
 class TestByCoords:
@@ -36,59 +40,59 @@ class TestByCoords:
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
-        assert abs(clm["pet (mm/day)"].mean() - expected) < SMALL
+        assert_close(clm["pet (mm/day)"].mean(), expected)
 
     @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
     def test_snow(self):
         clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS)
-        assert abs(clm["snow (mm/day)"].mean()) < SMALL
+        assert_close(clm["snow (mm/day)"].mean(), 0.0)
 
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
         clm_ds = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, to_xarray=True)
-        assert (
-            abs(clm["prcp (mm/day)"].mean() - 1.005) < SMALL
-            and abs(clm_ds.prcp.mean() - 1.005) < SMALL
-        )
+
+        expected = 1.005
+        assert_close(clm["prcp (mm/day)"].mean(), expected)
+        assert_close(clm_ds.prcp.mean(), expected)
 
     def test_monthly(self):
         clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
-        assert abs(clm["tmin (degrees C)"].mean() - 11.435) < SMALL
+        assert_close(clm["tmin (degrees C)"].mean(), 11.435)
 
     def test_annual(self):
         clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")
-        assert abs(clm["tmin (degrees C)"].mean() - 11.458) < SMALL
+        assert_close(clm["tmin (degrees C)"].mean(), 11.458)
 
 
 class TestByGeom:
     @pytest.mark.parametrize(
         "method,expected",
-        [("hargreaves_samani", 0.453), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
+        [("hargreaves_samani", 0.4525), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bygeom(GEOM, DAY, pet=method)
-        assert abs(clm.pet.mean().compute().item() - expected) < SMALL
+        assert_close(clm.pet.mean().compute().item(), expected)
 
     @pytest.mark.skipif(has_typeguard and has_numba, reason="typeguard doesn't work with numba")
     def test_snow(self):
         clm = daymet.get_bygeom(GEOM, DAY, snow=True, snow_params={"t_snow": 0.5})
-        assert abs(clm.snow.mean().compute().item() - 3.4999) < SMALL
+        assert_close(clm.snow.mean().compute().item(), 3.4999)
 
     def test_bounds(self):
         clm = daymet.get_bygeom(GEOM.bounds, DAY)
-        assert abs(clm.prcp.mean().compute().item() - 3.4999) < SMALL
+        assert_close(clm.prcp.mean().compute().item(), 3.4999)
 
     def test_daily(self):
         clm = daymet.get_bygeom(GEOM, DAY, variables=VAR)
-        assert abs(clm.tmin.mean().compute().item() - (-9.421)) < SMALL
+        assert_close(clm.tmin.mean().compute().item(), -9.421)
 
     def test_monthly(self):
         clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="monthly")
-        assert abs(clm.tmin.mean().compute().item() - 1.311) < SMALL
+        assert_close(clm.tmin.mean().compute().item(), 1.311)
 
     def test_annual(self):
         clm = daymet.get_bygeom(GEOM, YEAR, variables=VAR, time_scale="annual")
-        assert abs(clm.tmin.mean().compute().item() - 1.361) < SMALL
+        assert_close(clm.tmin.mean().compute().item(), 1.361)
 
     def test_region(self):
         hi_ext = (-160.3055, 17.9539, -154.7715, 23.5186)
@@ -96,10 +100,8 @@ class TestByGeom:
         hi = daymet.get_bygeom(hi_ext, YEAR, variables=VAR, region="hi", time_scale="annual")
         pr = daymet.get_bygeom(pr_ext, YEAR, variables=VAR, region="pr", time_scale="annual")
 
-        assert (
-            abs(hi.prcp.mean().compute().item() - 1035.233) < SMALL
-            and abs(pr.tmin.mean().compute().item() - 21.441) < SMALL
-        )
+        assert_close(hi.prcp.mean().compute().item(), 1035.233)
+        assert_close(pr.tmin.mean().compute().item(), 21.441)
 
 
 class TestCLI:
