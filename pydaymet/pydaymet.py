@@ -22,6 +22,8 @@ from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from shapely.geometry import MultiPolygon, Polygon
 
 CRSTYPE = Union[int, str, pyproj.CRS]
@@ -456,7 +458,7 @@ def get_bygeom(
         )
     )
 
-    clm_files = ogc.streaming_download(
+    clm_files: list[Path] = ogc.streaming_download(
         urls,  # type: ignore
         kwds,  # type: ignore
         file_extention="nc",
@@ -464,7 +466,12 @@ def get_bygeom(
         n_jobs=MAX_CONN,
     )
     try:
-        clm = xr.open_mfdataset(clm_files, engine="scipy", coords="minimal", chunks="auto")
+
+        def open_dataset(f: Path) -> xr.Dataset:
+            with xr.open_dataset(f, engine="scipy") as ds:
+                return ds.load()
+
+        clm = xr.merge(open_dataset(f) for f in clm_files)
     except ValueError as ex:
         msg = (
             "The service did NOT process your request successfully. "
@@ -490,7 +497,9 @@ def get_bygeom(
             "+no_defs",
         ]
     )
+    clm = clm.rio.write_transform()
     clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
+    clm = clm.rio.write_coordinate_system()
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
     clm = clm.drop_vars(["spatial_ref"])
     for v in clm:
