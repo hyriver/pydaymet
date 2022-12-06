@@ -501,7 +501,6 @@ def get_bygeom(
     clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
     clm = clm.rio.write_coordinate_system()
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
-    clm = clm.drop_vars(["spatial_ref"])
     for v in clm:
         if "grid_mapping" in clm[v].attrs:
             _ = clm[v].attrs.pop("grid_mapping")
