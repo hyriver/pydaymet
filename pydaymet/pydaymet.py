@@ -128,6 +128,48 @@ def _get_lon_lat(
     return list(lon), list(lat)
 
 
+def _by_coord(
+    daymet: Daymet,
+    time_scale: str,
+    coords: tuple[float, float],
+    dates: list[tuple[pd.Timestamp, pd.Timestamp]],
+    pet: str | None,
+    pet_params: dict[str, float] | None,
+    snow: bool,
+    snow_params: dict[str, float] | None,
+    ssl: bool,
+) -> pd.DataFrame:
+    """Get climate data for a coordinate and return as a DataFrame."""
+    url_kwds = _coord_urls(
+        daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates
+    )
+    retrieve = functools.partial(ar.retrieve_text, max_workers=MAX_CONN, ssl=ssl)
+    clm = pd.concat(
+        (
+            pd.concat(
+                pd.read_csv(io.StringIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
+                for r in retrieve(u, k)
+            )
+            for u, k in (zip(*u) for u in url_kwds)
+        ),
+        axis=1,
+    )
+    clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
+
+    if "prcp (mm)" in clm:
+        clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
+
+    clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
+
+    if pet is not None:
+        clm = potential_et(clm, coords, method=pet, params=pet_params)
+
+    if snow:
+        params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
+        clm = daymet.separate_snow(clm, **params)
+    return clm
+
+
 def get_bycoords(
     coords: list[tuple[float, float]] | tuple[float, float],
     dates: tuple[str, str] | int | list[int],
@@ -237,36 +279,10 @@ def get_bycoords(
     if len(pts) == 0:
         raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
 
-    clm_list: list[pd.DataFrame] = []
-    for xy in zip(pts.x, pts.y):
-        url_kwds = _coord_urls(
-            daymet.time_codes[time_scale], xy, daymet.region, daymet.variables, dates_itr
-        )
-        retrieve = functools.partial(ar.retrieve_binary, max_workers=MAX_CONN, ssl=ssl)
-        clm = pd.concat(
-            (
-                pd.concat(
-                    pd.read_csv(io.BytesIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                    for r in retrieve(u, k)
-                )
-                for u, k in (zip(*u) for u in url_kwds)
-            ),
-            axis=1,
-        )
-        clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
-
-        if "prcp (mm)" in clm:
-            clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
-
-        clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
-
-        if pet is not None:
-            clm = potential_et(clm, xy, method=pet, params=pet_params)
-
-        if snow:
-            params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
-            clm = daymet.separate_snow(clm, **params)
-        clm_list.append(clm)
+    clm_list = [
+        _by_coord(daymet, time_scale, xy, dates_itr, pet, pet_params, snow, snow_params, ssl)
+        for xy in zip(pts.x, pts.y)
+    ]
 
     idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
     if to_xarray:
