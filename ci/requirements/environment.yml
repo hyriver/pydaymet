@@ -27,7 +27,7 @@ dependencies:
   - pyyaml
   - requests
   - requests-cache >=0.9.6
-  - shapely >=1.8
+  - shapely >=2.0
   - urllib3
 
   # pygeoutils deps
@@ -37,12 +37,11 @@ dependencies:
   - loguru
   - netcdf4
   - numpy >=1.17
-  - pygeos
   - pyproj >=2.2
   - rasterio >=1.2
   - rioxarray >=0.11
   - scipy
-  - shapely >=1.8
+  - shapely >=2.0
   - ujson
   - xarray >=2022.03.0
 
@@ -56,7 +55,7 @@ dependencies:
   - rasterio >=1.2
   - rioxarray >=0.11
   - scipy
-  - shapely >=1.8
+  - shapely >=2.0
   - xarray >=2022.03.0
   # optional dep
   - richdem>=0.3.4
@@ -74,7 +73,7 @@ dependencies:
   # - pygeoutils >=0.13.9
   - rasterio >=1.2
   - scipy
-  - shapely >=1.8
+  - shapely >=2.0
   - xarray >=2022.03.0
 
   # optional deps to speed up xarray and pydaymet
