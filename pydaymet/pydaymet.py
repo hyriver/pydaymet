@@ -114,11 +114,11 @@ def _get_lon_lat(
 ) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
     if not isinstance(coords, list) and not (isinstance(coords, tuple) and len(coords) == 2):
-        raise InputTypeError("coords", "list of tuples or a tuple of length 2")
+        raise InputTypeError("coords", "tuple of len 2 or a list of them")
 
     coords_list = coords if isinstance(coords, list) else [coords]
     if any(not (isinstance(c, tuple) and len(c) == 2) for c in coords_list):
-        raise InputTypeError("coords", "tuple of len 2 or a list of them", "(lon, lat)")
+        raise InputTypeError("coords", "tuple of len 2 or a list of them")
 
     if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
         raise InputTypeError("coords_id", "list with the same length as of coords")
@@ -274,14 +274,13 @@ def get_bycoords(
         dates_itr = daymet.years_tolist(dates)
 
     lon, lat = _get_lon_lat(coords, coords_id, crs, to_xarray)
-    coords_df = Coordinates(lon, lat, daymet.region_bbox[region].bounds)
-    pts = coords_df.points
-    if len(pts) == 0:
+    points = Coordinates(lon, lat, daymet.region_bbox[region].bounds).points
+    if len(points) == 0:
         raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
 
     clm_list = [
         _by_coord(daymet, time_scale, xy, dates_itr, pet, pet_params, snow, snow_params, ssl)
-        for xy in zip(pts.x, pts.y)
+        for xy in zip(points.x, points.y)
     ]
 
     idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
