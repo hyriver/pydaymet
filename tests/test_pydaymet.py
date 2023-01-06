@@ -187,4 +187,4 @@ class TestCLI:
 def test_show_versions():
     f = io.StringIO()
     daymet.show_versions(file=f)
-    assert "INSTALLED VERSIONS" in f.getvalue()
+    assert "SYS INFO" in f.getvalue()
