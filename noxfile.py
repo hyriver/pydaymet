@@ -121,7 +121,7 @@ def type_check(session: nox.Session) -> None:
 @nox.session(python=python_versions)
 def tests(session: nox.Session) -> None:
     """Run the test suite."""
-    install_deps(session, "test")
+    install_deps(session, "test,speedup")
 
     session.run("pytest", "--doctest-modules", *session.posargs)
     session.run("coverage", "report")
