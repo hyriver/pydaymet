@@ -2,6 +2,24 @@
 History
 =======
 
+0.13.10 (unreleased)
+--------------------
+
+New Features
+~~~~~~~~~~~~
+- Refactor the ``show_versions`` function now to improve performance and
+  print the output in a nicer table-like format.
+
+Bug Fixes
+~~~~~~~~~
+- Fix a bug in ``get_bygeom`` where for small requests that only lead to
+  a single download URL, the function failed.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Skip 0.13.9 version so the minor version of all HyRiver packages become
+  the same.
+
 0.13.8 (2022-12-09)
 -------------------
 
