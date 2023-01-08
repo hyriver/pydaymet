@@ -5,7 +5,7 @@ import functools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, TypeVar
+from typing import TYPE_CHECKING, Iterable, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -36,9 +36,10 @@ except ImportError:
         return decorator_njit
 
 
-DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
-DATE_FMT = "%Y-%m-%d"
+if TYPE_CHECKING:
+    DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 
+DATE_FMT = "%Y-%m-%d"
 # Default snow params from https://doi.org/10.5194/gmd-11-1077-2018
 T_RAIN = 2.5  # degC
 T_SNOW = 0.6  # degC

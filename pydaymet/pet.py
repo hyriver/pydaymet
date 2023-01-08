@@ -1,7 +1,7 @@
 """Core class for the Daymet functions."""
 from __future__ import annotations
 
-from typing import Hashable, Iterable, KeysView, TypeVar, Union
+from typing import TYPE_CHECKING, Hashable, Iterable, KeysView, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -12,9 +12,10 @@ import xarray as xr
 
 from .exceptions import InputTypeError, InputValueError, MissingItemError
 
-CRSTYPE = Union[int, str, pyproj.CRS]
-DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
-DS = TypeVar("DS", pd.Series, xr.DataArray)
+if TYPE_CHECKING:
+    CRSTYPE = Union[int, str, pyproj.CRS]
+    DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
+    DS = TypeVar("DS", pd.Series, xr.DataArray)
 
 __all__ = ["potential_et"]
 

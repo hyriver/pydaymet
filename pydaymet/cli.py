@@ -1,6 +1,7 @@
 """Command-line interface for PyDaymet."""
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -66,9 +67,8 @@ def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
 
 def get_region(geodf: gpd.GeoDataFrame) -> list[str]:
     """Get the Daymer region of a geo-dataframe."""
-    return [
-        _get_region(i, p) for i, p in geodf[["id", "geometry"]].itertuples(index=False, name=None)
-    ]
+    id_geo = geodf[["id", "geometry"]].itertuples(index=False, name=None)
+    return list(itertools.starmap(_get_region, id_geo))
 
 
 variables_opt = click.option(
