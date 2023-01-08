@@ -5,6 +5,7 @@ import functools
 import io
 import itertools
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
 import async_retriever as ar
@@ -22,11 +23,10 @@ from .exceptions import InputRangeError, InputTypeError
 from .pet import potential_et
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from shapely.geometry import MultiPolygon, Polygon
 
-CRSTYPE = Union[int, str, pyproj.CRS]
+    CRSTYPE = Union[int, str, pyproj.CRS]
+
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 MAX_CONN = 10
 
@@ -473,13 +473,14 @@ def get_bygeom(
         )
     )
 
-    clm_files: list[Path] = ogc.streaming_download(
+    files = ogc.streaming_download(
         urls,  # type: ignore
         kwds,  # type: ignore
         file_extention="nc",
         ssl=ssl,
         n_jobs=MAX_CONN,
     )
+    clm_files = [files] if isinstance(files, Path) else files
     try:
 
         def open_dataset(f: Path) -> xr.Dataset:
