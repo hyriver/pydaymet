@@ -2,7 +2,7 @@
 History
 =======
 
-0.13.10 (unreleased)
+0.13.10 (2023-01-08)
 --------------------
 
 New Features
@@ -12,7 +12,7 @@ New Features
 
 Bug Fixes
 ~~~~~~~~~
-- Fix a bug in ``get_bygeom`` where for small requests that only lead to
+- Fix a bug in ``get_bygeom`` where for small requests that lead to
   a single download URL, the function failed.
 
 Internal Changes
