@@ -1,16 +1,15 @@
-import configparser
 import shutil
 import textwrap
 from pathlib import Path
 
 import nox
+import tomli
 
 
 def get_package_name() -> str:
     """Get the name of the package."""
-    config = configparser.RawConfigParser()
-    config.read("setup.cfg")
-    return config.get("metadata", "name")
+    with open("pyproject.toml", "rb") as f:
+        return tomli.load(f)["project"]["name"]
 
 
 python_versions = ["3.8"]
@@ -28,7 +27,7 @@ gh_deps = {
 }
 nox.options.sessions = (
     "pre-commit",
-    # "type-check",
+    "type-check",
     "tests",
     # "typeguard",
 )
@@ -113,7 +112,7 @@ def pre_commit(session: nox.Session) -> None:
 @nox.session(name="type-check", python="3.10")
 def type_check(session: nox.Session) -> None:
     "Run Pyright."
-    install_deps(session)
+    install_deps(session, "speedup")
     session.install("pyright")
     session.run("pyright")
 
