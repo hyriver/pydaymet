@@ -1,7 +1,7 @@
 """Core class for the Daymet functions."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Hashable, Iterable, KeysView, TypeVar, Union
+from typing import TYPE_CHECKING, Hashable, Iterable, KeysView, TypeVar, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,7 @@ def saturation_vapour(temperature: DS) -> DS:
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
 
 
@@ -44,7 +44,7 @@ def vapour_pressure(
     tmax_c: DS,
     tmin_c: DS,
     rh: DS | None = None,
-) -> tuple[DS, DS] | tuple[DS, DS]:
+) -> tuple[DS, DS]:
     """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -64,12 +64,14 @@ def vapour_pressure(
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     e_max = saturation_vapour(tmax_c)
     e_min = saturation_vapour(tmin_c)
     e_s = (e_max + e_min) * 0.5
+    e_s = cast("DS", e_s)
     if rh is not None:
         e_a = rh * e_s * 1e-2
+        e_a = cast("DS", e_a)
     else:
         e_a = e_min
     return e_s, e_a
@@ -95,7 +97,7 @@ def extraterrestrial_radiation(
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     jp = 2.0 * np.pi * dayofyear / 365.0
     d_r = 1.0 + 0.033 * np.cos(jp)
     delta_r = 0.409 * np.sin(jp - 1.39)
@@ -147,11 +149,13 @@ def net_radiation(
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     r_surf = srad * dayl * 1e-6
+    r_surf = cast("DS", r_surf)
 
     alb = 0.23
     rad_s = (0.75 + 2e-5 * elevation) * rad_a
+    rad_s = cast("DS", rad_s)
     rad_ns = (1.0 - alb) * r_surf
     rad_nl = (
         4.903e-9
@@ -159,7 +163,9 @@ def net_radiation(
         * (0.34 - 0.14 * np.sqrt(e_a))
         * ((1.35 * r_surf / rad_s) - 0.35)
     )
-    return rad_ns - rad_nl
+    rad_net = rad_ns - rad_nl
+    rad_net = cast("DS", rad_net)
+    return rad_net
 
 
 def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
@@ -180,10 +186,13 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     # Atmospheric pressure [kPa]
     pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
-    return 1.013e-3 * pa / (0.622 * lmbda)
+    pa = cast("float | xr.DataArray", pa)
+    gamma = 1.013e-3 * pa / (0.622 * lmbda)
+    gamma = cast("DS", gamma)
+    return gamma
 
 
 def vapour_slope(tmean_c: DS) -> DS:
@@ -202,7 +211,7 @@ def vapour_slope(tmean_c: DS) -> DS:
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     return (
         4098  # type: ignore
         * (
@@ -687,7 +696,7 @@ def potential_et(
     References
     ----------
     .. footbibliography::
-    """  # noqa: DAR203
+    """
     valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
     if method not in valid_methods:
         raise InputValueError("method", valid_methods)

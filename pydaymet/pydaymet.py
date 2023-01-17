@@ -13,7 +13,7 @@ import pandas as pd
 import pygeoogc as ogc
 import pygeoutils as geoutils
 import pyproj
-import rioxarray  # noqa: F401
+import rioxarray  # type: ignore
 import xarray as xr
 from pygeoogc import ServiceError, ServiceURL
 from pygeoutils import Coordinates
@@ -148,7 +148,7 @@ def _by_coord(
         (
             pd.concat(
                 pd.read_csv(io.StringIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in retrieve(u, k)
+                for r in retrieve(u, k)  # type: ignore
             )
             for u, k in (zip(*u) for u in url_kwds)
         ),

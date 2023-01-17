@@ -62,7 +62,8 @@ def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
     for region, bbox in region_bbox.items():
         if bbox.contains(geom):
             return region
-    raise InputRangeError(f"geometry ID of {gid}", f"within {bbox.bounds}")
+    bbox_range = "\n".join(f"{k.upper()}: {v.bounds}" for k, v in region_bbox.items())
+    raise InputRangeError(f"geometry ID of {gid}", f"within\n{bbox_range}")
 
 
 def get_region(geodf: gpd.GeoDataFrame) -> list[str]:

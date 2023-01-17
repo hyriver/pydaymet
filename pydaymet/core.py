@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, TypeVar
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import shapely.geometry as sgeom
 import xarray as xr
@@ -18,14 +19,16 @@ try:
     from numba import config as numba_config
     from numba import njit, prange
 
-    ngjit = functools.partial(njit, cache=True, nogil=True, parallel=True)
+    ngjit = functools.partial(njit, cache=True, nogil=True)
     numba_config.THREADING_LAYER = "workqueue"
-    HAS_NUMBA = True
+    has_numba = True
 except ImportError:
-    HAS_NUMBA = False
+    has_numba = False
     prange = range
+    numba_config = None
+    njit = None
 
-    def ngjit(ntypes):  # type: ignore
+    def ngjit(ntypes, parallel=None):  # type: ignore
         def decorator_njit(func):  # type: ignore
             @functools.wraps(func)
             def wrapper_decorator(*args, **kwargs):  # type: ignore
@@ -121,10 +124,13 @@ class DaymetBase:
             raise InputValueError("region", valid_regions)
 
 
-@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")  # type: ignore
+@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")
 def _separate_snow(
-    prcp: np.ndarray, tmin: np.ndarray, t_rain: float = T_RAIN, t_snow: float = T_SNOW  # type: ignore
-) -> np.ndarray:  # type: ignore
+    prcp: npt.NDArray[np.float64],
+    tmin: npt.NDArray[np.float64],
+    t_rain: np.float64,
+    t_snow: np.float64,
+) -> npt.NDArray[np.float64]:
     """Separate snow in precipitation."""
     t_rng = t_rain - t_snow
     snow = np.zeros_like(prcp)
@@ -401,12 +407,15 @@ class Daymet:
         clm = climate.copy().chunk({"time": -1})
 
         def snow_func(
-            prcp: xr.DataArray, tmin: xr.DataArray, t_rain: float, t_snow: float
-        ) -> xr.DataArray:
+            prcp: npt.NDArray[np.float64],
+            tmin: npt.NDArray[np.float64],
+            t_rain: float,
+            t_snow: float,
+        ) -> npt.NDArray[np.float64]:
             """Separate snow based on Martinez and Gupta (2010)."""
-            return _separate_snow(  # type: ignore
-                np.array(prcp, dtype="f8"),
-                np.array(tmin, dtype="f8"),
+            return _separate_snow(
+                prcp.astype("f8"),
+                tmin.astype("f8"),
                 np.float64(t_rain),
                 np.float64(t_snow),
             )
@@ -449,12 +458,12 @@ class Daymet:
         ----------
         .. footbibliography::
         """
-        if not HAS_NUMBA:
+        if not has_numba:
             warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
 
         if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
             raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
 
         if isinstance(clm, xr.Dataset):
-            return self._snow_gridded(clm, t_rain, t_snow)
+            return self._snow_gridded(clm, t_rain, t_snow)  # type: ignore
         return self._snow_point(clm, t_rain, t_snow)
