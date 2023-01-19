@@ -13,14 +13,13 @@ import pandas as pd
 import pygeoogc as ogc
 import pygeoutils as geoutils
 import pyproj
-import rioxarray  # type: ignore
 import xarray as xr
 from pygeoogc import ServiceError, ServiceURL
 from pygeoutils import Coordinates
 
-from .core import T_RAIN, T_SNOW, Daymet
-from .exceptions import InputRangeError, InputTypeError
-from .pet import potential_et
+from pydaymet.core import T_RAIN, T_SNOW, Daymet
+from pydaymet.exceptions import InputRangeError, InputTypeError
+from pydaymet.pet import potential_et
 
 if TYPE_CHECKING:
     from shapely.geometry import MultiPolygon, Polygon

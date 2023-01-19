@@ -13,7 +13,7 @@ import pandas as pd
 import shapely.geometry as sgeom
 import xarray as xr
 
-from .exceptions import InputRangeError, InputTypeError, InputValueError
+from pydaymet.exceptions import InputRangeError, InputTypeError, InputValueError
 
 try:
     from numba import config as numba_config

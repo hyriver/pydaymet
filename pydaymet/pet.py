@@ -10,7 +10,7 @@ import pygeoogc as ogc
 import pyproj
 import xarray as xr
 
-from .exceptions import InputTypeError, InputValueError, MissingItemError
+from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemError
 
 if TYPE_CHECKING:
     CRSTYPE = Union[int, str, pyproj.CRS]

@@ -6,17 +6,17 @@ if int(version("shapely").split(".")[0]) > 1:
 
     os.environ["USE_PYGEOS"] = "0"
 
-from .core import Daymet
-from .exceptions import (
+from pydaymet.core import Daymet
+from pydaymet.exceptions import (
     InputRangeError,
     InputTypeError,
     InputValueError,
     MissingCRSError,
     MissingItemError,
 )
-from .pet import potential_et
-from .print_versions import show_versions
-from .pydaymet import get_bycoords, get_bygeom
+from pydaymet.pet import potential_et
+from pydaymet.print_versions import show_versions
+from pydaymet.pydaymet import get_bycoords, get_bygeom
 
 try:
     __version__ = version("pydaymet")

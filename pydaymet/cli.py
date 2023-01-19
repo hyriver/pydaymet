@@ -10,8 +10,8 @@ import geopandas as gpd
 import pandas as pd
 import shapely.geometry as sgeom
 
-from . import pydaymet as daymet
-from .exceptions import (
+from pydaymet import pydaymet as daymet
+from pydaymet.exceptions import (
     InputRangeError,
     InputTypeError,
     InputValueError,
