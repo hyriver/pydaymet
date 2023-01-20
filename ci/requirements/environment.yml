@@ -1,94 +1,94 @@
 name: pydaymet-tests
 channels:
-  - conda-forge
-  - nodefaults
+- conda-forge
+- nodefaults
 dependencies:
   # async-retriever deps
-  - aiodns
-  - aiosqlite
-  - aiohttp >=3.8.3
-  - brotli
-  - cytoolz
-  - nest-asyncio
-  - aiohttp-client-cache >=0.8.1
-  - ujson
-  - cytoolz
+- aiodns
+- aiosqlite
+- aiohttp >=3.8.3
+- brotli
+- cytoolz
+- nest-asyncio
+- aiohttp-client-cache >=0.8.1
+- ujson
+- cytoolz
 
   # pygeoogc deps
   # - async-retriever >=0.3.5
-  - multidict
-  - url-normalize>=1.4
-  - yarl
-  - cytoolz
-  - defusedxml
-  - loguru
-  - owslib >=0.27.2
-  - pyproj >=2.2
-  - pyyaml
-  - requests
-  - requests-cache >=0.9.6
-  - shapely >=2.0
-  - urllib3
+- multidict
+- url-normalize>=1.4
+- yarl
+- cytoolz
+- defusedxml
+- loguru
+- owslib >=0.27.2
+- pyproj >=2.2
+- pyyaml
+- requests
+- requests-cache >=0.9.6
+- shapely >=2.0
+- urllib3
 
   # pygeoutils deps
-  - cytoolz
-  - dask-core
-  - geopandas >=0.7
-  - loguru
-  - netcdf4
-  - numpy >=1.17
-  - pyproj >=2.2
-  - rasterio >=1.2
-  - rioxarray >=0.11
-  - scipy
-  - shapely >=2.0
-  - ujson
-  - xarray >=2022.03.0
+- cytoolz
+- dask-core
+- geopandas >=0.7
+- loguru
+- netcdf4
+- numpy >=1.17
+- pyproj >=2.2
+- rasterio >=1.2
+- rioxarray >=0.11
+- scipy
+- shapely >=2.0
+- ujson
+- xarray >=2022.03.0
 
   # py3dep
   # - async-retriever >=0.3.6
-  - click >=0.7
-  - cytoolz
-  - numpy >=1.17
+- click >=0.7
+- cytoolz
+- numpy >=1.17
   # - pygeoogc >=0.13.7
   # - pygeoutils >=0.13.7
-  - rasterio >=1.2
-  - rioxarray >=0.11
-  - scipy
-  - shapely >=2.0
-  - xarray >=2022.03.0
+- rasterio >=1.2
+- rioxarray >=0.11
+- scipy
+- shapely >=2.0
+- xarray >=2022.03.0
   # optional dep
-  - richdem>=0.3.4
+- richdem>=0.3.4
 
   # pydaymet deps
   # - async-retriever >=0.3.6
-  - click >=0.7
-  - dask-core
-  - joblib
-  - lxml
-  - numpy >=1.17
-  - pandas >=1.0
+- click >=0.7
+- dask-core
+- joblib
+- lxml
+- numpy >=1.17
+- pandas >=1.0
   # - py3dep >=0.13.7
   # - pygeoogc >=0.13.7
   # - pygeoutils >=0.13.9
-  - rasterio >=1.2
-  - scipy
-  - shapely >=2.0
-  - xarray >=2022.03.0
+- rasterio >=1.2
+- scipy
+- shapely >=2.0
+- xarray >=2022.03.0
 
   # optional deps to speed up xarray and pydaymet
-  - bottleneck
-  - numba
+- bottleneck
+- numba
 
   # test deps
-  - pyarrow>=1.0.1
-  - psutil
-  - pytest-cov
-  - pytest-xdist
+- pyarrow>=1.0.1
+- psutil
+- pytest-cov
+- pytest-xdist
 
-  - pip
-  - pip:
-    - git+https://github.com/hyriver/async-retriever.git
-    - git+https://github.com/hyriver/pygeoogc.git
-    - git+https://github.com/hyriver/pygeoutils.git
-    - git+https://github.com/hyriver/py3dep.git
+- pip
+- pip:
+  - git+https://github.com/hyriver/async-retriever.git
+  - git+https://github.com/hyriver/pygeoogc.git
+  - git+https://github.com/hyriver/pygeoutils.git
+  - git+https://github.com/hyriver/py3dep.git
