@@ -271,7 +271,7 @@ class PETCoords:
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
-        self.coords = ogc.utils.match_crs([coords], crs, 4326)[0]
+        self.coords = ogc.match_crs([coords], crs, 4326)[0]
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
 
         # recommended when no data is not available to estimate soil heat flux
@@ -708,7 +708,7 @@ def potential_et(
     if isinstance(clm, pd.DataFrame):
         if coords is None:
             raise MissingItemError(["coords"])
-        crs = ogc.utils.validate_crs(crs)
+        crs = ogc.validate_crs(crs)
         pet = PETCoords(clm, coords, crs, params)
     else:
         pet = PETGridded(clm, params)
