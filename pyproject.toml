@@ -2,11 +2,40 @@
 build-backend = "setuptools.build_meta"
 requires = [
   "setuptools>=42",
-  "setuptools-scm>=7"
+  "setuptools-scm>=7",
 ]
 
 [project]
+name = "pydaymet"
+description = "Access daily, monthly, and annual climate data via the Daymet web service."
+[project.readme]
+content-type = "text/x-rst"
+file = "README.rst"
+
+license = {text = "MIT"}
 authors = [{name = "Taher Chegini", email = "cheginit@gmail.com"}]
+requires-python = ">=3.8"
+dependencies = [
+  "async-retriever>=0.3.10",
+  "click>=0.7",
+  "dask",
+  "geopandas>=0.10",
+  "lxml",
+  "numpy>=1.21",
+  "pandas>=1",
+  "py3dep>=0.13.10",
+  "pygeoogc>=0.13.10",
+  "pygeoutils>=0.13.11",
+  "pyproj>=2.2",
+  "rasterio>=1.2",
+  "rioxarray>=0.11",
+  "scipy",
+  "shapely>=1.8",
+  "xarray>=2022.03",
+]
+dynamic = [
+  "version",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -25,37 +54,15 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Hydrology",
   "Typing :: Typed"
 ]
-dependencies = [
-  "async-retriever>=0.3.10",
-  "click>=0.7",
-  "dask",
-  "geopandas>=0.10",
-  "lxml",
-  "numpy>=1.21",
-  "pandas>=1.0",
-  "py3dep>=0.13.10",
-  "pygeoogc>=0.13.10",
-  "pygeoutils>=0.13.11",
-  "pyproj>=2.2",
-  "rasterio>=1.2",
-  "rioxarray>=0.11.0",
-  "scipy",
-  "shapely>=1.8",
-  "xarray>=2022.03.0"
-]
-description = "Access daily, monthly, and annual climate data via the Daymet web service."
-dynamic = ["version"]
-license = {text = "MIT"}
-name = "pydaymet"
-requires-python = ">=3.8"
-
 [project.optional-dependencies]
-speedup = ["numba"]
+speedup = [
+  "numba",
+]
 test = [
   "coverage[toml]",
   "pyarrow>=1.0.1",
   "pytest-cov",
-  "pytest-xdist[psutil]"
+  "pytest-xdist[psutil]",
 ]
 typeguard = [
   "coverage[toml]",
@@ -63,21 +70,18 @@ typeguard = [
   "pygments",
   "pytest-cov",
   "pytest-xdist[psutil]",
-  "typeguard"
+  "typeguard",
 ]
-
-[project.readme]
-content-type = "text/x-rst"
-file = "README.rst"
-
-[project.scripts]
-pydaymet = "pydaymet.cli:cli"
 
 [project.urls]
 CI = "https://github.com/hyriver/pydaymet/actions"
 Changelog = "https://docs.hyriver.io/changelogs/pydaymet.html"
 Homepage = "https://docs.hyriver.io/readme/pydaymet.html"
 Issues = "https://github.com/hyriver/pydaymet/issues"
+
+[project.scripts]
+pydaymet = "pydaymet.cli:cli"
+
 
 [tool.bandit]
 targets = [
