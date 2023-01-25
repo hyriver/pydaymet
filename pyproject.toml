@@ -149,7 +149,8 @@ filterwarnings = [
   "ignore:.*distutils.*",
   "ignore:.*this is an initial implementation.*",
   "ignore:.*--rsyncdir command line argument.*",
-  "ignore:.*numpy.ndarray size changed.*"
+  "ignore:.*numpy.ndarray size changed.*",
+  "ignore:.*'cgi' is deprecated.*",
 ]
 testpaths = [
   "tests",
