@@ -16,7 +16,7 @@ def get_package_name() -> str:
         return tomli.load(f)["project"]["name"]
 
 
-python_versions = ["3.10"]
+python_versions = ["3.11"]
 package = get_package_name()
 gh_deps = {
     "async_retriever": [],
@@ -32,6 +32,7 @@ gh_deps = {
 nox.options.sessions = (
     "pre-commit",
     "type-check",
+    "tests_numba",
     "tests",
     # "typeguard",
 )
@@ -121,10 +122,18 @@ def type_check(session: nox.Session) -> None:
     session.run("pyright")
 
 
+@nox.session(python="3.10")
+def tests_numba(session: nox.Session) -> None:
+    """Run the test suite."""
+    install_deps(session, "test,speedup")
+
+    session.run("pytest", "-n", "1", "-k", "test_snow", *session.posargs)
+
+
 @nox.session(python=python_versions)
 def tests(session: nox.Session) -> None:
     """Run the test suite."""
-    install_deps(session, "test,speedup")
+    install_deps(session, "test")
 
     session.run("pytest", "--doctest-modules", *session.posargs)
     session.run("coverage", "report")
