@@ -189,7 +189,6 @@ class Daymet:
         time_scale: str = "daily",
         region: str = "na",
     ) -> None:
-
         _variables = ["all"] if variables is None else variables
         _variables = [_variables] if isinstance(_variables, str) else _variables
         validated = DaymetBase(
