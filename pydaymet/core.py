@@ -458,7 +458,7 @@ class Daymet:
         .. footbibliography::
         """
         if not has_numba:
-            warnings.warn("Numba not installed. Using slow pure python version.", UserWarning)
+            warnings.warn("Numba not installed. Using slow pure python version.", UserWarning, stacklevel=2)
 
         if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
             raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
