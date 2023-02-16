@@ -177,7 +177,7 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     .. footbibliography::
     """
     # Atmospheric pressure [kPa]
-    pa = 101.3 * ((293.0 - 0.0065 * elevation) / 293.0) ** 5.26
+    pa = 101.3 * ((293.15 - 0.0065 * elevation) / 293.15) ** (9.80665 / (0.0065 * 286.9))
     pa = cast("float | xr.DataArray", pa)
     gamma = 1.013e-3 * pa / (0.622 * lmbda)
     gamma = cast("DS", gamma)
