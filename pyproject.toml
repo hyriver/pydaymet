@@ -150,10 +150,14 @@ filterwarnings = [
   "ignore:.*--rsyncdir command line argument.*",
   "ignore:.*numpy.ndarray size changed.*",
   "ignore:.*'cgi' is deprecated.*",
+  "ignore:.*Numba not installed.*",
 ]
 testpaths = [
   "tests",
   "pydaymet"
+]
+markers = [
+  "speedup: Tests that require numba",
 ]
 
 [tool.refurb]
