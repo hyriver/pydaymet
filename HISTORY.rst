@@ -2,6 +2,16 @@
 History
 =======
 
+0.13.13 (unreleased)
+--------------------
+
+New Features
+~~~~~~~~~~~~
+- Change missing value of both single-pixel and gridded
+  versions to ``numpy.nan`` from -9999.
+- For computing PET, use water vapour pressure values from
+  Daymet instead of computing it from temperature.
+
 0.13.12 (2023-02-10)
 --------------------
 
