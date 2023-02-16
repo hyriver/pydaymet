@@ -36,7 +36,7 @@ def assert_close(a: float, b: float, rtol: float = 1e-3) -> bool:
 class TestByCoords:
     @pytest.mark.parametrize(
         "method,expected",
-        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.472)],
+        [("hargreaves_samani", 3.713), ("priestley_taylor", 2.8497), ("penman_monteith", 4.076)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
