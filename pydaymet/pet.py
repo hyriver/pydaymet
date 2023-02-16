@@ -40,11 +40,7 @@ def saturation_vapour(temperature: DS) -> DS:
     return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
 
 
-def vapour_pressure(
-    tmax_c: DS,
-    tmin_c: DS,
-    rh: DS | None = None,
-) -> tuple[DS, DS]:
+def vapour_pressure(tmax_c: DS, tmin_c: DS) -> DS:
     """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -53,8 +49,6 @@ def vapour_pressure(
         Maximum temperature in degrees Celsius.
     tmin_c : pandas.Series or xarray.DataArray
         Minimum temperature in degrees Celsius.
-    rh : pandas.Series or xarray.DataArray, optional
-        Relative humidity in %.
 
     Returns
     -------
@@ -69,12 +63,7 @@ def vapour_pressure(
     e_min = saturation_vapour(tmin_c)
     e_s = (e_max + e_min) * 0.5
     e_s = cast("DS", e_s)
-    if rh is not None:
-        e_a = rh * e_s * 1e-2
-        e_a = cast("DS", e_a)
-    else:
-        e_a = e_min
-    return e_s, e_a
+    return e_s
 
 
 def extraterrestrial_radiation(
@@ -248,13 +237,12 @@ class PETCoords:
     Parameters
     ----------
     clm : DataFrame
-        For ``penman_monteith`` method, the dataset must include at least the following variables:
-        ``tmin (degrees C)``, ``tmax (degrees C)``, ``srad (W/m2)``, and ``dayl (s)``.
-        Also, if ``rh (-)`` (relative humidity) and ``u2m (m/s)`` (wind at 2 m level)
-        are available, they are used. Otherwise, actual vapour pressure is assumed
-        to be saturation vapour pressure at daily minimum temperature and 2-m wind
-        speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
-        must include ``tmin (degrees C)`` and ``tmax (degrees C)``.
+        For ``penman_monteith`` method, the dataset must include at least
+        the following variables: ``tmin (degrees C)``, ``tmax (degrees C)``,
+        ``srad (W/m2)``, and ``dayl (s)``. Also, if ``u2m (m/s)``
+        (wind at 2 m level) is available, it will be used. Otherwise, 2-m wind
+        speed is considered to be 2 m/s. For the ``hargreaves_samani``
+        method, the dataset must include ``tmin (degrees C)`` and ``tmax (degrees C)``.
     coords : tuple of floats
         Coordinates of the daymet data location as a tuple, (x, y).
     crs : str, int, or pyproj.CRS, optional
@@ -282,14 +270,14 @@ class PETCoords:
         self.tmax = "tmax (degrees C)"
         self.srad = "srad (W/m2)"
         self.dayl = "dayl (s)"
-        self.rh = "rh (-)"
+        self.vp = "vp (Pa)"
         self.u2m = "u2m (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         self.clm_vars = self.clm.columns
         self.req_vars = {
-            "penman_monteith": [self.tmin, self.tmax, self.srad, self.dayl],
-            "priestley_taylor": [self.tmin, self.tmax, self.srad, self.dayl],
+            "penman_monteith": [self.tmin, self.tmax, self.vp, self.srad, self.dayl],
+            "priestley_taylor": [self.tmin, self.tmax, self.vp, self.srad, self.dayl],
             "hargreaves_samani": [self.tmin, self.tmax],
         }
 
@@ -320,8 +308,8 @@ class PETCoords:
         gamma = psychrometric_constant(elevation, lmbda)
 
         # Saturation Vapor Pressure [kPa]
-        rh = self.clm[self.rh] if self.rh in self.clm else None
-        e_s, e_a = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin], rh)
+        e_s = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin])
+        e_a = self.clm[self.vp] * 1e-3
 
         rad_a = extraterrestrial_radiation(self.clm.index.dayofyear, self.coords[1])
         rad_n = net_radiation(
@@ -370,10 +358,6 @@ class PETCoords:
         lmbda = 2.501 - 0.002361 * self.tmean
         gamma = psychrometric_constant(elevation, lmbda)
 
-        # Saturation Vapor Pressure [kPa]
-        rh = self.clm[self.rh] if self.rh in self.clm else None
-        _, e_a = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin], rh)
-
         rad_a = extraterrestrial_radiation(self.clm.index.dayofyear, self.coords[1])
         rad_n = net_radiation(
             self.clm[self.srad],
@@ -381,7 +365,7 @@ class PETCoords:
             elevation,
             self.clm[self.tmax],
             self.clm[self.tmin],
-            e_a,
+            self.clm[self.vp] * 1e-3,
             rad_a,
         )
 
@@ -430,13 +414,12 @@ class PETGridded:
     Parameters
     ----------
     clm : xarray.DataArray
-        For ``penman_monteith`` method, the dataset must include at least the following variables:
-        ``tmin``, ``tmax``, ``lat``, ``lon``, ``srad``, ``dayl``. Also, if
-        ``rh`` (relative humidity) and ``u2m`` (wind at 2 m level)
-        are available, they are used. Otherwise, actual vapour pressure is assumed
-        to be saturation vapour pressure at daily minimum temperature and 2-m wind
-        speed is considered to be 2 m/s. For the ``hargreaves_samani`` method, the dataset
-        must include ``tmin``, ``tmax``, and ``lat``.
+        For ``penman_monteith`` method, the dataset must include at least
+        the following variables: ``tmin``, ``tmax``, ``lat``, ``lon``,
+        ``srad``, ``dayl``. Also, if ``u2m`` (wind at 2 m level) is available,
+        it will be used. Otherwise, 2-m wind speed is considered to be 2 m/s.
+        For the ``hargreaves_samani`` method, the dataset must include ``tmin``,
+        ``tmax``, and ``lat``.
     params : dict, optional
         Model-specific parameters as a dictionary, defaults to ``None``.
     """
@@ -467,8 +450,8 @@ class PETGridded:
 
         self.clm_vars = self.clm.keys()
         self.req_vars = {
-            "penman_monteith": ["tmin", "tmax", "lat", "srad", "dayl"],
-            "priestley_taylor": ["tmin", "tmax", "lat", "srad", "dayl"],
+            "penman_monteith": ["tmin", "tmax", "vp", "lat", "srad", "dayl"],
+            "priestley_taylor": ["tmin", "tmax", "vp", "lat", "srad", "dayl"],
             "hargreaves_samani": ["tmin", "tmax", "lat"],
         }
 
@@ -515,8 +498,8 @@ class PETGridded:
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
         # Saturation vapor pressure [kPa]
-        rh = self.clm["rh"] if "rh" in self.clm_vars else None
-        self.clm["e_s"], self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
+        self.clm["e_s"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"])
+        self.clm["e_a"] = self.clm["vp"] * 1e-3
 
         rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
         self.clm["rad_n"] = net_radiation(
@@ -543,7 +526,7 @@ class PETGridded:
         )
 
         self.clm = self.clm.drop_vars(
-            ["vp_slope", "gamma", "rad_n", "tmean", "e_a", "lambda", "e_s"]
+            ["vp_slope", "gamma", "rad_n", "tmean", "lambda", "e_s", "e_a"]
         )
 
         return self.set_new_attrs(self.clm)
@@ -574,10 +557,6 @@ class PETGridded:
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
-        # Saturation vapor pressure [kPa]
-        rh = self.clm["rh"] if "rh" in self.clm_vars else None
-        _, self.clm["e_a"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"], rh)
-
         rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
@@ -585,7 +564,7 @@ class PETGridded:
             self.clm["elevation"],
             self.clm["tmax"],
             self.clm["tmin"],
-            self.clm["e_a"],
+            self.clm["vp"] * 1e-3,
             rad_a,
         )
 
@@ -600,7 +579,7 @@ class PETGridded:
             / ((self.clm["vp_slope"] + self.clm["gamma"]) * self.clm["lambda"])
         )
 
-        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean", "e_a"])
+        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean"])
 
         return self.set_new_attrs(self.clm)
 
@@ -651,7 +630,7 @@ def potential_et(
         * Solar radiation in in W/m2
         * Daylight duration in seconds
 
-        Optionally, relative humidity and wind speed at 2-m level will be used if available.
+        Optionally, wind speed at 2-m level will be used if available.
 
         Table below shows the variable names that the function looks for in the input data.
 
@@ -662,11 +641,10 @@ def potential_et(
         ``tmax (degrees C)`` ``tmax``
         ``srad (W/m2)``      ``srad``
         ``dayl (s)``         ``dayl``
-        ``rh (-)``           ``rh``
         ``u2m (m/s)``        ``u2``
         ==================== ========
 
-        If relative humidity and wind speed at 2-m level are not available,
+        If wind speed at 2-m level are not available,
         actual vapour pressure is assumed to be saturation vapour pressure at daily minimum
         temperature and 2-m wind speed is considered to be 2 m/s.
     coords : tuple of floats, optional
