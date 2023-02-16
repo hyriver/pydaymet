@@ -311,7 +311,7 @@ class PETCoords:
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
         vp_slope = vapour_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
+        elevation = py3dep.elevation_bycoords([self.coords], source="tep")[0]
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -362,7 +362,7 @@ class PETCoords:
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         vp_slope = vapour_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords([self.coords], source="tnm")[0]
+        elevation = py3dep.elevation_bycoords([self.coords], source="tep")[0]
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -445,14 +445,19 @@ class PETGridded:
         self.crs = clm.rio.crs
 
         self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
-        dem = py3dep.elevation_bygrid(
-            self.clm.x.values, self.clm.y.values, self.crs, self.res
-        ).where(~self.clm.tmin.isel(time=0).isnull())
 
-        if "x" in self.clm.chunksizes and "y" in self.clm.chunksizes:
-            dem = dem.chunk({"x": self.clm.chunksizes["x"], "y": self.clm.chunksizes["y"]})
+        if "elevation" not in self.clm.keys():
+            chunksizes = None
+            if all(d in self.clm.chunksizes for d in ("time", "x", "y")):
+                chunksizes = self.clm.chunksizes
 
-        self.clm["elevation"] = dem
+            self.clm = py3dep.add_elevation(self.clm)
+            self.clm["elevation"] = xr.where(
+                self.clm.tmin.isel(time=0).isnull(), np.nan, self.clm["elevation"]
+            )
+
+            if chunksizes is not None:
+                self.clm = self.clm.chunk(chunksizes)
 
         # recommended when no data is not available to estimate soil heat flux
         if "soil_heat" not in self.params:
