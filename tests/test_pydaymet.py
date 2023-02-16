@@ -1,7 +1,6 @@
 """Tests for PyDaymet package."""
 import io
 import shutil
-import sys
 from pathlib import Path
 
 import cytoolz.curried as tlz
@@ -13,7 +12,6 @@ from shapely.geometry import Polygon
 
 import pydaymet as daymet
 from pydaymet.cli import cli
-
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
