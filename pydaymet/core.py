@@ -14,6 +14,7 @@ import shapely.geometry as sgeom
 import xarray as xr
 
 from pydaymet.exceptions import InputRangeError, InputTypeError, InputValueError
+from pydaymet.pet import PET_VARS
 
 try:
     from numba import config as numba_config
@@ -94,19 +95,19 @@ class DaymetBase:
     region: str
 
     def __post_init__(self) -> None:
-        valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor", None]
-        if self.pet not in valid_methods:
-            raise InputValueError("pet", valid_methods)
-
-        valid_variables = ["dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp"]
+        valid_variables = ("dayl", "prcp", "srad", "swe", "tmax", "tmin", "vp")
         if "all" in self.variables:
             self.variables = valid_variables
 
         if not set(self.variables).issubset(set(valid_variables)):
             raise InputValueError("variables", valid_variables)
 
-        if self.pet is not None:
-            self.variables = list(set(self.variables).union({"tmin", "tmax", "srad", "dayl"}))
+        if self.pet:
+            valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
+            if self.pet not in valid_methods:
+                raise InputValueError("pet", valid_methods)
+
+            self.variables = list(set(self.variables).union(PET_VARS[self.pet]))
 
         if self.snow:
             self.variables = list(set(self.variables).union({"tmin"}))
@@ -115,7 +116,7 @@ class DaymetBase:
         if self.time_scale not in valid_timescales:
             raise InputValueError("time_scale", valid_timescales)
 
-        if self.pet is not None and self.time_scale != "daily":
+        if self.pet and self.time_scale != "daily":
             msg = "time_scale when pet is True"
             raise InputValueError(msg, ["daily"])
 

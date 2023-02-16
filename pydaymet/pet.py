@@ -19,6 +19,20 @@ if TYPE_CHECKING:
 
 __all__ = ["potential_et"]
 
+PET_VARS = {
+    "penman_monteith": ("tmin", "tmax", "vp", "srad", "dayl"),
+    "priestley_taylor": ("tmin", "tmax", "vp", "srad", "dayl"),
+    "hargreaves_samani": ("tmin", "tmax"),
+}
+NAME_MAP = {
+    "prcp": "prcp (mm/day)",
+    "tmin": "tmin (degrees C)",
+    "tmax": "tmax (degrees C)",
+    "srad": "srad (W/m2)",
+    "dayl": "dayl (s)",
+    "vp": "vp (Pa)",
+}
+
 
 def saturation_vapour(temperature: DS) -> DS:
     """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
@@ -275,11 +289,7 @@ class PETCoords:
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         self.clm_vars = self.clm.columns
-        self.req_vars = {
-            "penman_monteith": [self.tmin, self.tmax, self.vp, self.srad, self.dayl],
-            "priestley_taylor": [self.tmin, self.tmax, self.vp, self.srad, self.dayl],
-            "hargreaves_samani": [self.tmin, self.tmax],
-        }
+        self.req_vars = {k: tuple(NAME_MAP[v] for v in var) for k, var in PET_VARS.items()}
 
     def penman_monteith(self) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998` Eq. 6.
@@ -449,11 +459,7 @@ class PETGridded:
             self.params["soil_heat"] = 0.0
 
         self.clm_vars = self.clm.keys()
-        self.req_vars = {
-            "penman_monteith": ["tmin", "tmax", "vp", "lat", "srad", "dayl"],
-            "priestley_taylor": ["tmin", "tmax", "vp", "lat", "srad", "dayl"],
-            "hargreaves_samani": ["tmin", "tmax", "lat"],
-        }
+        self.req_vars = PET_VARS
 
     @staticmethod
     def set_new_attrs(clm: xr.Dataset) -> xr.Dataset:
