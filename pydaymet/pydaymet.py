@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
 
 import async_retriever as ar
+import numpy as np
 import pandas as pd
 import pygeoogc as ogc
 import pygeoutils as geoutils
@@ -297,9 +298,10 @@ def get_bycoords(
         return clm_ds
 
     if len(clm_list) == 1:
-        return clm_list[0]
-
-    return pd.concat(clm_list, keys=idx)
+        clm = clm_list[0]
+    else:
+        clm = pd.concat(clm_list, keys=idx)
+    return clm.where(clm > -9999)
 
 
 def _gridded_urls(
@@ -512,6 +514,9 @@ def get_bygeom(
             "+no_defs",
         ]
     )
+    clm = xr.where(clm > -9999, clm, np.nan, keep_attrs=True)
+    for v in clm:
+        clm[v].rio.write_nodata(np.nan, inplace=True)
     clm = clm.rio.write_transform()
     clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
     clm = clm.rio.write_coordinate_system()
