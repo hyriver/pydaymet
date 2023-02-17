@@ -6,7 +6,7 @@ import io
 import itertools
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union, cast
 
 import async_retriever as ar
 import numpy as np
@@ -226,8 +226,16 @@ def get_bycoords(
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``None``.
     pet_params : dict, optional
-        Model-specific parameters as a dictionary that is passed to the PET function.
-        Defaults to ``None``.
+        Model-specific parameters as a dictionary, defaults to ``None``. An important
+        parameter for ``priestley_taylor`` and ``penman_monteith`` methods is
+        ``arid_correction`` which is used to correct the actual vapor pressure
+        for arid regions. Since relative humidity is not provided by Daymet, the actual
+        vapor pressure is computed assuming that the dewpoint temperature is equal to
+        the minimum temperature. However, for arid regions, FAO 56 suggests to subtract
+        minimum temperature by 2-3 °C to account for the fact that in arid regions,
+        the air might not be saturated when its temperature is at its minimum. For such
+        areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2°C from the
+        minimum temperature for computing the actual vapor pressure.
     snow : bool, optional
         Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     snow_params : dict, optional
@@ -286,7 +294,7 @@ def get_bycoords(
     idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
     if to_xarray:
         clm_ds = xr.concat(
-            [xr.Dataset.from_dataframe(clm) for clm in clm_list], dim=pd.Index(idx, name="id")
+            (xr.Dataset.from_dataframe(clm) for clm in clm_list), dim=pd.Index(idx, name="id")
         )
         clm_ds = clm_ds.rename(
             {n: re.sub(r"\([^\)]*\)", "", str(n)).strip() for n in clm_ds.data_vars}
@@ -416,8 +424,25 @@ def get_bygeom(
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``None``.
     pet_params : dict, optional
-        Model-specific parameters as a dictionary that is passed to the PET function.
-        Defaults to ``None``.
+        Model-specific parameters as a dictionary, defaults to ``None``. Valid
+        parameters are:
+
+        * ``penman_monteith``: ``soil_heat_flux``, ``albedo``, ``alpha``,
+          and ``arid_correction``.
+        * ``priestley_taylor``: ``soil_heat_flux``, ``albedo``, and ``arid_correction``.
+        * ``hargreaves_samani``: None.
+
+        Default values for the parameters are: ``soil_heat_flux`` = 0, ``albedo`` = 0.23,
+        ``alpha`` = 1.26, and ``arid_correction`` = False.
+        An important parameter for ``priestley_taylor`` and ``penman_monteith`` methods
+        is ``arid_correction`` which is used to correct the actual vapor pressure
+        for arid regions. Since relative humidity is not provided by Daymet, the actual
+        vapor pressure is computed assuming that the dewpoint temperature is equal to
+        the minimum temperature. However, for arid regions, FAO 56 suggests to subtract
+        minimum temperature by 2-3 °C to account for the fact that in arid regions,
+        the air might not be saturated when its temperature is at its minimum. For such
+        areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2 °C from the
+        minimum temperature for computing the actual vapor pressure.
     snow : bool, optional
         Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     snow_params : dict, optional
@@ -473,22 +498,19 @@ def get_bygeom(
             dates_itr,
         )
     )
+    urls = cast("list[str]", list(urls))
+    kwds = cast("list[dict[str, dict[str, str]]]", list(kwds))
 
     files = ogc.streaming_download(
-        urls,  # type: ignore
-        kwds,  # type: ignore
+        urls,
+        kwds,
         file_extention="nc",
         ssl=ssl,
         n_jobs=MAX_CONN,
     )
     clm_files = [files] if isinstance(files, Path) else files
     try:
-
-        def open_dataset(f: Path) -> xr.Dataset:
-            with xr.open_dataset(f, engine="scipy") as ds:
-                return ds.load()
-
-        clm = xr.merge(open_dataset(f) for f in clm_files)
+        clm = xr.open_mfdataset(clm_files, chunks="auto", coords="minimal", engine="scipy")
     except ValueError as ex:
         msg = (
             "The service did NOT process your request successfully. "
@@ -525,7 +547,7 @@ def get_bygeom(
         if "grid_mapping" in clm[v].attrs:
             _ = clm[v].attrs.pop("grid_mapping")
 
-    if pet is not None:
+    if pet:
         clm = potential_et(clm, method=pet, params=pet_params)
 
     if snow:

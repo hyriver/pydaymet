@@ -7,6 +7,7 @@ from typing import (
     Iterable,
     KeysView,
     Literal,
+    NamedTuple,
     TypeVar,
     Union,
     cast,
@@ -45,8 +46,8 @@ NAME_MAP = {
 }
 
 
-def saturation_vapour(temperature: DS) -> DS:
-    """Compute saturation vapour pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
+def saturation_vapor(temperature: DS) -> DS:
+    """Compute saturation vapor pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
 
     Parameters
     ----------
@@ -56,7 +57,7 @@ def saturation_vapour(temperature: DS) -> DS:
     Returns
     -------
     xarray.DataArray or pandas.Series
-        Saturation vapour pressure in kPa.
+        Saturation vapor pressure in kPa.
 
     References
     ----------
@@ -65,8 +66,40 @@ def saturation_vapour(temperature: DS) -> DS:
     return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
 
 
-def vapour_pressure(tmax_c: DS, tmin_c: DS) -> DS:
-    """Compute mean saturation vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
+def actual_vapor_pressure(tmin_c: DS, arid_correction: bool) -> DS:
+    """Compute actual vapor pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
+
+    Notes
+    -----
+    Since relative humidity is not provided by Daymet, the actual vapor pressure is
+    computed assuming that the dewpoint temperature is equal to the minimum temperature.
+    However, for arid regions, FAO 56 suggests to subtract minimum temperature by 2-3 °C
+    to account for the fact that in arid regions, the air might not be saturated when its
+    temperature is at its minimum.
+
+    Parameters
+    ----------
+    tmin_c : pandas.Series or xarray.DataArray
+        Minimum temperature in degrees Celsius.
+    arid_correction : bool
+        Whether to apply the arid correction.
+
+    Returns
+    -------
+    pandas.Series or xarray.DataArray
+        Actual vapor pressure in kPa.
+
+    References
+    ----------
+    .. footbibliography::
+    """
+    if arid_correction:
+        return saturation_vapor(tmin_c - 2.0)  # type: ignore
+    return saturation_vapor(tmin_c)
+
+
+def vapor_pressure(tmax_c: DS, tmin_c: DS) -> DS:
+    """Compute saturation and actual vapor pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
     ----------
@@ -77,16 +110,15 @@ def vapour_pressure(tmax_c: DS, tmin_c: DS) -> DS:
 
     Returns
     -------
-    tuple of pandas.Series or tuple of xarray.DataArray
-        Saturation vapour pressure in kPa and actual vapour pressure in kPa.
+    pandas.Series or xarray.DataArray
+        Saturation vapor pressure in kPa.
 
     References
     ----------
     .. footbibliography::
     """
-    e_s = (saturation_vapour(tmax_c) + saturation_vapour(tmin_c)) * 0.5
-    e_s = cast("DS", e_s)
-    return e_s
+    e_s = (saturation_vapor(tmax_c) + saturation_vapor(tmin_c)) * 0.5
+    return cast("DS", e_s)
 
 
 @overload
@@ -143,6 +175,7 @@ def net_radiation(
     tmin: DS,
     e_a: DS,
     rad_a: pd.Series | xr.DataArray,
+    albedo: float,
 ) -> DS:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
@@ -159,9 +192,11 @@ def net_radiation(
     tmin : pandas.Series or xarray.DataArray
         Minimum temperature [°C].
     e_a : pandas.Series or xarray.DataArray
-        Actual vapour pressure [kPa].
+        Actual vapor pressure [kPa].
     rad_a : pandas.Series or xarray.Dataset
         Extraterrestrial radiation [MJ m^-2 day^-1].
+    albedo : float
+        Albedo.
 
     Returns
     -------
@@ -175,8 +210,7 @@ def net_radiation(
     r_surf = srad * dayl * 1e-6
     rad_s = (0.75 + 2e-5 * elevation) * rad_a
     rad_s = cast("DS", rad_s)
-    alb = 0.23
-    rad_ns = (1.0 - alb) * r_surf
+    rad_ns = (1.0 - albedo) * r_surf
     rad_nl = (
         4.903e-9
         * ((np.power(tmax + 273.16, 4) + np.power(tmin + 273.16, 4)) * 0.5)
@@ -215,8 +249,8 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     return gamma
 
 
-def vapour_slope(tmean_c: DS) -> DS:
-    """Compute slope of saturation vapour pressure :footcite:t:`Allen_1998` Eq. 1 [kPa/°C].
+def vapor_slope(tmean_c: DS) -> DS:
+    """Compute slope of saturation vapor pressure :footcite:t:`Allen_1998` Eq. 1 [kPa/°C].
 
     Parameters
     ----------
@@ -226,13 +260,13 @@ def vapour_slope(tmean_c: DS) -> DS:
     Returns
     -------
     pandas.Series or xarray.DataArray
-        The slope of the saturation vapour pressure curve in kPa.
+        The slope of the saturation vapor pressure curve in kPa.
 
     References
     ----------
     .. footbibliography::
     """
-    return 4098 * saturation_vapour(tmean_c) / np.square(tmean_c + 237.3)  # type: ignore
+    return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)  # type: ignore
 
 
 def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
@@ -251,6 +285,13 @@ def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index)
     missing = [r for r in reqs if r not in cols]
     if missing:
         raise MissingItemError(missing)
+
+
+class PetParams(NamedTuple):
+    soil_heat_flux: float = 0.0
+    albedo: float = 0.23
+    alpha: float = 1.26
+    arid_correction: bool = False
 
 
 class PETCoords:
@@ -297,11 +338,12 @@ class PETCoords:
         if self.method not in valid_methods:
             raise InputValueError("method", valid_methods)
 
-        self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
-
-        # recommended soil heat flux at daily scale
-        if "soil_heat" not in self.params:
-            self.params["soil_heat"] = 0.0
+        if params is None:
+            self.params = PetParams()
+        else:
+            if any(k not in PetParams._fields for k in params):
+                raise InputValueError("params", PetParams._fields)
+            self.params = PetParams(**{**PetParams()._asdict(), **params})
 
         self.tmin = "tmin (degrees C)"
         self.tmax = "tmax (degrees C)"
@@ -343,7 +385,7 @@ class PETCoords:
         """
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
-        vp_slope = vapour_slope(self.tmean)
+        vp_slope = vapor_slope(self.tmean)
         elevation = py3dep.elevation_bycoords(self.coords, source="tep")
 
         # Latent Heat of Vaporization [MJ/kg]
@@ -351,8 +393,8 @@ class PETCoords:
         gamma = psychrometric_constant(elevation, lmbda)
 
         # Saturation Vapor Pressure [kPa]
-        e_s = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin])
-        e_a = self.clm[self.vp] * 1e-3
+        e_s = vapor_pressure(self.clm[self.tmax], self.clm[self.tmin])
+        e_a = actual_vapor_pressure(self.clm[self.tmin], self.params.arid_correction)
 
         rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
@@ -363,12 +405,13 @@ class PETCoords:
             self.clm[self.tmin],
             e_a,
             rad_a,
+            self.params.albedo,
         )
 
         # recommended when no data is not available to estimate wind speed
         u_2m = self.clm[self.u2m] if self.u2m in self.clm else 2.0
         self.clm["pet (mm/day)"] = (
-            0.408 * vp_slope * (rad_n - self.params["soil_heat"])
+            0.408 * vp_slope * (rad_n - self.params.soil_heat_flux)
             + gamma * 900.0 / (self.tmean + 273.0) * u_2m * (e_s - e_a)
         ) / (vp_slope + gamma * (1 + 0.34 * u_2m))
 
@@ -394,13 +437,14 @@ class PETCoords:
         check_requirements(self.req_vars["priestley_taylor"], self.clm_vars)
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
-        vp_slope = vapour_slope(self.tmean)
+        vp_slope = vapor_slope(self.tmean)
         elevation = py3dep.elevation_bycoords(self.coords, source="tep")
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
         gamma = psychrometric_constant(elevation, lmbda)
 
+        e_a = actual_vapor_pressure(self.clm[self.tmin], self.params.arid_correction)
         rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
             self.clm[self.srad],
@@ -408,18 +452,15 @@ class PETCoords:
             elevation,
             self.clm[self.tmax],
             self.clm[self.tmin],
-            self.clm[self.vp] * 1e-3,
+            e_a,
             rad_a,
+            self.params.albedo,
         )
 
-        # value for humid conditions
-        if "alpha" not in self.params:
-            self.params["alpha"] = 1.26
-
         self.clm["pet (mm/day)"] = (
-            self.params["alpha"]
+            self.params.alpha
             * vp_slope
-            * (rad_n - self.params["soil_heat"])
+            * (rad_n - self.params.soil_heat_flux)
             / ((vp_slope + gamma) * lmbda)
         )
 
@@ -486,7 +527,14 @@ class PETGridded:
         valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
         if self.method not in valid_methods:
             raise InputValueError("method", valid_methods)
-        self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
+
+        if params is None:
+            self.params = PetParams()
+        else:
+            if any(k not in PetParams._fields for k in params):
+                raise InputValueError("params", PetParams._fields)
+            self.params = PetParams(**{**PetParams()._asdict(), **params})
+
         self.res = 1.0e3
         self.crs = clm.rio.crs
 
@@ -504,10 +552,6 @@ class PETGridded:
 
             if chunksizes is not None:
                 self.clm = self.clm.chunk(chunksizes)
-
-        # recommended when no data is not available to estimate soil heat flux
-        if "soil_heat" not in self.params:
-            self.params["soil_heat"] = 0.0
 
         self.dayofyear = self.clm["time"].dt.dayofyear
         self.lat = self.clm["lat"]
@@ -557,16 +601,16 @@ class PETGridded:
         """
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
-        # Slope of saturation vapour pressure [kPa/°C]
-        self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
+        # Slope of saturation vapor pressure [kPa/°C]
+        self.clm["vp_slope"] = vapor_slope(self.clm["tmean"])
 
         # Latent Heat of Vaporization [MJ/kg]
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
-        # Actual and saturation vapor pressure [kPa]
-        self.clm["e_s"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"])
-        self.clm["e_a"] = self.clm["vp"] * 1e-3
+        # Saturation vapor pressure [kPa]
+        self.clm["e_s"] = vapor_pressure(self.clm["tmax"], self.clm["tmin"])
+        self.clm["e_a"] = actual_vapor_pressure(self.clm["tmin"], self.params.arid_correction)
 
         rad_a = extraterrestrial_radiation(self.dayofyear, self.lat)
         self.clm["rad_n"] = net_radiation(
@@ -577,12 +621,13 @@ class PETGridded:
             self.clm["tmin"],
             self.clm["e_a"],
             rad_a,
+            self.params.albedo,
         )
 
         # recommended when no data is not available to estimate wind speed
         u_2m = self.clm["u2m"] if "u2m" in self.clm_vars else 2.0
         self.clm["pet"] = (
-            0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params["soil_heat"])
+            0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params.soil_heat_flux)
             + self.clm["gamma"]
             * 900.0
             / (self.clm["tmean"] + 273.0)
@@ -617,13 +662,14 @@ class PETGridded:
         """
         check_requirements(self.req_vars["priestley_taylor"], self.clm_vars)
 
-        # Slope of saturation vapour pressure [kPa/°C]
-        self.clm["vp_slope"] = vapour_slope(self.clm["tmean"])
+        # Slope of saturation vapor pressure [kPa/°C]
+        self.clm["vp_slope"] = vapor_slope(self.clm["tmean"])
 
         # Latent Heat of Vaporization [MJ/kg]
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
+        self.clm["e_a"] = actual_vapor_pressure(self.clm["tmin"], self.params.arid_correction)
         rad_a = extraterrestrial_radiation(self.dayofyear, self.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
@@ -631,22 +677,19 @@ class PETGridded:
             self.clm["elevation"],
             self.clm["tmax"],
             self.clm["tmin"],
-            self.clm["vp"] * 1e-3,
+            self.clm["e_a"],
             rad_a,
+            self.params.albedo,
         )
 
-        # value for humid conditions
-        if "alpha" not in self.params:
-            self.params["alpha"] = 1.26
-
         self.clm["pet"] = (
-            self.params["alpha"]
+            self.params.alpha
             * self.clm["vp_slope"]
-            * (self.clm["rad_n"] - self.params["soil_heat"])
+            * (self.clm["rad_n"] - self.params.soil_heat_flux)
             / ((self.clm["vp_slope"] + self.clm["gamma"]) * self.clm["lambda"])
         )
 
-        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean"])
+        self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean", "e_a"])
 
         return self.set_new_attrs(self.clm)
 
@@ -664,8 +707,7 @@ class PETGridded:
         """
         check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
-        lat = self.lat
-        rad_a = extraterrestrial_radiation(self.dayofyear, lat) / 2.43
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.lat) / 2.43
         self.clm["pet"] = (
             0.0023
             * (self.clm["tmean"] + 17.8)
@@ -734,13 +776,13 @@ def potential_et(
         ==================== ========
 
         If wind speed at 2-m level are not available,
-        actual vapour pressure is assumed to be saturation vapour pressure at daily minimum
+        actual vapor pressure is assumed to be saturation vapor pressure at daily minimum
         temperature and 2-m wind speed is considered to be 2 m/s.
     coords : tuple of floats, optional
         Coordinates of the daymet data location as a tuple, (x, y). This is required when ``clm``
         is a ``DataFrame``.
     crs : str, int, or pyproj.CRS, optional
-        The spatial reference of the input coordinate, defaults to ``epsg:4326``. This is only used
+        The spatial reference of the input coordinate, defaults to ``EPSG:4326``. This is only used
         when ``clm`` is a ``DataFrame``.
     method : str, optional
         Method for computing PET. Supported methods are
@@ -752,13 +794,31 @@ def potential_et(
         The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
         Defaults to ``hargreaves_samani``.
     params : dict, optional
-        Model-specific parameters as a dictionary, defaults to ``None``.
+        Model-specific parameters as a dictionary, defaults to ``None``. Valid
+        parameters are:
+
+        * ``penman_monteith``: ``soil_heat_flux``, ``albedo``, ``alpha``,
+          and ``arid_correction``.
+        * ``priestley_taylor``: ``soil_heat_flux``, ``albedo``, and ``arid_correction``.
+        * ``hargreaves_samani``: None.
+
+        Default values for the parameters are: ``soil_heat_flux`` = 0, ``albedo`` = 0.23,
+        ``alpha`` = 1.26, and ``arid_correction`` = False.
+        An important parameter for ``priestley_taylor`` and ``penman_monteith`` methods
+        is ``arid_correction`` which is used to correct the actual vapor pressure
+        for arid regions. Since relative humidity is not provided by Daymet, the actual
+        vapor pressure is computed assuming that the dewpoint temperature is equal to
+        the minimum temperature. However, for arid regions, FAO 56 suggests subtracting
+        minimum temperature by 2-3 °C to account for the fact that in arid regions,
+        the air might not be saturated when its temperature is at its minimum. For such
+        areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2 °C from the
+        minimum temperature for computing the actual vapor pressure.
 
     Returns
     -------
     pandas.DataFrame or xarray.Dataset
         The input DataFrame/Dataset with an additional variable named ``pet (mm/day)`` for
-        DataFrame and ``pet`` for Dataset.
+        ``pandas.DataFrame`` and ``pet`` for ``xarray.Dataset``.
 
     References
     ----------
