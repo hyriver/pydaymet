@@ -9,8 +9,20 @@ New Features
 ~~~~~~~~~~~~
 - Change missing value of both single-pixel and gridded
   versions to ``numpy.nan`` from -9999.
-- For computing PET, use water vapour pressure values from
-  Daymet instead of computing it from temperature.
+- Add a new model parameter for computing PET using ``priestlet_taylor``
+  and ``penman_monteith`` models called ``arid_correction``. For arid
+  regions, FAO 56 suggests subtracting the min temperature by 2 degrees.
+  This parameter can be passed via ``pet_params`` in ``daymet_by*`` functions,
+  or ``params`` in ``potential_pet`` function.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Refactor the ``pet`` module to improve performance and readability, and
+  reduce code duplication.
+
+Documentation
+~~~~~~~~~~~~~
+- Add more information about parameters that ``pet`` functions accept.
 
 0.13.12 (2023-02-10)
 --------------------
