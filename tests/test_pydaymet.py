@@ -32,11 +32,17 @@ def assert_close(a: float, b: float, rtol: float = 1e-3) -> bool:
 class TestByCoords:
     @pytest.mark.parametrize(
         "method,expected",
-        [("hargreaves_samani", 3.713), ("priestley_taylor", 2.8497), ("penman_monteith", 4.076)],
+        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.4726)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
         assert_close(clm["pet (mm/day)"].mean(), expected)
+
+    def test_pet_arid(self):
+        clm = daymet.get_bycoords(
+            COORDS, DATES, crs=ALT_CRS, pet="priestley_taylor", pet_params={"arid_correction": True}
+        )
+        assert_close(clm["pet (mm/day)"].mean(), 3.0912)
 
     @pytest.mark.speedup
     def test_snow(self):
@@ -68,6 +74,12 @@ class TestByGeom:
     def test_pet(self, method, expected):
         clm = daymet.get_bygeom(GEOM, DAY, pet=method)
         assert_close(clm.pet.mean().compute().item(), expected)
+
+    def test_pet_arid(self):
+        clm = daymet.get_bygeom(
+            GEOM, DAY, pet="priestley_taylor", pet_params={"arid_correction": True}
+        )
+        assert_close(clm.pet.mean().compute().item(), 0.1066)
 
     @pytest.mark.speedup
     def test_snow(self):
