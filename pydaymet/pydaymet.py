@@ -162,7 +162,7 @@ def _by_coord(
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
 
     if pet is not None:
-        clm = potential_et(clm, coords, method=pet, params=pet_params)
+        clm = potential_et(clm, coords, method=pet, params=pet_params)  # type: ignore
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
