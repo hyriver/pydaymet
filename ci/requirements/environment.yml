@@ -56,7 +56,7 @@ dependencies:
 - shapely >=2.0
 - xarray >=2022.03.0
   # optional dep
-- richdem>=0.3.4
+- pyflwdir
 
   # pydaymet deps
   # - async-retriever >=0.3.6
