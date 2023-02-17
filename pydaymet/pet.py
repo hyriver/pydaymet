@@ -1,7 +1,17 @@
 """Core class for the Daymet functions."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Hashable, Iterable, KeysView, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Hashable,
+    Iterable,
+    KeysView,
+    Literal,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 import numpy as np
 import pandas as pd
@@ -31,6 +41,7 @@ NAME_MAP = {
     "srad": "srad (W/m2)",
     "dayl": "dayl (s)",
     "vp": "vp (Pa)",
+    "swe": "swe (kg/m2)",
 }
 
 
@@ -55,7 +66,7 @@ def saturation_vapour(temperature: DS) -> DS:
 
 
 def vapour_pressure(tmax_c: DS, tmin_c: DS) -> DS:
-    """Compute saturation and actual vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
+    """Compute mean saturation vapour pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
     ----------
@@ -73,16 +84,24 @@ def vapour_pressure(tmax_c: DS, tmin_c: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    e_max = saturation_vapour(tmax_c)
-    e_min = saturation_vapour(tmin_c)
-    e_s = (e_max + e_min) * 0.5
+    e_s = (saturation_vapour(tmax_c) + saturation_vapour(tmin_c)) * 0.5
     e_s = cast("DS", e_s)
     return e_s
 
 
+@overload
+def extraterrestrial_radiation(dayofyear: xr.DataArray, lat: xr.DataArray) -> xr.DataArray:
+    ...
+
+
+@overload
+def extraterrestrial_radiation(dayofyear: pd.Series, lat: float) -> pd.Series:
+    ...
+
+
 def extraterrestrial_radiation(
-    dayofyear: pd.Index | xr.DataArray, lat: float | xr.DataArray
-) -> pd.Index | xr.DataArray:
+    dayofyear: pd.Series | xr.DataArray, lat: float | xr.DataArray
+) -> pd.Series | xr.DataArray:
     """Compute Extraterrestrial Radiation using :footcite:t:`Allen_1998` Eq. 28 [MJ m^-2 h^-1].
 
     Parameters
@@ -123,7 +142,7 @@ def net_radiation(
     tmax: DS,
     tmin: DS,
     e_a: DS,
-    rad_a: pd.Index | xr.DataArray,
+    rad_a: pd.Series | xr.DataArray,
 ) -> DS:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
@@ -154,17 +173,15 @@ def net_radiation(
     .. footbibliography::
     """
     r_surf = srad * dayl * 1e-6
-    r_surf = cast("DS", r_surf)
-
-    alb = 0.23
     rad_s = (0.75 + 2e-5 * elevation) * rad_a
     rad_s = cast("DS", rad_s)
+    alb = 0.23
     rad_ns = (1.0 - alb) * r_surf
     rad_nl = (
         4.903e-9
-        * (((tmax + 273.16) ** 4 + (tmin + 273.16) ** 4) * 0.5)
+        * ((np.power(tmax + 273.16, 4) + np.power(tmin + 273.16, 4)) * 0.5)
         * (0.34 - 0.14 * np.sqrt(e_a))
-        * ((1.35 * r_surf / rad_s) - 0.35)
+        * (1.35 * r_surf / rad_s - 0.35)
     )
     rad_net = rad_ns - rad_nl
     rad_net = cast("DS", rad_net)
@@ -191,7 +208,7 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     .. footbibliography::
     """
     # Atmospheric pressure [kPa]
-    pa = 101.3 * ((293.15 - 0.0065 * elevation) / 293.15) ** (9.80665 / (0.0065 * 286.9))
+    pa = 101.3 * np.power((293.15 - 0.0065 * elevation) / 293.15, 9.80665 / (0.0065 * 286.9))
     pa = cast("float | xr.DataArray", pa)
     gamma = 1.013e-3 * pa / (0.622 * lmbda)
     gamma = cast("DS", gamma)
@@ -199,7 +216,7 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
 
 
 def vapour_slope(tmean_c: DS) -> DS:
-    """Compute the slope of the saturation vapour pressure curve :footcite:t:`Allen_1998` Eq. 1 [kPa].
+    """Compute slope of saturation vapour pressure :footcite:t:`Allen_1998` Eq. 1 [kPa/°C].
 
     Parameters
     ----------
@@ -215,16 +232,7 @@ def vapour_slope(tmean_c: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    return (
-        4098  # type: ignore
-        * (
-            0.6108
-            * np.exp(
-                17.27 * tmean_c / (tmean_c + 237.3),
-            )
-        )
-        / ((tmean_c + 237.3) ** 2)
-    )
+    return 4098 * saturation_vapour(tmean_c) / np.square(tmean_c + 237.3)  # type: ignore
 
 
 def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
@@ -259,6 +267,14 @@ class PETCoords:
         method, the dataset must include ``tmin (degrees C)`` and ``tmax (degrees C)``.
     coords : tuple of floats
         Coordinates of the daymet data location as a tuple, (x, y).
+    method : str
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``priestley_taylor``, and ``hargreaves_samani``.
+        The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
     crs : str, int, or pyproj.CRS, optional
         The spatial reference of the input coordinate, defaults to epsg:4326.
     params : dict, optional
@@ -269,14 +285,21 @@ class PETCoords:
         self,
         clm: pd.DataFrame,
         coords: tuple[float, float],
+        method: str,
         crs: CRSTYPE = 4326,
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
-        self.coords = ogc.match_crs([coords], crs, 4326)[0]
+        self.crs = ogc.validate_crs(crs)
+        self.coords = ogc.match_crs([coords], self.crs, 4326)[0]
+        self.method = method
+        valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
+        if self.method not in valid_methods:
+            raise InputValueError("method", valid_methods)
+
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
 
-        # recommended when no data is not available to estimate soil heat flux
+        # recommended soil heat flux at daily scale
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
@@ -288,8 +311,18 @@ class PETCoords:
         self.u2m = "u2m (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
+        dayofyear = pd.to_datetime(self.clm.index).dayofyear.to_numpy("uint16")
+        self.dayofyear = pd.Series(dayofyear, index=self.clm.index)
         self.clm_vars = self.clm.columns
         self.req_vars = {k: tuple(NAME_MAP[v] for v in var) for k, var in PET_VARS.items()}
+
+    def compute(self) -> pd.DataFrame:
+        """Compute Potential EvapoTranspiration."""
+        if self.method == "penman_monteith":
+            return self.penman_monteith()
+        if self.method == "hargreaves_samani":
+            return self.hargreaves_samani()
+        return self.priestley_taylor()
 
     def penman_monteith(self) -> pd.DataFrame:
         """Compute Potential EvapoTranspiration using :footcite:t:`Allen_1998` Eq. 6.
@@ -311,7 +344,7 @@ class PETCoords:
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
         vp_slope = vapour_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords([self.coords], source="tep")[0]
+        elevation = py3dep.elevation_bycoords(self.coords, source="tep")
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -321,7 +354,7 @@ class PETCoords:
         e_s = vapour_pressure(self.clm[self.tmax], self.clm[self.tmin])
         e_a = self.clm[self.vp] * 1e-3
 
-        rad_a = extraterrestrial_radiation(self.clm.index.dayofyear, self.coords[1])
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
             self.clm[self.srad],
             self.clm[self.dayl],
@@ -362,13 +395,13 @@ class PETCoords:
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         vp_slope = vapour_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords([self.coords], source="tep")[0]
+        elevation = py3dep.elevation_bycoords(self.coords, source="tep")
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
         gamma = psychrometric_constant(elevation, lmbda)
 
-        rad_a = extraterrestrial_radiation(self.clm.index.dayofyear, self.coords[1])
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1])
         rad_n = net_radiation(
             self.clm[self.srad],
             self.clm[self.dayl],
@@ -407,7 +440,7 @@ class PETCoords:
         check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
-        rad_a = extraterrestrial_radiation(self.clm.index.dayofyear, self.coords[1]) / 2.43
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.coords[1]) / 2.43
         self.clm["pet (mm/day)"] = (
             0.0023
             * (self.tmean + 17.8)
@@ -430,6 +463,14 @@ class PETGridded:
         it will be used. Otherwise, 2-m wind speed is considered to be 2 m/s.
         For the ``hargreaves_samani`` method, the dataset must include ``tmin``,
         ``tmax``, and ``lat``.
+    method : str
+        Method for computing PET. Supported methods are
+        ``penman_monteith``, ``priestley_taylor``, and ``hargreaves_samani``.
+        The ``penman_monteith`` method is based on
+        :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
+        The ``priestley_taylor`` method is based on
+        :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
+        The ``hargreaves_samani`` method is based on :footcite:t:`Hargreaves_1982`.
     params : dict, optional
         Model-specific parameters as a dictionary, defaults to ``None``.
     """
@@ -437,9 +478,14 @@ class PETGridded:
     def __init__(
         self,
         clm: xr.Dataset,
+        method: str,
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm.copy()
+        self.method = method
+        valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
+        if self.method not in valid_methods:
+            raise InputValueError("method", valid_methods)
         self.params = params if isinstance(params, dict) else {"soil_heat": 0.0}
         self.res = 1.0e3
         self.crs = clm.rio.crs
@@ -463,8 +509,18 @@ class PETGridded:
         if "soil_heat" not in self.params:
             self.params["soil_heat"] = 0.0
 
+        self.dayofyear = self.clm["time"].dt.dayofyear
+        self.lat = self.clm["lat"]
         self.clm_vars = self.clm.keys()
         self.req_vars = PET_VARS
+
+    def compute(self) -> xr.Dataset:
+        """Compute Potential EvapoTranspiration."""
+        if self.method == "penman_monteith":
+            return self.penman_monteith()
+        if self.method == "hargreaves_samani":
+            return self.hargreaves_samani()
+        return self.priestley_taylor()
 
     @staticmethod
     def set_new_attrs(clm: xr.Dataset) -> xr.Dataset:
@@ -508,11 +564,11 @@ class PETGridded:
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
-        # Saturation vapor pressure [kPa]
+        # Actual and saturation vapor pressure [kPa]
         self.clm["e_s"] = vapour_pressure(self.clm["tmax"], self.clm["tmin"])
         self.clm["e_a"] = self.clm["vp"] * 1e-3
 
-        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
             self.clm["dayl"],
@@ -568,7 +624,7 @@ class PETGridded:
         self.clm["lambda"] = 2.501 - 0.002361 * self.clm["tmean"]
         self.clm["gamma"] = psychrometric_constant(self.clm["elevation"], self.clm["lambda"])
 
-        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, self.clm.lat)
+        rad_a = extraterrestrial_radiation(self.dayofyear, self.lat)
         self.clm["rad_n"] = net_radiation(
             self.clm["srad"],
             self.clm["dayl"],
@@ -608,8 +664,8 @@ class PETGridded:
         """
         check_requirements(self.req_vars["hargreaves_samani"], self.clm_vars)
 
-        lat = self.clm.lat
-        rad_a = extraterrestrial_radiation(self.clm["time"].dt.dayofyear, lat) / 2.43
+        lat = self.lat
+        rad_a = extraterrestrial_radiation(self.dayofyear, lat) / 2.43
         self.clm["pet"] = (
             0.0023
             * (self.clm["tmean"] + 17.8)
@@ -622,13 +678,35 @@ class PETGridded:
         return self.set_new_attrs(self.clm)
 
 
+@overload
 def potential_et(
-    clm: DF,
+    clm: pd.DataFrame,
+    coords: tuple[float, float],
+    crs: CRSTYPE,
+    method: str = ...,
+    params: dict[str, float] | None = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def potential_et(
+    clm: xr.Dataset,
+    coords: Literal[None] = ...,
+    crs: Literal[None] = ...,
+    method: str = ...,
+    params: dict[str, float] | None = ...,
+) -> xr.Dataset:
+    ...
+
+
+def potential_et(
+    clm: pd.DataFrame | xr.Dataset,
     coords: tuple[float, float] | None = None,
-    crs: CRSTYPE = 4326,
+    crs: CRSTYPE | None = 4326,
     method: str = "hargreaves_samani",
     params: dict[str, float] | None = None,
-) -> DF:
+) -> pd.DataFrame | xr.Dataset:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
 
     Parameters
@@ -666,8 +744,8 @@ def potential_et(
         when ``clm`` is a ``DataFrame``.
     method : str, optional
         Method for computing PET. Supported methods are
-        ``penman_monteith``, ``priestley_taylor``, ``hargreaves_samani``, and
-        None (don't compute PET). The ``penman_monteith`` method is based on
+        ``penman_monteith``, ``priestley_taylor``, and ``hargreaves_samani``.
+        The ``penman_monteith`` method is based on
         :footcite:t:`Allen_1998` assuming that soil heat flux density is zero.
         The ``priestley_taylor`` method is based on
         :footcite:t:`Priestley_1972` assuming that soil heat flux density is zero.
@@ -686,20 +764,13 @@ def potential_et(
     ----------
     .. footbibliography::
     """
-    valid_methods = ["penman_monteith", "hargreaves_samani", "priestley_taylor"]
-    if method not in valid_methods:
-        raise InputValueError("method", valid_methods)
-
     if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
         raise InputTypeError("clm", "pd.DataFrame or xr.Dataset")
 
-    pet: PETCoords | PETGridded
     if isinstance(clm, pd.DataFrame):
-        if coords is None:
-            raise MissingItemError(["coords"])
-        crs = ogc.validate_crs(crs)
-        pet = PETCoords(clm, coords, crs, params)
-    else:
-        pet = PETGridded(clm, params)
+        if coords is None or crs is None:
+            raise MissingItemError(["coords", "crs"])
+        return PETCoords(clm, coords, method, crs, params).compute()
+
     with xr.set_options(keep_attrs=True):
-        return getattr(pet, method)()  # type: ignore
+        return PETGridded(clm, method, params).compute()
