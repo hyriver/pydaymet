@@ -546,9 +546,8 @@ def get_bygeom(
     clm = xr.where(clm > -9999, clm, np.nan, keep_attrs=True)
     for v in clm:
         clm[v].rio.write_nodata(np.nan, inplace=True)
-    clm = clm.rio.write_transform()
-    clm = clm.rio.write_crs(clm.attrs["crs"], grid_mapping_name="lambert_conformal_conic")
-    clm = clm.rio.write_coordinate_system()
+    clm = geoutils.xd_write_crs(clm, clm.attrs["crs"], "lambert_conformal_conic")
+    clm = cast("xr.Dataset", clm)
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
     for v in clm:
         if "grid_mapping" in clm[v].attrs:
