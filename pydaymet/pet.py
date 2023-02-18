@@ -6,7 +6,6 @@ from typing import (
     Hashable,
     Iterable,
     KeysView,
-    Literal,
     NamedTuple,
     TypeVar,
     Union,
@@ -31,8 +30,8 @@ if TYPE_CHECKING:
 __all__ = ["potential_et"]
 
 PET_VARS = {
-    "penman_monteith": ("tmin", "tmax", "vp", "srad", "dayl"),
-    "priestley_taylor": ("tmin", "tmax", "vp", "srad", "dayl"),
+    "penman_monteith": ("tmin", "tmax", "srad", "dayl"),
+    "priestley_taylor": ("tmin", "tmax", "srad", "dayl"),
     "hargreaves_samani": ("tmin", "tmax"),
 }
 NAME_MAP = {
@@ -349,7 +348,6 @@ class PETCoords:
         self.tmax = "tmax (degrees C)"
         self.srad = "srad (W/m2)"
         self.dayl = "dayl (s)"
-        self.vp = "vp (Pa)"
         self.u2m = "u2m (m/s)"
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
@@ -547,8 +545,11 @@ class PETGridded:
 
             self.clm = py3dep.add_elevation(self.clm)
             self.clm["elevation"] = xr.where(
-                self.clm.tmin.isel(time=0).isnull(), np.nan, self.clm["elevation"]
+                self.clm["tmin"].isel(time=0).isnull(), np.nan, self.clm["elevation"]
             )
+            dtype = self.clm["tmin"].dtype
+            self.clm["elevation"] = self.clm["elevation"].astype(dtype)
+            self.clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
 
             if chunksizes is not None:
                 self.clm = self.clm.chunk(chunksizes)
@@ -567,7 +568,7 @@ class PETGridded:
         return self.priestley_taylor()
 
     @staticmethod
-    def set_new_attrs(clm: xr.Dataset) -> xr.Dataset:
+    def set_pet_attrs(clm: xr.Dataset) -> xr.Dataset:
         """Set new attributes to the input dataset.
 
         Parameters
@@ -575,11 +576,8 @@ class PETGridded:
         clm : xarray.DataArray
             The dataset to which the new attributes are added.
         """
-        dtype = clm.tmin.dtype
-        clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
-        clm["elevation"] = clm["elevation"].astype(dtype)
         clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
-        clm["pet"] = clm["pet"].astype(dtype)
+        clm["pet"] = clm["pet"].astype(clm["tmin"].dtype)
         return clm
 
     def penman_monteith(self) -> xr.Dataset:
@@ -641,7 +639,7 @@ class PETGridded:
             ["vp_slope", "gamma", "rad_n", "tmean", "lambda", "e_s", "e_a"]
         )
 
-        return self.set_new_attrs(self.clm)
+        return self.set_pet_attrs(self.clm)
 
     def priestley_taylor(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Priestley_1972`.
@@ -691,7 +689,7 @@ class PETGridded:
 
         self.clm = self.clm.drop_vars(["vp_slope", "gamma", "lambda", "rad_n", "tmean", "e_a"])
 
-        return self.set_new_attrs(self.clm)
+        return self.set_pet_attrs(self.clm)
 
     def hargreaves_samani(self) -> xr.Dataset:
         """Compute Potential EvapoTranspiration using :footcite:t:`Hargreaves_1982`.
@@ -717,7 +715,7 @@ class PETGridded:
 
         self.clm = self.clm.drop_vars("tmean")
 
-        return self.set_new_attrs(self.clm)
+        return self.set_pet_attrs(self.clm)
 
 
 @overload
@@ -734,8 +732,8 @@ def potential_et(
 @overload
 def potential_et(
     clm: xr.Dataset,
-    coords: Literal[None] = ...,
-    crs: Literal[None] = ...,
+    coords: None = None,
+    crs: None = None,
     method: str = ...,
     params: dict[str, float] | None = ...,
 ) -> xr.Dataset:
@@ -761,23 +759,21 @@ def potential_et(
         * Solar radiation in in W/m2
         * Daylight duration in seconds
 
-        Optionally, wind speed at 2-m level will be used if available.
+        Optionally, for ``penman_monteith``, wind speed at 2-m level
+        will be used if available, otherwise, default value of 2 m/s
+        will be assumed. Table below shows the variable names
+        that the function looks for in the input data.
 
-        Table below shows the variable names that the function looks for in the input data.
-
-        ==================== ========
-        DataFrame            Dataset
-        ==================== ========
+        ==================== ==================
+        ``pandas.DataFrame`` ``xarray.Dataset``
+        ==================== ==================
         ``tmin (degrees C)`` ``tmin``
         ``tmax (degrees C)`` ``tmax``
         ``srad (W/m2)``      ``srad``
         ``dayl (s)``         ``dayl``
-        ``u2m (m/s)``        ``u2``
-        ==================== ========
+        ``u2m (m/s)``        ``u2m``
+        ==================== ==================
 
-        If wind speed at 2-m level are not available,
-        actual vapor pressure is assumed to be saturation vapor pressure at daily minimum
-        temperature and 2-m wind speed is considered to be 2 m/s.
     coords : tuple of floats, optional
         Coordinates of the daymet data location as a tuple, (x, y). This is required when ``clm``
         is a ``DataFrame``.
