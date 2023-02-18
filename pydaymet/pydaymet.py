@@ -377,6 +377,12 @@ def _gridded_urls(
     ]
 
 
+def _open_dataset(f: Path) -> xr.Dataset:
+    """Open a dataset using ``xarray``."""
+    with xr.open_dataset(f, engine="scipy") as ds:
+        return ds.load()
+
+
 def get_bygeom(
     geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
     dates: tuple[str, str] | int | list[int],
@@ -510,7 +516,8 @@ def get_bygeom(
     )
     clm_files = [files] if isinstance(files, Path) else files
     try:
-        clm = xr.open_mfdataset(clm_files, chunks="auto", coords="minimal", engine="scipy")
+        # open_mfdataset can run into too many open files error so we use merge
+        clm = xr.merge(_open_dataset(f) for f in clm_files)
     except ValueError as ex:
         msg = (
             "The service did NOT process your request successfully. "
