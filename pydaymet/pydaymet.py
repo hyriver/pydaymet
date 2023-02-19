@@ -5,8 +5,7 @@ import functools
 import io
 import itertools
 import re
-from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Union, cast
+from typing import TYPE_CHECKING, Callable, Generator, Iterable, Sequence, Union, cast
 
 import async_retriever as ar
 import numpy as np
@@ -23,6 +22,8 @@ from pydaymet.exceptions import InputRangeError, InputTypeError
 from pydaymet.pet import potential_et
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from shapely.geometry import MultiPolygon, Polygon
 
     CRSTYPE = Union[int, str, pyproj.CRS]
@@ -50,7 +51,7 @@ def _coord_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[list[tuple[str, dict[str, dict[str, str]]]]]:
+) -> Generator[list[tuple[str, dict[str, dict[str, str]]]], None, None]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -85,15 +86,15 @@ def _coord_urls(
 
     lon, lat = coord
     base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return [
+    return (
         [
             (
                 f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
                 {
                     "params": {
                         "var": v,
-                        "longitude": f"{lon}",
-                        "latitude": f"{lat}",
+                        "longitude": f"{lon:0.6f}",
+                        "latitude": f"{lat:0.6f}",
                         "time_start": s.strftime(DATE_FMT),
                         "time_end": e.strftime(DATE_FMT),
                         "accept": "csv",
@@ -103,7 +104,7 @@ def _coord_urls(
             for s, e in dates
         ]
         for v in variables
-    ]
+    )
 
 
 def _get_lon_lat(
@@ -113,12 +114,7 @@ def _get_lon_lat(
     to_xarray: bool = False,
 ) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
-    if not isinstance(coords, list) and not (isinstance(coords, tuple) and len(coords) == 2):
-        raise InputTypeError("coords", "tuple of len 2 or a list of them")
-
-    coords_list = coords if isinstance(coords, list) else [coords]
-    if any(not (isinstance(c, tuple) and len(c) == 2) for c in coords_list):
-        raise InputTypeError("coords", "tuple of len 2 or a list of them")
+    coords_list = geoutils.coords_list(coords)
 
     if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
         raise InputTypeError("coords_id", "list with the same length as of coords")
@@ -321,7 +317,7 @@ def _gridded_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[tuple[str, dict[str, dict[str, str]]]]:
+) -> Generator[tuple[str, dict[str, dict[str, str]]], None, None]:
     """Generate an iterable URL list for downloading Daymet data.
 
     Parameters
@@ -356,16 +352,16 @@ def _gridded_urls(
 
     west, south, east, north = bounds
     base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return [
+    return (
         (
             f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
             {
                 "params": {
                     "var": v,
-                    "north": f"{north}",
-                    "west": f"{west}",
-                    "east": f"{east}",
-                    "south": f"{south}",
+                    "north": f"{north:0.6f}",
+                    "west": f"{west:0.6f}",
+                    "east": f"{east:0.6f}",
+                    "south": f"{south:0.6f}",
                     "disableProjSubset": "on",
                     "horizStride": "1",
                     "time_start": s.strftime(DATE_FMT),
@@ -377,7 +373,7 @@ def _gridded_urls(
             },
         )
         for v, (s, e) in itertools.product(variables, dates)
-    ]
+    )
 
 
 def _open_dataset(f: Path) -> xr.Dataset:
@@ -532,7 +528,7 @@ def get_bygeom(
         clm["lat"] = clm.lat.isel(time=0, drop=True)
         clm["lon"] = clm.lon.isel(time=0, drop=True)
 
-    clm.attrs["crs"] = " ".join(
+    crs = " ".join(
         [
             "+proj=lcc",
             "+lat_1=25",
@@ -549,7 +545,7 @@ def get_bygeom(
     clm = xr.where(clm > -9999, clm, np.nan, keep_attrs=True)
     for v in clm:
         clm[v].rio.write_nodata(np.nan, inplace=True)
-    clm = geoutils.xd_write_crs(clm, clm.attrs["crs"], "lambert_conformal_conic")
+    clm = geoutils.xd_write_crs(clm, crs, "lambert_conformal_conic")
     clm = cast("xr.Dataset", clm)
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
 
