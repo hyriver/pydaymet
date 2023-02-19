@@ -510,16 +510,16 @@ def get_bygeom(
     urls = cast("list[str]", list(urls))
     kwds = cast("list[dict[str, dict[str, str]]]", list(kwds))
 
-    files = ogc.streaming_download(
+    clm_files = ogc.streaming_download(
         urls,
         kwds,
         file_extention="nc",
         ssl=ssl,
         n_jobs=MAX_CONN,
     )
-    clm_files = [files] if isinstance(files, Path) else files
     try:
         # open_mfdataset can run into too many open files error so we use merge
+        # https://docs.xarray.dev/en/stable/user-guide/io.html#reading-multi-file-datasets
         clm = xr.merge(_open_dataset(f) for f in clm_files)
     except ValueError as ex:
         msg = (
@@ -552,9 +552,6 @@ def get_bygeom(
     clm = geoutils.xd_write_crs(clm, clm.attrs["crs"], "lambert_conformal_conic")
     clm = cast("xr.Dataset", clm)
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
-    for v in clm:
-        if "grid_mapping" in clm[v].attrs:
-            _ = clm[v].attrs.pop("grid_mapping")
 
     if pet:
         clm = potential_et(clm, method=pet, params=pet_params)
