@@ -160,6 +160,7 @@ def _by_coord(
         clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
 
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
+    clm = clm.where(clm > -9999)
 
     if pet is not None:
         clm = potential_et(clm, coords, method=pet, params=pet_params)  # type: ignore
@@ -299,6 +300,7 @@ def get_bycoords(
         clm_ds = clm_ds.rename(
             {n: re.sub(r"\([^\)]*\)", "", str(n)).strip() for n in clm_ds.data_vars}
         )
+        clm_ds["time"] = pd.DatetimeIndex(pd.to_datetime(clm_ds["time"]).date)
         for v in clm_ds.data_vars:
             clm_ds[v].attrs["units"] = daymet.units[v]
             clm_ds[v].attrs["long_name"] = daymet.long_names[v]
@@ -309,7 +311,8 @@ def get_bycoords(
         clm = clm_list[0]
     else:
         clm = pd.concat(clm_list, keys=idx)
-    return clm.where(clm > -9999)
+    clm = clm.set_index(pd.DatetimeIndex(pd.to_datetime(clm.index).date))
+    return clm
 
 
 def _gridded_urls(
@@ -559,4 +562,6 @@ def get_bygeom(
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
+
+    clm["time"] = pd.DatetimeIndex(pd.to_datetime(clm["time"]).date)
     return clm
