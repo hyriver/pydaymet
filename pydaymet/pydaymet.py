@@ -125,9 +125,10 @@ def _get_lon_lat(
 
 
 def _by_coord(
+    lon: float,
+    lat: float,
     daymet: Daymet,
     time_scale: str,
-    coords: tuple[float, float],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
     pet: str | None,
     pet_params: dict[str, float] | None,
@@ -136,6 +137,7 @@ def _by_coord(
     ssl: bool,
 ) -> pd.DataFrame:
     """Get climate data for a coordinate and return as a DataFrame."""
+    coords = (lon, lat)
     url_kwds = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates
     )
@@ -280,15 +282,24 @@ def get_bycoords(
 
     lon, lat = _get_lon_lat(coords, coords_id, crs, to_xarray)
     points = Coordinates(lon, lat, daymet.region_bbox[region].bounds).points
-    if len(points) == 0:
+    n_pts = len(points)
+    if n_pts == 0 or n_pts != len(lon):
         raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
 
-    clm_list = [
-        _by_coord(daymet, time_scale, xy, dates_itr, pet, pet_params, snow, snow_params, ssl)
-        for xy in zip(points.x, points.y)
-    ]
+    by_coord = functools.partial(
+        _by_coord,
+        daymet=daymet,
+        time_scale=time_scale,
+        dates=dates_itr,
+        pet=pet,
+        pet_params=pet_params,
+        snow=snow,
+        snow_params=snow_params,
+        ssl=ssl,
+    )
+    clm_list = itertools.starmap(by_coord, zip(points.x, points.y))
 
-    idx = coords_id if coords_id is not None else [f"P{i}" for i in range(len(clm_list))]
+    idx = coords_id if coords_id is not None else [f"P{i}" for i in range(n_pts)]
     if to_xarray:
         clm_ds = xr.concat(
             (xr.Dataset.from_dataframe(clm) for clm in clm_list), dim=pd.Index(idx, name="id")
@@ -303,8 +314,8 @@ def get_bycoords(
             clm_ds[v].attrs["description"] = daymet.descriptions[v]
         return clm_ds
 
-    if len(clm_list) == 1:
-        clm = clm_list[0]
+    if n_pts == 1:
+        clm = next(iter(clm_list), pd.DataFrame())
     else:
         clm = pd.concat(clm_list, keys=idx)
     clm = clm.set_index(pd.DatetimeIndex(pd.to_datetime(clm.index).date))
