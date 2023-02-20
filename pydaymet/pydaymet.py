@@ -166,6 +166,7 @@ def _by_coord(
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = daymet.separate_snow(clm, **params)
+    clm.index.name = "time"
     return clm
 
 
@@ -299,7 +300,7 @@ def get_bycoords(
     )
     clm_list = itertools.starmap(by_coord, zip(points.x, points.y))
 
-    idx = coords_id if coords_id is not None else [f"P{i}" for i in range(n_pts)]
+    idx = list(coords_id) if coords_id is not None else [f"P{i}" for i in range(n_pts)]
     if to_xarray:
         clm_ds = xr.concat(
             (xr.Dataset.from_dataframe(clm) for clm in clm_list), dim=pd.Index(idx, name="id")
@@ -317,7 +318,8 @@ def get_bycoords(
     if n_pts == 1:
         clm = next(iter(clm_list), pd.DataFrame())
     else:
-        clm = pd.concat(clm_list, keys=idx)
+        clm = cast("pd.DataFrame", pd.concat(clm_list, keys=idx, axis=1))
+        clm = clm.columns.set_names(["id", "variable"])
     clm = clm.set_index(pd.DatetimeIndex(pd.to_datetime(clm.index).date))
     return clm
 
