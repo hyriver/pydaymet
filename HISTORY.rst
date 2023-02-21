@@ -14,9 +14,8 @@ New Features
   regions, FAO 56 suggests subtracting the min temperature by 2 degrees.
   This parameter can be passed via ``pet_params`` in ``daymet_by*`` functions,
   or ``params`` in ``potential_pet`` function.
-
-Internal Changes
-~~~~~~~~~~~~~~~~
+- Refactor ``get_bycoords`` to reduce memory usage by using a combination
+  of ``itertools`` and ``Generator`` objects.
 - Refactor the ``pet`` module to improve performance and readability, and
   reduce code duplication.
 
