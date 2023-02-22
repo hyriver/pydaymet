@@ -115,7 +115,7 @@ class TestCLIFails:
         }
         geo_feather = "geo_wrong_format.feather"
         save_dir = "test_wrong_geo_format"
-        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs="epsg:4326")
+        gdf = gpd.GeoDataFrame(params, geometry=[GEOM], index=[0], crs=4326)
         gdf.to_feather(geo_feather)
         ret = runner.invoke(
             cli,

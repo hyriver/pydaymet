@@ -139,7 +139,7 @@ def coords(
 
     target_df = get_target_df(pd.read_csv(fpath), ["id", "start", "end", "lon", "lat"])
     points = gpd.GeoDataFrame(
-        target_df.id, geometry=gpd.points_from_xy(target_df.lon, target_df.lat), crs="epsg:4326"
+        target_df.id, geometry=gpd.points_from_xy(target_df.lon, target_df.lat), crs=4326
     )
     target_df["region"] = get_region(points)
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
