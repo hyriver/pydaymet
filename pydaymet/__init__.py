@@ -1,11 +1,6 @@
 """Top-level package for PyDaymet."""
 from importlib.metadata import PackageNotFoundError, version
 
-if int(version("shapely").split(".")[0]) > 1:
-    import os
-
-    os.environ["USE_PYGEOS"] = "0"
-
 from pydaymet.core import Daymet
 from pydaymet.exceptions import (
     InputRangeError,
