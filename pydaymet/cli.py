@@ -20,7 +20,7 @@ from pydaymet.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from shapely.geometry import MultiPolygon, Point, Polygon
+    from shapely import MultiPolygon, Point, Polygon
 
 
 def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:

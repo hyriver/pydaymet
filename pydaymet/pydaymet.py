@@ -24,7 +24,7 @@ from pydaymet.pet import potential_et
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from shapely.geometry import MultiPolygon, Polygon
+    from shapely import MultiPolygon, Polygon
 
     CRSTYPE = Union[int, str, pyproj.CRS]
 
@@ -480,7 +480,7 @@ def get_bygeom(
 
     Examples
     --------
-    >>> from shapely.geometry import Polygon
+    >>> from shapely import Polygon
     >>> import pydaymet as daymet
     >>> geometry = Polygon(
     ...     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
