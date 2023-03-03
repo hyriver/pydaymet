@@ -2,8 +2,8 @@
 History
 =======
 
-0.13.13 (unreleased)
---------------------
+0.14.0 (unreleased)
+-------------------
 
 New Features
 ~~~~~~~~~~~~
@@ -22,6 +22,15 @@ New Features
 Documentation
 ~~~~~~~~~~~~~
 - Add more information about parameters that ``pet`` functions accept.
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Bump the minimum required version of ``shapely`` to 2.0,
+  and use its new API.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Sync all minor versions of HyRiver packages to 0.14.0.
 
 0.13.12 (2023-02-10)
 --------------------
