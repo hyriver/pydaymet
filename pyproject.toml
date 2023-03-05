@@ -34,7 +34,7 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "async-retriever>=0.3.12",
+  "async-retriever>=0.14.0",
   "click>=0.7",
   "dask",
   "geopandas>=0.10",
