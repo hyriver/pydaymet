@@ -121,7 +121,7 @@ class TestCLI:
             "start": "2000-01-01",
             "end": "2000-05-31",
             "time_scale": "monthly",
-            "snow": "flase",
+            "snow": "false",
         }
         geo_gpkg = Path("nat_geo.gpkg")
         save_dir = "test_geometry"
