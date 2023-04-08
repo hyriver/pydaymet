@@ -543,7 +543,7 @@ class PETGridded:
             if all(d in self.clm.chunksizes for d in ("time", "x", "y")):
                 chunksizes = self.clm.chunksizes
 
-            self.clm = py3dep.add_elevation(self.clm)
+            self.clm = py3dep.add_elevation(self.clm, ds_dims=("y", "x"))
             self.clm["elevation"] = xr.where(
                 self.clm["tmin"].isel(time=0).isnull(), np.nan, self.clm["elevation"]
             )
