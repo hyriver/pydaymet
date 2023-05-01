@@ -24,7 +24,7 @@ from pydaymet.pet import potential_et
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from shapely import MultiPolygon, Polygon
+    from shapely.geometry import MultiPolygon, Polygon
 
     CRSTYPE = Union[int, str, pyproj.CRS]
 
@@ -480,7 +480,7 @@ def get_bygeom(
 
     Examples
     --------
-    >>> from shapely import Polygon
+    >>> from shapely.geometry import Polygon
     >>> import pydaymet as daymet
     >>> geometry = Polygon(
     ...     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
@@ -532,7 +532,7 @@ def get_bygeom(
         clm = xr.merge(_open_dataset(f) for f in clm_files)
     except ValueError as ex:
         msg = (
-            "The service did NOT process your request successfully. "
+            "Daymet did NOT process your request successfully. "
             + "Check your inputs and try again."
         )
         raise ServiceError(msg) from ex

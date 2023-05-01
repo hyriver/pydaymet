@@ -536,14 +536,11 @@ class PETGridded:
         self.res = 1.0e3
         self.crs = clm.rio.crs
 
-        self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
-
         if "elevation" not in self.clm.keys():
             chunksizes = None
             if all(d in self.clm.chunksizes for d in ("time", "x", "y")):
                 chunksizes = self.clm.chunksizes
-
-            self.clm = py3dep.add_elevation(self.clm, ds_dims=("y", "x"))
+            self.clm = py3dep.add_elevation(self.clm)
             self.clm["elevation"] = xr.where(
                 self.clm["tmin"].isel(time=0).isnull(), np.nan, self.clm["elevation"]
             )
@@ -554,6 +551,7 @@ class PETGridded:
             if chunksizes is not None:
                 self.clm = self.clm.chunk(chunksizes)
 
+        self.clm["tmean"] = 0.5 * (self.clm["tmax"] + self.clm["tmin"])
         self.dayofyear = self.clm["time"].dt.dayofyear
         self.lat = self.clm["lat"]
         self.clm_vars = self.clm.keys()

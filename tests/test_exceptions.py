@@ -4,7 +4,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 import pytest
-from shapely import Polygon
+from shapely.geometry import Polygon
 
 import pydaymet as daymet
 from pydaymet import (
