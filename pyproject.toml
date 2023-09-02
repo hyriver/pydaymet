@@ -45,7 +45,7 @@ dependencies = [
   "pyproj>=3.0.1",
   "scipy",
   "shapely>=1.8.5",
-  "xarray>=2022.03",
+  "xarray>=2023.04",
 ]
 [project.optional-dependencies]
 speedup = [
