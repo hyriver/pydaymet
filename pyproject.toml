@@ -35,7 +35,6 @@ dynamic = [
 dependencies = [
   "async-retriever<0.16,>=0.15",
   "click>=0.7",
-  "dask",
   "geopandas>=0.10",
   "numpy>=1.21",
   "pandas>=1",
@@ -45,7 +44,7 @@ dependencies = [
   "pyproj>=3.0.1",
   "scipy",
   "shapely>=1.8.5",
-  "xarray>=2023.04",
+  "xarray>=2023.01",
 ]
 [project.optional-dependencies]
 speedup = [
