@@ -404,7 +404,7 @@ class Daymet:
     @staticmethod
     def _snow_gridded(climate: xr.Dataset, t_rain: float, t_snow: float) -> xr.Dataset:
         """Separate snow from precipitation."""
-        clm = climate.copy().chunk({"time": -1})
+        clm = climate.copy()
 
         def snow_func(
             prcp: npt.NDArray[np.float64],
@@ -422,15 +422,14 @@ class Daymet:
 
         clm["snow"] = xr.apply_ufunc(
             snow_func,
-            clm.prcp,
-            clm.tmin,
+            clm["prcp"],
+            clm["tmin"],
             t_rain,
             t_snow,
             input_core_dims=[["time"], ["time"], [], []],
             output_core_dims=[["time"]],
             vectorize=True,
-            dask="parallelized",
-            output_dtypes=[clm.prcp.dtype],
+            output_dtypes=[clm["prcp"].dtype],
         ).transpose("time", "y", "x")
         clm["snow"].attrs["units"] = "mm/day"
         clm["snow"].attrs["long_name"] = "daily snowfall"
