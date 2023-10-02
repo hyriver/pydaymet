@@ -35,6 +35,7 @@ dynamic = [
 ]
 dependencies = [
   "async-retriever<0.16,>=0.15.2",
+  "click>=0.7",
   "geopandas>=0.10",
   "numpy>=1.21",
   "pandas>=1",
@@ -47,9 +48,6 @@ dependencies = [
   "xarray>=2023.01",
 ]
 [project.optional-dependencies]
-cli = [
-  "click>=0.7",
-]
 speedup = [
   "numba",
 ]
