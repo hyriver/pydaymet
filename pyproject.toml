@@ -213,6 +213,9 @@ testpaths = [
   "tests",
   "pydaymet"
 ]
+markers = [
+  "speedup: Tests that require numba",
+]
 
 [tool.coverage.report]
 exclude_lines = [
