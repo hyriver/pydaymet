@@ -44,7 +44,7 @@ dependencies = [
   "pygeoutils<0.16,>=0.15.2",
   "pyproj>=3.0.1",
   "scipy",
-  "shapely>=1.8.5",
+  "shapely>=2.0.0",
   "xarray>=2023.01",
 ]
 [project.optional-dependencies]
@@ -52,7 +52,6 @@ speedup = [
   "numba",
 ]
 test = [
-  "coverage[toml]",
   "pyarrow>=1.0.1",
   "pytest-cov",
   "pytest-xdist[psutil]",
@@ -208,6 +207,8 @@ filterwarnings = [
   "ignore:.*--rsyncdir command line argument.*",
   "ignore:.*numpy.ndarray size changed.*",
   "ignore:.*'cgi' is deprecated.*",
+  "ignore:.*Calling float on a single element.*",
+  "ignore:.*Shapely GEOS version.*",
 ]
 testpaths = [
   "tests",
