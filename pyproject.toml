@@ -44,7 +44,7 @@ dependencies = [
   "pygeoutils<0.16,>=0.15.2",
   "pyproj>=3.0.1",
   "scipy",
-  "shapely>=2.0.0",
+  "shapely>=2",
   "xarray>=2023.01",
 ]
 [project.optional-dependencies]
