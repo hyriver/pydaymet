@@ -8,7 +8,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
-from shapely.geometry import Polygon
+from shapely import Polygon
 
 import pydaymet as daymet
 from pydaymet.cli import cli
@@ -31,7 +31,7 @@ def assert_close(a: float, b: float, rtol: float = 1e-3) -> bool:
 
 class TestByCoords:
     @pytest.mark.parametrize(
-        "method,expected",
+        ("method", "expected"),
         [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.4726)],
     )
     def test_pet(self, method, expected):
@@ -44,7 +44,7 @@ class TestByCoords:
         )
         assert_close(clm["pet (mm/day)"].mean(), 3.0912)
 
-    @pytest.mark.speedup
+    @pytest.mark.speedup()
     def test_snow(self):
         clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS)
         assert_close(clm["snow (mm/day)"].mean(), 0.0)
@@ -68,7 +68,7 @@ class TestByCoords:
 
 class TestByGeom:
     @pytest.mark.parametrize(
-        "method,expected",
+        ("method", "expected"),
         [("hargreaves_samani", 0.4525), ("priestley_taylor", 0.119), ("penman_monteith", 0.627)],
     )
     def test_pet(self, method, expected):
@@ -81,7 +81,7 @@ class TestByGeom:
         )
         assert_close(clm.pet.mean().compute().item(), 0.1066)
 
-    @pytest.mark.speedup
+    @pytest.mark.speedup()
     def test_snow(self):
         clm = daymet.get_bygeom(GEOM, DAY, snow=True, snow_params={"t_snow": 0.5})
         assert_close(clm.snow.mean().compute().item(), 3.4999)
@@ -143,11 +143,11 @@ class TestCLI:
         else:
             geo_gpkg.unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
-        assert (
-            str(ret.exception) == "None" and ret.exit_code == 0 and "Found 1 geometry" in ret.output
-        )
+        assert str(ret.exception) == "None"
+        assert ret.exit_code == 0
+        assert "Found 1 geometry" in ret.output
 
-    @pytest.mark.speedup
+    @pytest.mark.speedup()
     def test_coords(self, runner):
         params = {
             "id": "coords_test",
@@ -186,11 +186,9 @@ class TestCLI:
         )
         Path(coord_csv).unlink()
         shutil.rmtree(save_dir, ignore_errors=True)
-        assert (
-            str(ret.exception) == "None"
-            and ret.exit_code == 0
-            and "Found coordinates of 1 point" in ret.output
-        )
+        assert str(ret.exception) == "None"
+        assert ret.exit_code == 0
+        assert "Found coordinates of 1 point" in ret.output
 
 
 def test_show_versions():
