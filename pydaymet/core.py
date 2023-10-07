@@ -1,11 +1,12 @@
 """Core class for the Daymet functions."""
+# pyright: reportGeneralTypeIssues=false
 from __future__ import annotations
 
 import functools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -18,21 +19,24 @@ from pydaymet.pet import PET_VARS
 
 try:
     from numba import config as numba_config
-    from numba import njit, prange
+    from numba import jit, prange
 
-    ngjit = functools.partial(njit, cache=True, nogil=True)
+    ngjit = functools.partial(jit, nopython=True, cache=True, nogil=True)
     numba_config.THREADING_LAYER = "workqueue"
     has_numba = True
 except ImportError:
     has_numba = False
     prange = range
-    numba_config = None
-    njit = None
 
-    def ngjit(ntypes, parallel=None):  # type: ignore
-        def decorator_njit(func):  # type: ignore
+    T = TypeVar("T")
+    Func = Callable[..., T]
+
+    def ngjit(
+        signature_or_function: str | Func[T], parallel: bool = False
+    ) -> Callable[[Func[T]], Func[T]]:
+        def decorator_njit(func: Func[T]) -> Func[T]:
             @functools.wraps(func)
-            def wrapper_decorator(*args, **kwargs):  # type: ignore
+            def wrapper_decorator(*args: tuple[Any, ...], **kwargs: dict[str, Any]) -> T:
                 return func(*args, **kwargs)
 
             return wrapper_decorator
@@ -125,7 +129,7 @@ class DaymetBase:
             raise InputValueError("region", valid_regions)
 
 
-@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)")
+@ngjit("f8[::1](f8[::1], f8[::1], f8, f8)", parallel=True)
 def _separate_snow(
     prcp: npt.NDArray[np.float64],
     tmin: npt.NDArray[np.float64],
@@ -466,5 +470,5 @@ class Daymet:
             raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
 
         if isinstance(clm, xr.Dataset):
-            return self._snow_gridded(clm, t_rain, t_snow)  # type: ignore
+            return self._snow_gridded(clm, t_rain, t_snow)
         return self._snow_point(clm, t_rain, t_snow)

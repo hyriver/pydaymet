@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 import click
 import geopandas as gpd
@@ -20,7 +20,9 @@ from pydaymet.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from shapely.geometry import MultiPolygon, Point, Polygon
+    from shapely import MultiPolygon, Point, Polygon
+
+    DFType = TypeVar("DFType", pd.DataFrame, gpd.GeoDataFrame)
 
 
 def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
@@ -33,9 +35,7 @@ def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
     return target_df
 
 
-def get_target_df(
-    tdf: pd.DataFrame | gpd.GeoDataFrame, req_cols: list[str]
-) -> pd.DataFrame | gpd.GeoDataFrame:
+def get_target_df(tdf: DFType, req_cols: list[str]) -> DFType:
     """Check if all required columns exists in the dataframe.
 
     It also re-orders the columns based on req_cols order.
@@ -43,7 +43,7 @@ def get_target_df(
     missing = [c for c in req_cols if c not in tdf]
     if missing:
         raise MissingItemError(missing)
-    return tdf[req_cols]
+    return tdf[req_cols]  # pyright: ignore[reportGeneralTypeIssues]
 
 
 def get_required_cols(geom_type: str, columns: pd.Index) -> list[str]:
@@ -63,7 +63,8 @@ def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
         if bbox.contains(geom):
             return region
     bbox_range = "\n".join(f"{k.upper()}: {v.bounds}" for k, v in region_bbox.items())
-    raise InputRangeError(f"geometry ID of {gid}", f"within\n{bbox_range}")
+    geo_id = f"geometry ID of {gid}"
+    raise InputRangeError(geo_id, f"within\n{bbox_range}")
 
 
 def get_region(geodf: gpd.GeoDataFrame) -> list[str]:
@@ -85,8 +86,12 @@ save_dir_opt = click.option(
     "--save_dir",
     type=click.Path(exists=False),
     default="clm_daymet",
-    help="Path to a directory to save the requested files. "
-    + "Extension for the outputs is .nc for geometry and .csv for coords.",
+    help=" ".join(
+        (
+            "Path to a directory to save the requested files.",
+            "Extension for the outputs is .nc for geometry and .csv for coords.",
+        )
+    ),
 )
 
 ssl_opt = click.option(
@@ -122,7 +127,7 @@ def coords(
         - ``lon``: Longitude of the points of interest.
         - ``lat``: Latitude of the points of interest.
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
-        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+        - ``pet``: (optional) Method to compute PET. Supported methods are:
                    ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
         - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 
@@ -190,7 +195,7 @@ def geometry(
         - ``end``: End time.
         - ``geometry``: Target geometries.
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
-        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+        - ``pet``: (optional) Method to compute PET. Supported methods are:
                    ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
         - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 

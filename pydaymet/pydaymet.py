@@ -1,4 +1,5 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+# pyright: reportGeneralTypeIssues=false
 from __future__ import annotations
 
 import functools
@@ -7,24 +8,24 @@ import itertools
 import re
 from typing import TYPE_CHECKING, Callable, Generator, Iterable, Sequence, Union, cast
 
-import async_retriever as ar
 import numpy as np
 import pandas as pd
+import xarray as xr
+
+import async_retriever as ar
 import pygeoogc as ogc
 import pygeoutils as geoutils
-import pyproj
-import xarray as xr
-from pygeoogc import ServiceError, ServiceURL
-from pygeoutils import Coordinates
-
 from pydaymet.core import T_RAIN, T_SNOW, Daymet
 from pydaymet.exceptions import InputRangeError, InputTypeError
 from pydaymet.pet import potential_et
+from pygeoogc import ServiceError, ServiceURL
+from pygeoutils import Coordinates
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from shapely.geometry import MultiPolygon, Polygon
+    import pyproj
+    from shapely import MultiPolygon, Polygon
 
     CRSTYPE = Union[int, str, pyproj.CRS]
 
@@ -146,7 +147,7 @@ def _by_coord(
         (
             pd.concat(
                 pd.read_csv(io.StringIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in retrieve(u, k)  # type: ignore
+                for r in retrieve(u, k)
             )
             for u, k in (zip(*u) for u in url_kwds)
         ),
@@ -161,7 +162,7 @@ def _by_coord(
     clm = clm.where(clm > -9999)
 
     if pet is not None:
-        clm = potential_et(clm, coords, method=pet, params=pet_params)  # type: ignore
+        clm = potential_et(clm, coords, method=pet, params=pet_params)
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
@@ -318,7 +319,7 @@ def get_bycoords(
     if n_pts == 1:
         clm = next(iter(clm_list), pd.DataFrame())
     else:
-        clm = cast("pd.DataFrame", pd.concat(clm_list, keys=idx, axis=1))
+        clm = pd.concat(clm_list, keys=idx, axis=1)
         clm = clm.columns.set_names(["id", "variable"])
     clm = clm.set_index(pd.DatetimeIndex(pd.to_datetime(clm.index).date))
     return clm
@@ -480,7 +481,7 @@ def get_bygeom(
 
     Examples
     --------
-    >>> from shapely.geometry import Polygon
+    >>> from shapely import Polygon
     >>> import pydaymet as daymet
     >>> geometry = Polygon(
     ...     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
@@ -531,9 +532,11 @@ def get_bygeom(
         # https://docs.xarray.dev/en/stable/user-guide/io.html#reading-multi-file-datasets
         clm = xr.merge(_open_dataset(f) for f in clm_files)
     except ValueError as ex:
-        msg = (
-            "Daymet did NOT process your request successfully. "
-            + "Check your inputs and try again."
+        msg = " ".join(
+            (
+                "Daymet did NOT process your request successfully.",
+                "Check your inputs and try again.",
+            )
         )
         raise ServiceError(msg) from ex
 

@@ -1,4 +1,5 @@
 """Core class for the Daymet functions."""
+# pyright: reportGeneralTypeIssues=false
 from __future__ import annotations
 
 from typing import (
@@ -15,14 +16,15 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-import py3dep
-import pygeoogc as ogc
-import pyproj
 import xarray as xr
 
+import py3dep
+import pygeoogc as ogc
 from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemError
 
 if TYPE_CHECKING:
+    import pyproj
+
     CRSTYPE = Union[int, str, pyproj.CRS]
     DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
     DS = TypeVar("DS", pd.Series, xr.DataArray)
@@ -62,7 +64,7 @@ def saturation_vapor(temperature: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # type: ignore
+    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))
 
 
 def actual_vapor_pressure(tmin_c: DS, arid_correction: bool) -> DS:
@@ -93,7 +95,7 @@ def actual_vapor_pressure(tmin_c: DS, arid_correction: bool) -> DS:
     .. footbibliography::
     """
     if arid_correction:
-        return saturation_vapor(tmin_c - 2.0)  # type: ignore
+        return saturation_vapor(tmin_c - 2.0)
     return saturation_vapor(tmin_c)
 
 
@@ -265,7 +267,7 @@ def vapor_slope(tmean_c: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)  # type: ignore
+    return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)
 
 
 def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
@@ -536,7 +538,7 @@ class PETGridded:
         self.res = 1.0e3
         self.crs = clm.rio.crs
 
-        if "elevation" not in self.clm.keys():
+        if "elevation" not in self.clm:
             chunksizes = None
             if all(d in self.clm.chunksizes for d in ("time", "x", "y")):
                 chunksizes = self.clm.chunksizes
@@ -629,9 +631,7 @@ class PETGridded:
             / (self.clm["tmean"] + 273.0)
             * u_2m
             * (self.clm["e_s"] - self.clm["e_a"])
-        ) / (
-            self.clm["vp_slope"] + self.clm["gamma"] * (1.0 + 0.34 * u_2m)  # type: ignore
-        )
+        ) / (self.clm["vp_slope"] + self.clm["gamma"] * (1.0 + 0.34 * u_2m))
 
         self.clm = self.clm.drop_vars(
             ["vp_slope", "gamma", "rad_n", "tmean", "lambda", "e_s", "e_a"]
