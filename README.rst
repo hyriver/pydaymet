@@ -252,7 +252,7 @@ The ``coords`` sub-command is as follows:
         - ``lon``: Longitude of the points of interest.
         - ``lat``: Latitude of the points of interest.
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
-        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+        - ``pet``: (optional) Method to compute PET. Supported methods are:
                     ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
         - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 
@@ -287,7 +287,7 @@ And, the ``geometry`` sub-command is as follows:
         - ``end``: End time.
         - ``geometry``: Target geometries.
         - ``time_scale``: (optional) Time scale, either ``daily`` (default), ``monthly`` or ``annual``.
-        - ``pet``: (optional) Method to compute PET. Suppoerted methods are:
+        - ``pet``: (optional) Method to compute PET. Supported methods are:
                     ``penman_monteith``, ``hargreaves_samani``, ``priestley_taylor``, and ``none`` (default).
         - ``snow``: (optional) Separate snowfall from precipitation, default is ``False``.
 
