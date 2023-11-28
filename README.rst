@@ -344,7 +344,7 @@ it to the functions.
 .. code-block:: python
 
     coords = (-1431147.7928, 318483.4618)
-    crs = "epsg:3542"
+    crs = 3542
     dates = ("2000-01-01", "2006-12-31")
     annual = daymet.get_bycoords(coords, dates, variables=var, loc_crs=crs, time_scale="annual")
 

@@ -264,7 +264,7 @@ def get_bycoords(
     >>> clm = daymet.get_bycoords(
     ...     coords,
     ...     dates,
-    ...     crs="epsg:3542",
+    ...     crs=3542,
     ...     pet="hargreaves_samani",
     ... )
     >>> clm["pet (mm/day)"].mean()
