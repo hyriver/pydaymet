@@ -21,7 +21,7 @@ try:
     from numba import config as numba_config
     from numba import jit, prange
 
-    ngjit = functools.partial(jit, nopython=True, cache=True, nogil=True)
+    ngjit = functools.partial(jit, nopython=True, nogil=True)
     numba_config.THREADING_LAYER = "workqueue"
     has_numba = True
 except ImportError:
