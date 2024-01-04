@@ -2,6 +2,17 @@
 History
 =======
 
+0.16.0 (2024-01-03)
+-------------------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Bump min version of ``shapely`` to 2.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Use the new ``py3dep.add_elevation`` API.
+
 0.15.2 (2023-09-22)
 -------------------
 
