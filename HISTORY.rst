@@ -9,6 +9,18 @@ New Features
 ~~~~~~~~~~~~
 - Make ``separate_snow`` a standalone, pure, and public function.
   Now, it can be used like so: ``pydaymet.separate_snow``.
+- Change the length unit from ``km`` to ``m`` for ``get_bygeom``.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- The ``potential_et`` function uses ``py3dep.add_elevation`` function
+  but the CRS info gets lost in the process for the new ``elevation``
+  variable. This version fixes this issue by adding the CRS info to
+  the ``elevation`` variable.
+- Change ``PetParams`` class from ``NamedTuple`` to ``dataclass``
+  for better performance and consistency. Now, it has a new
+  ``classmethod`` called ``fields`` that returns a list of
+  the four fields of the class.
 
 0.16.0 (2024-01-03)
 -------------------
