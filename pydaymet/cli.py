@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Iterable, Literal, TypeVar
 
 import click
 import geopandas as gpd
@@ -113,7 +113,9 @@ def cli() -> None:
 @ssl_opt
 def coords(
     fpath: Path,
-    variables: list[str] | str | None = None,
+    variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
+    | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
+    | None = None,
     save_dir: str | Path = "clm_daymet",
     disable_ssl: bool = False,
 ) -> None:
@@ -181,7 +183,9 @@ def coords(
 @ssl_opt
 def geometry(
     fpath: Path,
-    variables: list[str] | str | None = None,
+    variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
+    | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
+    | None = None,
     save_dir: str | Path = "clm_daymet",
     disable_ssl: bool = False,
 ) -> None:
