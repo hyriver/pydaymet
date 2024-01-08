@@ -17,6 +17,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from pyproj import CRS
 import xarray as xr
 
 import py3dep
@@ -24,9 +25,7 @@ import pygeoogc as ogc
 from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemError
 
 if TYPE_CHECKING:
-    import pyproj
-
-    CRSTYPE = Union[int, str, pyproj.CRS]
+    CRSTYPE = Union[int, str, CRS]
     DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
     DS = TypeVar("DS", pd.Series, xr.DataArray)
 
@@ -542,14 +541,16 @@ class PETGridded:
                 raise InputValueError("params", PetParams.fields())
             self.params = PetParams(**params)
 
-        self.res = abs(self.clm.rio.resolution()[0])
-        self.crs = self.clm.rio.crs
+        self.res_m = abs(self.clm.rio.resolution()[0])
+        self.crs = CRS(self.clm.rio.crs)
+        if self.crs.axis_info[0].unit_name == "kilometre":
+            self.res_m *= 1000.0
 
         if "elevation" not in self.clm:
             chunksizes = None
             if all(d in self.clm.chunksizes for d in ("time", "y", "x")):
                 chunksizes = self.clm.chunksizes
-            self.clm = py3dep.add_elevation(self.clm, resolution=self.res)
+            self.clm = py3dep.add_elevation(self.clm, resolution=self.res_m)
             self.clm["elevation"] = xr.where(
                 self.clm["tmin"].isel(time=0).isnull(),
                 np.nan,
