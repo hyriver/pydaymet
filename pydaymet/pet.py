@@ -1,13 +1,14 @@
 """Core class for the Daymet functions."""
+
 # pyright: reportGeneralTypeIssues=false
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Hashable,
     Iterable,
     KeysView,
-    NamedTuple,
     TypeVar,
     Union,
     cast,
@@ -288,7 +289,8 @@ def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index)
         raise MissingItemError(missing)
 
 
-class PetParams(NamedTuple):
+@dataclass(frozen=True)
+class PetParams:
     soil_heat_flux: float = 0.0
     albedo: float = 0.23
     alpha: float = 1.26
