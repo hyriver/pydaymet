@@ -6,7 +6,7 @@ import functools
 import io
 import itertools
 import re
-from typing import TYPE_CHECKING, Callable, Generator, Iterable, Sequence, Union, cast
+from typing import TYPE_CHECKING, Callable, Generator, Iterable, Literal, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -176,10 +176,12 @@ def get_bycoords(
     dates: tuple[str, str] | int | list[int],
     coords_id: Sequence[str | int] | None = None,
     crs: CRSTYPE = 4326,
-    variables: Iterable[str] | str | None = None,
-    region: str = "na",
-    time_scale: str = "daily",
-    pet: str | None = None,
+    variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
+    | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
+    | None = None,
+    region: Literal["na", "hi", "pr"] = "na",
+    time_scale: Literal["daily", "monthly", "annual"] = "daily",
+    pet: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -400,10 +402,12 @@ def get_bygeom(
     geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
     dates: tuple[str, str] | int | list[int],
     crs: CRSTYPE = 4326,
-    variables: Iterable[str] | str | None = None,
-    region: str = "na",
-    time_scale: str = "daily",
-    pet: str | None = None,
+    variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
+    | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
+    | None = None,
+    region: Literal["na", "hi", "pr"] = "na",
+    time_scale: Literal["daily", "monthly", "annual"] = "daily",
+    pet: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
