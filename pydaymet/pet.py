@@ -9,6 +9,7 @@ from typing import (
     Hashable,
     Iterable,
     KeysView,
+    Literal,
     TypeVar,
     Union,
     cast,
@@ -723,7 +724,7 @@ def potential_et(
     clm: pd.DataFrame,
     coords: tuple[float, float],
     crs: CRSTYPE,
-    method: str = ...,
+    method: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] = ...,
     params: dict[str, float] | None = ...,
 ) -> pd.DataFrame:
     ...
@@ -734,7 +735,7 @@ def potential_et(
     clm: xr.Dataset,
     coords: None = None,
     crs: None = None,
-    method: str = ...,
+    method: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] = ...,
     params: dict[str, float] | None = ...,
 ) -> xr.Dataset:
     ...
@@ -744,7 +745,9 @@ def potential_et(
     clm: pd.DataFrame | xr.Dataset,
     coords: tuple[float, float] | None = None,
     crs: CRSTYPE | None = 4326,
-    method: str = "hargreaves_samani",
+    method: Literal[
+        "penman_monteith", "priestley_taylor", "hargreaves_samani"
+    ] = "hargreaves_samani",
     params: dict[str, float] | None = None,
 ) -> pd.DataFrame | xr.Dataset:
     """Compute Potential EvapoTranspiration for both gridded and a single location.
