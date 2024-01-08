@@ -161,12 +161,12 @@ def _by_coord(
     clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
     clm = clm.where(clm > -9999)
 
-    if pet is not None:
-        clm = potential_et(clm, coords, method=pet, params=pet_params)
-
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = separate_snow(clm, **params)
+
+    if pet is not None:
+        clm = potential_et(clm, coords, method=pet, params=pet_params)
     clm.index.name = "time"
     return clm
 
@@ -544,10 +544,6 @@ def get_bygeom(
         )
         raise ServiceError(msg) from ex
 
-    if len(clm.lat.dims) > 2:
-        clm["lat"] = clm.lat.isel(time=0, drop=True)
-        clm["lon"] = clm.lon.isel(time=0, drop=True)
-
     crs = " ".join(
         [
             "+proj=lcc",
@@ -565,16 +561,19 @@ def get_bygeom(
     clm = xr.where(clm > -9999, clm, np.nan, keep_attrs=True)
     for v in clm:
         clm[v].rio.write_nodata(np.nan, inplace=True)
+    if "spatial_ref" in clm:
+        clm = clm.drop_vars("spatial_ref")
     clm = geoutils.xd_write_crs(clm, crs, "lambert_conformal_conic")
     clm = cast("xr.Dataset", clm)
     clm = geoutils.xarray_geomask(clm, _geometry, 4326)
-
-    if pet:
-        clm = potential_et(clm, method=pet, params=pet_params)
+    clm = clm.rio.reproject(crs.replace("units=km", "units=m"), resolution=1000)
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = separate_snow(clm, **params)
+
+    if pet:
+        clm = potential_et(clm, method=pet, params=pet_params)
 
     clm["time"] = pd.DatetimeIndex(pd.to_datetime(clm["time"]).date)
     return clm
