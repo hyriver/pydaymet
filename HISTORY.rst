@@ -2,6 +2,14 @@
 History
 =======
 
+0.16.1 (2024-XX-XX)
+-------------------
+
+New Features
+~~~~~~~~~~~~
+- Make ``separate_snow`` a standalone, pure, and public function.
+  Now, it can be used like so: ``pydaymet.separate_snow``.
+
 0.16.0 (2024-01-03)
 -------------------
 
