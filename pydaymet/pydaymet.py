@@ -232,11 +232,11 @@ def get_bycoords(
         ``arid_correction`` which is used to correct the actual vapor pressure
         for arid regions. Since relative humidity is not provided by Daymet, the actual
         vapor pressure is computed assuming that the dewpoint temperature is equal to
-        the minimum temperature. However, for arid regions, FAO 56 suggests to subtract
-        minimum temperature by 2-3 °C to account for the fact that in arid regions,
+        the minimum temperature. However, for arid regions, FAO 56 suggests subtracting
+        the minimum temperature by 2-3 °C to account for aridity, since in arid regions,
         the air might not be saturated when its temperature is at its minimum. For such
-        areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2°C from the
-        minimum temperature for computing the actual vapor pressure.
+        areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2 °C from the
+        minimum temperature before computing the actual vapor pressure.
     snow : bool, optional
         Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     snow_params : dict, optional
@@ -457,11 +457,11 @@ def get_bygeom(
         is ``arid_correction`` which is used to correct the actual vapor pressure
         for arid regions. Since relative humidity is not provided by Daymet, the actual
         vapor pressure is computed assuming that the dewpoint temperature is equal to
-        the minimum temperature. However, for arid regions, FAO 56 suggests to subtract
-        minimum temperature by 2-3 °C to account for the fact that in arid regions,
+        the minimum temperature. However, for arid regions, FAO 56 suggests subtracting
+        the minimum temperature by 2-3 °C to account for aridity, since in arid regions,
         the air might not be saturated when its temperature is at its minimum. For such
         areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2 °C from the
-        minimum temperature for computing the actual vapor pressure.
+        minimum temperature before computing the actual vapor pressure.
     snow : bool, optional
         Compute snowfall from precipitation and minimum temperature. Defaults to ``False``.
     snow_params : dict, optional
