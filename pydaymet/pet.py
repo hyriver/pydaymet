@@ -1,9 +1,8 @@
 """Core class for the Daymet functions."""
-
 # pyright: reportGeneralTypeIssues=false
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
     Hashable,
@@ -297,6 +296,11 @@ class PetParams:
     alpha: float = 1.26
     arid_correction: bool = False
 
+    @classmethod
+    def fields(cls) -> tuple[str, ...]:
+        """Return the field names of the dataclass."""
+        return tuple(field.name for field in fields(cls))
+
 
 class PETCoords:
     """Compute Potential EvapoTranspiration for a single location.
@@ -345,9 +349,9 @@ class PETCoords:
         if params is None:
             self.params = PetParams()
         else:
-            if any(k not in PetParams._fields for k in params):
-                raise InputValueError("params", PetParams._fields)
-            self.params = PetParams(**{**PetParams()._asdict(), **params})
+            if any(k not in PetParams.fields() for k in params):
+                raise InputValueError("params", PetParams.fields())
+            self.params = PetParams(**params)
 
         self.tmin = "tmin (degrees C)"
         self.tmax = "tmax (degrees C)"
@@ -534,24 +538,30 @@ class PETGridded:
         if params is None:
             self.params = PetParams()
         else:
-            if any(k not in PetParams._fields for k in params):
-                raise InputValueError("params", PetParams._fields)
-            self.params = PetParams(**{**PetParams()._asdict(), **params})
+            if any(k not in PetParams.fields() for k in params):
+                raise InputValueError("params", PetParams.fields())
+            self.params = PetParams(**params)
 
-        self.res = 1.0e3
-        self.crs = clm.rio.crs
+        self.res = abs(self.clm.rio.resolution()[0])
+        self.crs = self.clm.rio.crs
 
         if "elevation" not in self.clm:
             chunksizes = None
-            if all(d in self.clm.chunksizes for d in ("time", "x", "y")):
+            if all(d in self.clm.chunksizes for d in ("time", "y", "x")):
                 chunksizes = self.clm.chunksizes
             self.clm = py3dep.add_elevation(self.clm, resolution=self.res)
             self.clm["elevation"] = xr.where(
-                self.clm["tmin"].isel(time=0).isnull(), np.nan, self.clm["elevation"]
+                self.clm["tmin"].isel(time=0).isnull(),
+                np.nan,
+                self.clm["elevation"],
+                keep_attrs=True,
             )
             dtype = self.clm["tmin"].dtype
             self.clm["elevation"] = self.clm["elevation"].astype(dtype)
-            self.clm["elevation"].attrs = {"units": "m", "long_name": "elevation"}
+            self.clm["elevation"].attrs.update({"units": "m", "long_name": "elevation"})
+            self.clm["elevation"] = self.clm["elevation"].rio.write_crs(
+                self.clm.rio.crs, grid_mapping_name=self.clm.rio.grid_mapping
+            )
 
             if chunksizes is not None:
                 self.clm = self.clm.chunk(chunksizes)
@@ -579,8 +589,11 @@ class PETGridded:
         clm : xarray.DataArray
             The dataset to which the new attributes are added.
         """
-        clm["pet"].attrs = {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
+        clm["pet"].attrs.update(
+            {"units": "mm/day", "long_name": "daily potential evapotranspiration"}
+        )
         clm["pet"] = clm["pet"].astype(clm["tmin"].dtype)
+        clm["pet"] = clm["pet"].rio.write_crs(clm.rio.crs, grid_mapping_name=clm.rio.grid_mapping)
         return clm
 
     def penman_monteith(self) -> xr.Dataset:
