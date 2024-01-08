@@ -1,7 +1,7 @@
 """Top-level package for PyDaymet."""
 from importlib.metadata import PackageNotFoundError, version
 
-from pydaymet.core import Daymet
+from pydaymet.core import Daymet, separate_snow
 from pydaymet.exceptions import (
     InputRangeError,
     InputTypeError,
@@ -20,6 +20,7 @@ except PackageNotFoundError:
 
 __all__ = [
     "Daymet",
+    "separate_snow",
     "get_bycoords",
     "get_bygeom",
     "potential_et",

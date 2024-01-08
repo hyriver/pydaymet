@@ -52,7 +52,7 @@ DATE_FMT = "%Y-%m-%d"
 T_RAIN = 2.5  # degC
 T_SNOW = 0.6  # degC
 
-__all__ = ["Daymet"]
+__all__ = ["Daymet", "separate_snow"]
 
 
 @dataclass
@@ -393,82 +393,83 @@ class Daymet:
             end_list.append(e + pd.DateOffset(hour=12))
         return list(zip(start_list, end_list))
 
-    @staticmethod
-    def _snow_point(climate: pd.DataFrame, t_rain: float, t_snow: float) -> pd.DataFrame:
-        """Separate snow from precipitation."""
-        clm = climate.copy()
-        clm["snow (mm/day)"] = _separate_snow(
-            clm["prcp (mm/day)"].to_numpy("f8"),
-            clm["tmin (degrees C)"].to_numpy("f8"),
+
+def _snow_point(climate: pd.DataFrame, t_rain: float, t_snow: float) -> pd.DataFrame:
+    """Separate snow from precipitation."""
+    clm = climate.copy()
+    clm["snow (mm/day)"] = _separate_snow(
+        clm["prcp (mm/day)"].to_numpy("f8"),
+        clm["tmin (degrees C)"].to_numpy("f8"),
+        np.float64(t_rain),
+        np.float64(t_snow),
+    )
+    return clm
+
+
+def _snow_gridded(climate: xr.Dataset, t_rain: float, t_snow: float) -> xr.Dataset:
+    """Separate snow from precipitation."""
+    clm = climate.copy()
+
+    def snow_func(
+        prcp: npt.NDArray[np.float64],
+        tmin: npt.NDArray[np.float64],
+        t_rain: float,
+        t_snow: float,
+    ) -> npt.NDArray[np.float64]:
+        """Separate snow based on Martinez and Gupta (2010)."""
+        return _separate_snow(
+            prcp.astype("f8"),
+            tmin.astype("f8"),
             np.float64(t_rain),
             np.float64(t_snow),
         )
-        return clm
 
-    @staticmethod
-    def _snow_gridded(climate: xr.Dataset, t_rain: float, t_snow: float) -> xr.Dataset:
-        """Separate snow from precipitation."""
-        clm = climate.copy()
+    clm["snow"] = xr.apply_ufunc(
+        snow_func,
+        clm["prcp"],
+        clm["tmin"],
+        t_rain,
+        t_snow,
+        input_core_dims=[["time"], ["time"], [], []],
+        output_core_dims=[["time"]],
+        vectorize=True,
+        output_dtypes=[clm["prcp"].dtype],
+    ).transpose("time", "y", "x")
+    clm["snow"].attrs["units"] = "mm/day"
+    clm["snow"].attrs["long_name"] = "daily snowfall"
+    return clm
 
-        def snow_func(
-            prcp: npt.NDArray[np.float64],
-            tmin: npt.NDArray[np.float64],
-            t_rain: float,
-            t_snow: float,
-        ) -> npt.NDArray[np.float64]:
-            """Separate snow based on Martinez and Gupta (2010)."""
-            return _separate_snow(
-                prcp.astype("f8"),
-                tmin.astype("f8"),
-                np.float64(t_rain),
-                np.float64(t_snow),
-            )
 
-        clm["snow"] = xr.apply_ufunc(
-            snow_func,
-            clm["prcp"],
-            clm["tmin"],
-            t_rain,
-            t_snow,
-            input_core_dims=[["time"], ["time"], [], []],
-            output_core_dims=[["time"]],
-            vectorize=True,
-            output_dtypes=[clm["prcp"].dtype],
-        ).transpose("time", "y", "x")
-        clm["snow"].attrs["units"] = "mm/day"
-        clm["snow"].attrs["long_name"] = "daily snowfall"
-        return clm
+def separate_snow(clm: DF, t_rain: float = T_RAIN, t_snow: float = T_SNOW) -> DF:
+    """Separate snow based on :footcite:t:`Martinez_2010`.
 
-    def separate_snow(self, clm: DF, t_rain: float = T_RAIN, t_snow: float = T_SNOW) -> DF:
-        """Separate snow based on :footcite:t:`Martinez_2010`.
+    Parameters
+    ----------
+    clm : pandas.DataFrame or xarray.Dataset
+        Climate data that should include ``prcp`` and ``tmin``.
+    t_rain : float, optional
+        Threshold for temperature for considering rain, defaults to 2.5 degrees C.
+    t_snow : float, optional
+        Threshold for temperature for considering snow, defaults to 0.6 degrees C.
 
-        Parameters
-        ----------
-        clm : pandas.DataFrame or xarray.Dataset
-            Climate data that should include ``prcp`` and ``tmin``.
-        t_rain : float, optional
-            Threshold for temperature for considering rain, defaults to 2.5 degrees C.
-        t_snow : float, optional
-            Threshold for temperature for considering snow, defaults to 0.6 degrees C.
+    Returns
+    -------
+    pandas.DataFrame or xarray.Dataset
+        Input data with ``snow (mm/day)`` column if input is a ``pandas.DataFrame``,
+        or ``snow`` variable if input is an ``xarray.Dataset``.
 
-        Returns
-        -------
-        pandas.DataFrame or xarray.Dataset
-            Input data with ``snow (mm/day)`` column if input is a ``pandas.DataFrame``,
-            or ``snow`` variable if input is an ``xarray.Dataset``.
+    References
+    ----------
+    .. footbibliography::
+    """
+    if not has_numba:
+        warnings.warn(
+            "Numba not installed. Using slow pure python version.", UserWarning, stacklevel=2
+        )
 
-        References
-        ----------
-        .. footbibliography::
-        """
-        if not has_numba:
-            warnings.warn(
-                "Numba not installed. Using slow pure python version.", UserWarning, stacklevel=2
-            )
+    if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
+        raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
 
-        if not isinstance(clm, (pd.DataFrame, xr.Dataset)):
-            raise InputTypeError("clm", "pandas.DataFrame or xarray.Dataset")
-
-        if isinstance(clm, xr.Dataset):
-            return self._snow_gridded(clm, t_rain, t_snow)
-        return self._snow_point(clm, t_rain, t_snow)
+    if isinstance(clm, xr.Dataset):
+        return _snow_gridded(clm, t_rain, t_snow)
+    return _snow_point(clm, t_rain, t_snow)

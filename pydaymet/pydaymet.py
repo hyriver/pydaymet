@@ -15,7 +15,7 @@ import xarray as xr
 import async_retriever as ar
 import pygeoogc as ogc
 import pygeoutils as geoutils
-from pydaymet.core import T_RAIN, T_SNOW, Daymet
+from pydaymet.core import T_RAIN, T_SNOW, Daymet, separate_snow
 from pydaymet.exceptions import InputRangeError, InputTypeError
 from pydaymet.pet import potential_et
 from pygeoogc import ServiceError, ServiceURL
@@ -166,7 +166,7 @@ def _by_coord(
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
-        clm = daymet.separate_snow(clm, **params)
+        clm = separate_snow(clm, **params)
     clm.index.name = "time"
     return clm
 
@@ -570,7 +570,7 @@ def get_bygeom(
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
-        clm = daymet.separate_snow(clm, **params)
+        clm = separate_snow(clm, **params)
 
     clm["time"] = pd.DatetimeIndex(pd.to_datetime(clm["time"]).date)
     return clm
