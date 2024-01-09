@@ -712,6 +712,10 @@ def get_bystac(
 
     daymet = Daymet(variables, pet, snow, time_scale, region)
 
+    crs = ogc.validate_crs(crs)
+    if not geoutils.geo2polygon(geometry, crs, 4326).intersects(daymet.region_bbox[region]):
+        raise InputRangeError("geometry", f"within {daymet.region_bbox[region].bounds}")
+
     if not isinstance(res_km, int) or res_km < 1:
         raise InputTypeError("res_km", "positive integer", "1")
 
@@ -735,9 +739,6 @@ def get_bystac(
     store = fsspec.get_mapper(asset.href)
     ds = xr.open_zarr(store, decode_coords="all", **asset.extra_fields["xarray:open_kwargs"])
 
-    crs = ogc.validate_crs(crs)
-    if not geoutils.geo2polygon(geometry, crs, 4326).intersects(daymet.region_bbox[region]):
-        raise InputRangeError("geometry", f"within {daymet.region_bbox[region].bounds}")
     _geometry = geoutils.geo2polygon(geometry, crs, ds.rio.crs)
 
     with dask.config.set(**{"array.slicing.split_large_chunks": True}):
@@ -757,9 +758,14 @@ def get_bystac(
                 .rio.clip_box(*_geometry.bounds)
                 .load()
             )
+    ds.close()
+    clm = geoutils.xarray_geomask(clm, _geometry, ds.rio.crs)
 
-    clm = clm.rio.write_transform()
-
+    lat = clm["lat"].values
+    lon = clm["lon"].values
+    clm = clm.drop_vars(["lat", "lon"])
+    clm["lat"] = (("y", "x"), lat)
+    clm["lon"] = (("y", "x"), lon)
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
         clm = separate_snow(clm, **params)
