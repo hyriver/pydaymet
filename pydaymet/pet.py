@@ -17,8 +17,8 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-from pyproj import CRS
 import xarray as xr
+from pyproj import CRS
 
 import py3dep
 import pygeoogc as ogc
