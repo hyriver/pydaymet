@@ -7,6 +7,13 @@ History
 
 New Features
 ~~~~~~~~~~~~
+- Add a new function for getting Daymet data from Microsoft's
+  `Planetary Computer <https://planetarycomputer.microsoft.com/dataset/group/daymet>`__
+  called ``get_bystac``. Although this function can be much faster than
+  ``get_bygeom``, currently, it gives access to Daymet v4.2 from 1980
+  to 2020. For accessing the latest version of Daymet (v4.5) you need to
+  use ``get_bygeom``. Additionally, this function requires ``fsspec``,
+  ``dask``, ``zarr``, and ``pystac-client`` packages.
 - Make ``separate_snow`` a standalone, pure, and public function.
   Now, it can be used like so: ``pydaymet.separate_snow``.
 - Change the length unit from ``km`` to ``m`` for ``get_bygeom``.
