@@ -11,7 +11,7 @@ from pydaymet.exceptions import (
 )
 from pydaymet.pet import potential_et
 from pydaymet.print_versions import show_versions
-from pydaymet.pydaymet import get_bycoords, get_bygeom
+from pydaymet.pydaymet import get_bycoords, get_bygeom, get_bystac
 
 try:
     __version__ = version("pydaymet")
@@ -23,6 +23,7 @@ __all__ = [
     "separate_snow",
     "get_bycoords",
     "get_bygeom",
+    "get_bystac",
     "potential_et",
     "show_versions",
     "InputRangeError",

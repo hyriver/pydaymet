@@ -4,6 +4,31 @@ from __future__ import annotations
 from typing import Generator, Sequence
 
 
+class MissingDependencyError(ImportError):
+    """Exception raised when STAC dependencies are missing.
+
+    Parameters
+    ----------
+    dependency : str
+        Name of the missing dependency
+    """
+
+    def __init__(self) -> None:
+        self.message = " ".join(
+            (
+                "The 'get_bystac' function requires `fsspec`, `dask`,",
+                " `zarr` and `pystac-client` packages."
+                "They can be installed using `pip install fsspec dask",
+                "zarr pystac-client` or `conda install fsspec dask-core",
+                "zarr pystac-client`.",
+            )
+        )
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message
+
+
 class InputValueError(Exception):
     """Exception raised for invalid input.
 
