@@ -51,6 +51,12 @@ dependencies = [
 speedup = [
   "numba",
 ]
+stac = [
+  "dask",
+  "fsspec",
+  "pystac-client",
+  "zarr",
+]
 test = [
   "pyarrow>=1.0.1",
   "pytest-cov",
