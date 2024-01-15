@@ -2,7 +2,7 @@
 History
 =======
 
-0.16.1 (2024-XX-XX)
+0.16.1 (2024-01-15)
 -------------------
 
 New Features
@@ -11,7 +11,10 @@ New Features
   `Planetary Computer <https://planetarycomputer.microsoft.com/dataset/group/daymet>`__
   called ``get_bystac``. Although this function can be much faster than
   ``get_bygeom``, currently, it gives access to Daymet v4.2 from 1980
-  to 2020. For accessing the latest version of Daymet (v4.5) you need to
+  to 2020. As discussed
+  `here <https://github.com/microsoft/PlanetaryComputer/discussions/311>`__,
+  the Daymet v4.5 will be added to the Planetary Computer in the future.
+  Until then, for accessing the latest version of Daymet (v4.5) you need to
   use ``get_bygeom``. Additionally, this function requires ``fsspec``,
   ``dask``, ``zarr``, and ``pystac-client`` packages.
 - Make ``separate_snow`` a standalone, pure, and public function.
