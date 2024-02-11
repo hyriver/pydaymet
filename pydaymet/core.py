@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeVar
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import shapely.geometry as sgeom
+import shapely
 import xarray as xr
 
 from pydaymet.exceptions import InputRangeError, InputTypeError, InputValueError
@@ -21,8 +21,8 @@ try:
     from numba import config as numba_config
     from numba import jit, prange
 
-    ngjit = functools.partial(jit, nopython=True, nogil=True)
-    numba_config.THREADING_LAYER = "workqueue"
+    ngjit = functools.partial(jit, nopython=True, nogil=True)  # pyright: ignore[reportAssignmentType]
+    numba_config.THREADING_LAYER = "workqueue"  # pyright: ignore[reportAttributeAccessIssue]
     has_numba = True
 except ImportError:
     has_numba = False
@@ -206,9 +206,9 @@ class Daymet:
         self.snow = validated.snow
 
         self.region_bbox = {
-            "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
-            "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
-            "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
+            "na": shapely.box(-136.8989, 6.0761, -6.1376, 69.077),
+            "hi": shapely.box(-160.3055, 17.9539, -154.7715, 23.5186),
+            "pr": shapely.box(-67.9927, 16.8443, -64.1195, 19.9381),
         }
         if self.region == "pr":
             self.valid_start = pd.to_datetime("1950-01-01")
@@ -366,7 +366,7 @@ class Daymet:
         lp = period[(period.is_leap_year) & (~period.strftime(DATE_FMT).str.endswith("12-31"))]
         _period = period[(period.isin(nl)) | (period.isin(lp))]
         years = [_period[_period.year == y] for y in _period.year.unique()]
-        return [(y[0], y[-1]) for y in years]
+        return [(y[0], y[-1]) for y in years]  # pyright: ignore[reportReturnType]
 
     def years_tolist(self, years: list[int] | int) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
         """Correct dates for Daymet accounting for leap years.

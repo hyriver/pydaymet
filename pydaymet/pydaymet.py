@@ -1,5 +1,5 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
-# pyright: reportGeneralTypeIssues=false
+# pyright: reportArgumentType=false,reportCallIssue=false,reportReturnType=false
 from __future__ import annotations
 
 import functools
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from shapely import MultiPolygon, Polygon
 
     CRSTYPE = Union[int, str, pyproj.CRS]
+    PET_METHODS = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
 
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 MAX_CONN = 10
@@ -131,7 +132,7 @@ def _by_coord(
     daymet: Daymet,
     time_scale: str,
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-    pet: str | None,
+    pet: PET_METHODS | None,
     pet_params: dict[str, float] | None,
     snow: bool,
     snow_params: dict[str, float] | None,
@@ -181,7 +182,7 @@ def get_bycoords(
     | None = None,
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
-    pet: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] | None = None,
+    pet: PET_METHODS | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -407,7 +408,7 @@ def get_bygeom(
     | None = None,
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
-    pet: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] | None = None,
+    pet: PET_METHODS | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -589,7 +590,7 @@ def get_bystac(
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
     res_km: int = 1,
-    pet: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] | None = None,
+    pet: PET_METHODS | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,

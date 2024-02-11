@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Iterable, Literal, TypeVar
 import click
 import geopandas as gpd
 import pandas as pd
-import shapely.geometry as sgeom
+import shapely
 
 from pydaymet import pydaymet as daymet
 from pydaymet.exceptions import (
@@ -43,7 +43,7 @@ def get_target_df(tdf: DFType, req_cols: list[str]) -> DFType:
     missing = [c for c in req_cols if c not in tdf]
     if missing:
         raise MissingItemError(missing)
-    return tdf[req_cols]  # pyright: ignore[reportGeneralTypeIssues]
+    return tdf[req_cols]  # pyright: ignore[reportReturnType]
 
 
 def get_required_cols(geom_type: str, columns: pd.Index) -> list[str]:
@@ -55,9 +55,9 @@ def get_required_cols(geom_type: str, columns: pd.Index) -> list[str]:
 def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
     """Get the Daymer region of an input geometry (point or polygon)."""
     region_bbox = {
-        "na": sgeom.box(-136.8989, 6.0761, -6.1376, 69.077),
-        "hi": sgeom.box(-160.3055, 17.9539, -154.7715, 23.5186),
-        "pr": sgeom.box(-67.9927, 16.8443, -64.1195, 19.9381),
+        "na": shapely.box(-136.8989, 6.0761, -6.1376, 69.077),
+        "hi": shapely.box(-160.3055, 17.9539, -154.7715, 23.5186),
+        "pr": shapely.box(-67.9927, 16.8443, -64.1195, 19.9381),
     }
     for region, bbox in region_bbox.items():
         if bbox.contains(geom):

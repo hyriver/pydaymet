@@ -1,5 +1,5 @@
 """Core class for the Daymet functions."""
-# pyright: reportGeneralTypeIssues=false
+# pyright: reportReturnType=false,reportArgumentType=false
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     CRSTYPE = Union[int, str, CRS]
     DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
     DS = TypeVar("DS", pd.Series, xr.DataArray)
+    PET_METHODS = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
 
 __all__ = ["potential_et"]
 
@@ -333,7 +334,7 @@ class PETCoords:
         self,
         clm: pd.DataFrame,
         coords: tuple[float, float],
-        method: str,
+        method: PET_METHODS,
         crs: CRSTYPE = 4326,
         params: dict[str, float] | None = None,
     ) -> None:
@@ -415,11 +416,11 @@ class PETCoords:
         )
 
         # recommended when no data is not available to estimate wind speed
-        u_2m = self.clm[self.u2m] if self.u2m in self.clm else 2.0
+        u_2m = self.clm.get(self.u2m, 2.0)
         self.clm["pet (mm/day)"] = (
             0.408 * vp_slope * (rad_n - self.params.soil_heat_flux)
             + gamma * 900.0 / (self.tmean + 273.0) * u_2m * (e_s - e_a)
-        ) / (vp_slope + gamma * (1 + 0.34 * u_2m))
+        ) / (vp_slope + gamma * (1 + 0.34 * u_2m))  # pyright: ignore[reportOperatorIssue]
 
         return self.clm
 
@@ -525,7 +526,7 @@ class PETGridded:
     def __init__(
         self,
         clm: xr.Dataset,
-        method: str,
+        method: PET_METHODS,
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm.copy()
@@ -640,7 +641,7 @@ class PETGridded:
         )
 
         # recommended when no data is not available to estimate wind speed
-        u_2m = self.clm["u2m"] if "u2m" in self.clm_vars else 2.0
+        u_2m = self.clm.get("u2m", 2.0)
         self.clm["pet"] = (
             0.408 * self.clm["vp_slope"] * (self.clm["rad_n"] - self.params.soil_heat_flux)
             + self.clm["gamma"]
