@@ -1,4 +1,7 @@
 """Tests for PyDaymet package."""
+
+from __future__ import annotations
+
 import io
 import shutil
 from pathlib import Path

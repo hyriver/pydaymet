@@ -1,4 +1,5 @@
 """Command-line interface for PyDaymet."""
+
 from __future__ import annotations
 
 import itertools

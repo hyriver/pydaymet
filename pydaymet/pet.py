@@ -1,4 +1,5 @@
 """Core class for the Daymet functions."""
+
 # pyright: reportReturnType=false,reportArgumentType=false
 from __future__ import annotations
 
@@ -124,13 +125,11 @@ def vapor_pressure(tmax_c: DS, tmin_c: DS) -> DS:
 
 
 @overload
-def extraterrestrial_radiation(dayofyear: xr.DataArray, lat: xr.DataArray) -> xr.DataArray:
-    ...
+def extraterrestrial_radiation(dayofyear: xr.DataArray, lat: xr.DataArray) -> xr.DataArray: ...
 
 
 @overload
-def extraterrestrial_radiation(dayofyear: pd.Series, lat: float) -> pd.Series:
-    ...
+def extraterrestrial_radiation(dayofyear: pd.Series, lat: float) -> pd.Series: ...
 
 
 def extraterrestrial_radiation(
@@ -741,8 +740,7 @@ def potential_et(
     crs: CRSTYPE,
     method: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] = ...,
     params: dict[str, float] | None = ...,
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 @overload
@@ -752,8 +750,7 @@ def potential_et(
     crs: None = None,
     method: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] = ...,
     params: dict[str, float] | None = ...,
-) -> xr.Dataset:
-    ...
+) -> xr.Dataset: ...
 
 
 def potential_et(

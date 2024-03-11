@@ -1,4 +1,7 @@
 """Top-level package for PyDaymet."""
+
+from __future__ import annotations
+
 from importlib.metadata import PackageNotFoundError, version
 
 from pydaymet.core import Daymet, separate_snow

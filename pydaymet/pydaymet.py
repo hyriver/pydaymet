@@ -1,4 +1,5 @@
 """Access the Daymet database for both single single pixel and gridded queries."""
+
 # pyright: reportArgumentType=false,reportCallIssue=false,reportReturnType=false
 from __future__ import annotations
 
