@@ -49,7 +49,7 @@ dependencies = [
 ]
 [project.optional-dependencies]
 speedup = [
-  "numba",
+  "numba>=0.57",
 ]
 stac = [
   "dask",
@@ -237,7 +237,7 @@ testpaths = [
   "pydaymet"
 ]
 markers = [
-  "speedup: Tests that require numba",
+  "speedup: Tests that require numba>=0.57",
 ]
 
 [tool.coverage.report]

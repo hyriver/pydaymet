@@ -73,7 +73,7 @@ dependencies:
 
   # optional deps to speed up xarray and pydaymet
 - bottleneck
-- numba
+- numba>=0.57
 
   # test deps
 - pyarrow>=1.0.1
