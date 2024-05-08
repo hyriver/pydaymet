@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
+from pydaymet import exceptions
 from pydaymet.core import Daymet, separate_snow
 from pydaymet.exceptions import (
     InputRangeError,
@@ -34,4 +35,6 @@ __all__ = [
     "InputValueError",
     "MissingItemError",
     "MissingCRSError",
+    "exceptions",
+    "__version__",
 ]
