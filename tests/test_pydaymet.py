@@ -28,7 +28,7 @@ COORDS = (-1431147.7928, 318483.4618)
 DATES = ("2000-01-01", "2000-12-31")
 
 
-def assert_close(a: float, b: float, rtol: float = 1e-3) -> bool:
+def assert_close(a: float, b: float, rtol: float = 1e-3) -> None:
     assert np.isclose(a, b, rtol=rtol).all()
 
 
@@ -192,6 +192,18 @@ class TestCLI:
         assert str(ret.exception) == "None"
         assert ret.exit_code == 0
         assert "Found coordinates of 1 point" in ret.output
+
+
+def test_stac():
+    clm = daymet.get_bystac(
+        GEOM,
+        ("2010-01-01", "2010-01-02"),
+        variables="prcp",
+        res_km=4,
+        snow=True,
+        pet="hargreaves_samani",
+    )
+    assert_close(clm["pet"].mean().item(), 0.3157)
 
 
 def test_show_versions():
