@@ -2,8 +2,14 @@
 History
 =======
 
-0.16.2 (2024-XX-XX)
+0.16.2 (2024-05-16)
 -------------------
+
+Bug Fixes
+~~~~~~~~~
+- In ``get_bystac`` function, only three variables were being returned regardless
+  of the input variables. This version fixes this issue by returning all the
+  requested variables.
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
