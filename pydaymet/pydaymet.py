@@ -694,7 +694,7 @@ def get_bystac(
     >>> clm = daymet.get_bystac(
     ...     geometry,
     ...     ("2010-01-01", "2010-01-02"),
-    ...     variables="tmin",
+    ...     variables="prcp",
     ...     res_km=4,
     ...     snow=True,
     ...     pet="hargreaves_samani",
@@ -747,7 +747,7 @@ def get_bystac(
     with dask.config.set(**{"array.slicing.split_large_chunks": True}):
         if res_km > 1:
             clm = (
-                ds[["prcp", "tmin", "tmax"]]
+                ds[daymet.variables]
                 .sel(time=time_slice)
                 .rio.clip_box(*_geometry.bounds)
                 .coarsen(dim={"x": res_km, "y": res_km}, boundary="trim")
@@ -755,12 +755,7 @@ def get_bystac(
                 .load()
             )
         else:
-            clm = (
-                ds[["prcp", "tmin", "tmax"]]
-                .sel(time=time_slice)
-                .rio.clip_box(*_geometry.bounds)
-                .load()
-            )
+            clm = ds[daymet.variables].sel(time=time_slice).rio.clip_box(*_geometry.bounds).load()
     ds.close()
     clm = geoutils.xarray_geomask(clm, _geometry, ds.rio.crs)
 
