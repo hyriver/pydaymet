@@ -23,7 +23,7 @@ try:
     from numba import jit, prange
 
     ngjit = functools.partial(jit, nopython=True, nogil=True)  # pyright: ignore[reportAssignmentType]
-    numba_config.THREADING_LAYER = "workqueue"
+    numba_config.THREADING_LAYER = "workqueue"  # pyright: ignore[reportAttributeAccessIssue]
     has_numba = True
 except ImportError:
     has_numba = False
