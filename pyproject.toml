@@ -223,7 +223,6 @@ filterwarnings = [
 ]
 testpaths = [
   "tests",
-  "src/pydaymet",
 ]
 markers = [
   "speedup: Tests that require numba>=0.57",
