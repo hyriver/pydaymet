@@ -1,8 +1,9 @@
 [build-system]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+
 requires = [
-  "setuptools>=60",
-  "setuptools-scm>=8",
+  "hatch-vcs",
+  "hatchling",
 ]
 
 [project]
@@ -70,26 +71,13 @@ urls.Homepage = "https://docs.hyriver.io/readme/pydaymet.html"
 urls.Issues = "https://github.com/hyriver/pydaymet/issues"
 scripts.pydaymet = "pydaymet.cli:cli"
 
-[tool.setuptools]
-include-package-data = true
-license-files = [
-  "LICENSE",
-]
-platforms = [
-  "any",
-]
-zip-safe = false
+[tool.hatch.version]
+source = "vcs"
 
-[tool.setuptools.package-data]
-pydaymet = [
-  "py.typed",
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src/pydaymet",
 ]
-
-[tool.setuptools.packages]
-find = { namespaces = false }
-
-[tool.setuptools_scm]
-fallback_version = "999"
 
 [tool.ruff]
 target-version = "py38"
@@ -235,7 +223,7 @@ filterwarnings = [
 ]
 testpaths = [
   "tests",
-  "pydaymet",
+  "src/pydaymet",
 ]
 markers = [
   "speedup: Tests that require numba>=0.57",
@@ -256,7 +244,7 @@ omit = [
 ]
 parallel = true
 source = [
-  'pydaymet',
+  'src/pydaymet',
 ]
 
 [tool.pyright]
@@ -267,7 +255,7 @@ exclude = [
   "tests/",
 ]
 include = [
-  "pydaymet",
+  "src/pydaymet",
 ]
 reportMissingTypeStubs = false
 reportUnknownArgumentType = false
