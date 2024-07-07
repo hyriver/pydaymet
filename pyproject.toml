@@ -42,9 +42,9 @@ dependencies = [
   "geopandas>=0.10",
   "numpy>=1.21",
   "pandas>=1",
-  "py3dep<0.18,>=0.17.1",
-  "pygeoogc<0.18,>=0.17.3",
-  "pygeoutils<0.18,>=0.17.3",
+  "py3dep<0.18,>=0.17",
+  "pygeoogc<0.18,>=0.17",
+  "pygeoutils<0.18,>=0.17",
   "pyproj>=3.0.1",
   "scipy",
   "shapely>=2",
@@ -224,6 +224,9 @@ filterwarnings = [
 ]
 testpaths = [
   "tests",
+]
+markers = [
+  "speedup: Tests that require numba>=0.57",
 ]
 
 [tool.coverage.report]
