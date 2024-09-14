@@ -47,7 +47,7 @@ class TestByCoords:
         )
         assert_close(clm["pet (mm/day)"].mean(), 3.0912)
 
-    @pytest.mark.speedup()
+    @pytest.mark.speedup
     def test_snow(self):
         clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS)
         assert_close(clm["snow (mm/day)"].mean(), 0.0)
@@ -84,7 +84,7 @@ class TestByGeom:
         )
         assert_close(clm.pet.mean().compute().item(), 0.1066)
 
-    @pytest.mark.speedup()
+    @pytest.mark.speedup
     def test_snow(self):
         clm = daymet.get_bygeom(GEOM, DAY, snow=True, snow_params={"t_snow": 0.5})
         assert_close(clm.snow.mean().compute().item(), 3.4999)
@@ -150,7 +150,7 @@ class TestCLI:
         assert ret.exit_code == 0
         assert "Found 1 geometry" in ret.output
 
-    @pytest.mark.speedup()
+    @pytest.mark.speedup
     def test_coords(self, runner):
         params = {
             "id": "coords_test",
