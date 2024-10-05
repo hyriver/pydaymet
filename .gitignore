@@ -109,4 +109,4 @@ ENV/
 data/
 tags*
 cache
-.DS_STORE
+junit.xml
