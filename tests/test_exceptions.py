@@ -9,14 +9,14 @@ import pytest
 from shapely import Polygon
 
 import pydaymet as daymet
-from pydaymet import (
+from pydaymet.cli import cli
+from pydaymet.exceptions import (
     InputRangeError,
     InputTypeError,
     InputValueError,
     MissingCRSError,
     MissingItemError,
 )
-from pydaymet.cli import cli
 
 GEOM = Polygon(
     [[-69.77, 45.07], [-69.31, 45.07], [-69.31, 45.45], [-69.77, 45.45], [-69.77, 45.07]]
