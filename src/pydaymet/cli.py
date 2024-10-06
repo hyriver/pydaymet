@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Literal, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 import click
 import geopandas as gpd
@@ -21,6 +21,8 @@ from pydaymet.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from shapely import MultiPolygon, Point, Polygon
 
     DFType = TypeVar("DFType", pd.DataFrame, gpd.GeoDataFrame)

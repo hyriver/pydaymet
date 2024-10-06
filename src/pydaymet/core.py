@@ -7,7 +7,7 @@ import functools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -46,6 +46,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
 
 DATE_FMT = "%Y-%m-%d"

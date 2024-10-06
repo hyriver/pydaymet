@@ -6,13 +6,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 from pydaymet import exceptions
 from pydaymet.core import Daymet, separate_snow
-from pydaymet.exceptions import (
-    InputRangeError,
-    InputTypeError,
-    InputValueError,
-    MissingCRSError,
-    MissingItemError,
-)
 from pydaymet.pet import potential_et
 from pydaymet.print_versions import show_versions
 from pydaymet.pydaymet import get_bycoords, get_bygeom, get_bystac
@@ -30,11 +23,6 @@ __all__ = [
     "get_bystac",
     "potential_et",
     "show_versions",
-    "InputRangeError",
-    "InputTypeError",
-    "InputValueError",
-    "MissingItemError",
-    "MissingCRSError",
     "exceptions",
     "__version__",
 ]

@@ -3,12 +3,10 @@
 # pyright: reportReturnType=false,reportArgumentType=false
 from __future__ import annotations
 
+from collections.abc import Hashable, Iterable, KeysView
 from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
-    Hashable,
-    Iterable,
-    KeysView,
     Literal,
     TypeVar,
     Union,

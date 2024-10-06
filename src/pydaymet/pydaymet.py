@@ -7,7 +7,7 @@ import functools
 import io
 import itertools
 import re
-from typing import TYPE_CHECKING, Callable, Generator, Iterable, Literal, Sequence, Union, cast
+from typing import TYPE_CHECKING, Callable, Literal, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -19,10 +19,12 @@ import pygeoutils as geoutils
 from pydaymet.core import T_RAIN, T_SNOW, Daymet, separate_snow
 from pydaymet.exceptions import InputRangeError, InputTypeError, MissingDependencyError
 from pydaymet.pet import potential_et
-from pygeoogc import ServiceError, ServiceURL
+from pygeoogc import ServiceURL
+from pygeoogc.exceptions import ServiceError
 from pygeoutils import Coordinates
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Sequence
     from pathlib import Path
 
     import pyproj
