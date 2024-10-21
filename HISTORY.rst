@@ -2,6 +2,16 @@
 History
 =======
 
+0.18.1 (2024-XX-XX)
+-------------------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+- Use a more efficient and reliable approach for adding elevation data
+  to the climate dataset for computing PET. We now directly use 30-m
+  elevation data from 3DEP and resample it to the climate data resolution
+  by averaging each cell within a 1-km window.
+
 0.18.0 (2024-10-05)
 -------------------
 
