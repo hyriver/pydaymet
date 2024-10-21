@@ -1,9 +1,8 @@
 """Core class for the Daymet functions."""
 
-# pyright: reportReturnType=false,reportArgumentType=false
 from __future__ import annotations
 
-from collections.abc import Hashable, Iterable, KeysView
+from collections.abc import Iterable
 from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
@@ -21,9 +20,15 @@ from pyproj import CRS
 
 import py3dep
 import pygeoogc as ogc
+import pygeoutils as geoutils
 from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemError
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable, KeysView
+
+    from numpy.typing import NDArray
+
+    FloatArray = NDArray[np.float64]
     CRSTYPE = Union[int, str, CRS]
     DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
     DS = TypeVar("DS", pd.Series, xr.DataArray)
@@ -390,7 +395,7 @@ class PETCoords:
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
         vp_slope = vapor_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords(self.coords, source="tep")
+        elevation = py3dep.elevation_bycoords(self.coords)
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -520,13 +525,38 @@ class PETGridded:
         Model-specific parameters as a dictionary, defaults to ``None``.
     """
 
+    def _add_elevation(self):
+        """Add elevation to the dataset."""
+        import rasterio
+
+        url = "/".join(
+            (
+                "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation",
+                "1/TIFF/USGS_Seamless_DEM_1.vrt",
+            )
+        )
+        lon = self.clm["lon"].to_numpy().ravel()
+        lat = self.clm["lat"].to_numpy().ravel()
+        mask = ~np.isnan(lon) & ~np.isnan(lat)
+        grid = zip(lon[mask], lat[mask])
+        elev = np.full_like(lon, np.nan)
+        with rasterio.open(url) as src:
+            elev[mask] = np.array(list(geoutils.sample_window(src, grid, 33))).ravel()
+        self.clm["elevation"] = self.clm["lon"].copy(data=elev.reshape(self.clm["lon"].shape))
+        dtype = self.clm["lon"].dtype
+        self.clm["elevation"] = self.clm["elevation"].astype(dtype)
+        self.clm["elevation"].attrs.update({"units": "m", "long_name": "elevation"})
+        self.clm["elevation"] = self.clm["elevation"].rio.write_crs(
+            self.clm.rio.crs, grid_mapping_name=self.clm.rio.grid_mapping
+        )
+
     def __init__(
         self,
         clm: xr.Dataset,
         method: PET_METHODS,
         params: dict[str, float] | None = None,
     ) -> None:
-        self.clm = clm.copy()
+        self.clm = clm
         self.method = method
         valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
         if self.method not in valid_methods:
@@ -548,20 +578,7 @@ class PETGridded:
             chunksizes = None
             if all(d in self.clm.chunksizes for d in ("time", "y", "x")):
                 chunksizes = self.clm.chunksizes
-            self.clm = py3dep.add_elevation(self.clm, resolution=self.res_m)
-            self.clm["elevation"] = xr.where(
-                self.clm["tmin"].isel(time=0).isnull(),
-                np.nan,
-                self.clm["elevation"],
-                keep_attrs=True,
-            )
-            dtype = self.clm["tmin"].dtype
-            self.clm["elevation"] = self.clm["elevation"].astype(dtype)
-            self.clm["elevation"].attrs.update({"units": "m", "long_name": "elevation"})
-            self.clm["elevation"] = self.clm["elevation"].rio.write_crs(
-                self.clm.rio.crs, grid_mapping_name=self.clm.rio.grid_mapping
-            )
-
+            self._add_elevation()
             if chunksizes is not None:
                 self.clm = self.clm.chunk(chunksizes)
 
