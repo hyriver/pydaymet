@@ -277,10 +277,3 @@ reportUnnecessaryIsInstance = false
 reportUntypedFunctionDecorator = false
 reportAttributeAccessIssue = false
 typeCheckingMode = "strict"
-
-[tool.fixit]
-formatter = "ufmt"
-
-[tool.refurb]
-python_version = "3.9"
-quiet = true
