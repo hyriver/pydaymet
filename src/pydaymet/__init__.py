@@ -17,12 +17,12 @@ except PackageNotFoundError:
 
 __all__ = [
     "Daymet",
-    "separate_snow",
+    "__version__",
+    "exceptions",
     "get_bycoords",
     "get_bygeom",
     "get_bystac",
     "potential_et",
+    "separate_snow",
     "show_versions",
-    "exceptions",
-    "__version__",
 ]
