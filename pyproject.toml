@@ -37,18 +37,15 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "async-retriever>=0.18,<0.19",
   "click>=0.7",
-  "geopandas>=1",
   "numpy>=2",
   "pandas>=1",
-  "py3dep>=0.18,<0.19",
-  "pygeoogc>=0.18,<0.19",
-  "pygeoutils>=0.18,<0.19",
   "pyproj>=3.0.1",
+  "rasterio",
+  "rioxarray>=0.15",
   "scipy",
   "shapely>=2",
-  "xarray>=2023.1",
+  "xarray>=2024.7",
 ]
 optional-dependencies.jit = [
   "numba>=0.57",
@@ -188,6 +185,10 @@ lint.per-file-ignores."tests/*.py" = [
   "S101",
 ]
 lint.extend-safe-fixes = [
+  # Move third-party import
+  "TC002",
+  # Move import out of type-checking block
+  "TC004",
   # absolute imports
   "TID252",
 ]
