@@ -4,39 +4,40 @@
 from __future__ import annotations
 
 import functools
-import io
 import itertools
 import re
-from typing import TYPE_CHECKING, Callable, Literal, Union, cast
+from typing import TYPE_CHECKING, Callable, Literal
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import async_retriever as ar
-import pygeoogc as ogc
-import pygeoutils as geoutils
+import pydaymet._utils as utils
 from pydaymet.core import T_RAIN, T_SNOW, Daymet, separate_snow
-from pydaymet.exceptions import InputRangeError, InputTypeError, MissingDependencyError
+from pydaymet.exceptions import (
+    InputRangeError,
+    InputTypeError,
+    MissingDependencyError,
+    ServiceError,
+)
 from pydaymet.pet import potential_et
-from pygeoogc import ServiceURL
-from pygeoogc.exceptions import ServiceError
-from pygeoutils import Coordinates
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable, Sequence
+    from collections.abc import Iterable, Sequence
     from pathlib import Path
 
     import pyproj
     from shapely import MultiPolygon, Polygon
 
-    CRSTYPE = Union[int, str, pyproj.CRS]
+    CRSTYPE = int | str | pyproj.CRS
     PET_METHODS = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
 
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
-MAX_CONN = 10
 
 __all__ = ["get_bycoords", "get_bygeom", "get_bystac"]
+
+URL = "https://thredds.daac.ornl.gov/thredds/ncss/ornldaac"
 
 
 def _get_filename(
@@ -56,8 +57,8 @@ def _coord_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> Generator[list[tuple[str, dict[str, dict[str, str]]]], None, None]:
-    """Generate an iterable URL list for downloading Daymet data.
+) -> list[list[str]]:
+    """Generate an list of list of URLs for downloading Daymet data.
 
     Parameters
     ----------
@@ -84,32 +85,30 @@ def _coord_urls(
 
     Returns
     -------
-    generator
-        An iterator of generated URLs.
+    list
+        A list of list of generated URLs.
     """
     time_scale = _get_filename(region)
 
     lon, lat = coord
-    base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return (
+    base_url = f"{URL}/{code}"
+    return [
         [
-            (
-                f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
+            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?"
+            + urlencode(
                 {
-                    "params": {
-                        "var": v,
-                        "longitude": f"{lon:0.6f}",
-                        "latitude": f"{lat:0.6f}",
-                        "time_start": s.strftime(DATE_FMT),
-                        "time_end": e.strftime(DATE_FMT),
-                        "accept": "csv",
-                    }
-                },
+                    "var": v,
+                    "longitude": f"{lon:0.6f}",
+                    "latitude": f"{lat:0.6f}",
+                    "time_start": s.strftime(DATE_FMT),
+                    "time_end": e.strftime(DATE_FMT),
+                    "accept": "csv",
+                }
             )
             for s, e in dates
         ]
         for v in variables
-    )
+    ]
 
 
 def _get_lon_lat(
@@ -119,12 +118,11 @@ def _get_lon_lat(
     to_xarray: bool = False,
 ) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
-    coords_list = geoutils.coords_list(coords)
+    coords_list = utils.transform_coords(coords, crs, 4326)
 
     if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
         raise InputTypeError("coords_id", "list with the same length as of coords")
 
-    coords_list = ogc.match_crs(coords_list, crs, 4326)
     lon, lat = zip(*coords_list)
     return list(lon), list(lat)
 
@@ -139,21 +137,19 @@ def _by_coord(
     pet_params: dict[str, float] | None,
     snow: bool,
     snow_params: dict[str, float] | None,
-    ssl: bool,
 ) -> pd.DataFrame:
     """Get climate data for a coordinate and return as a DataFrame."""
     coords = (lon, lat)
-    url_kwds = _coord_urls(
+    urls = _coord_urls(
         daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates
     )
-    retrieve = functools.partial(ar.retrieve_text, max_workers=MAX_CONN, ssl=ssl)
     clm = pd.concat(
         (
             pd.concat(
-                pd.read_csv(io.StringIO(r), parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for r in retrieve(u, k)
+                pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0])
+                for f in utils.download_files(u_list, "csv")
             )
-            for u, k in (zip(*u) for u in url_kwds)
+            for u_list in urls
         ),
         axis=1,
     )
@@ -189,7 +185,6 @@ def get_bycoords(
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
-    ssl: bool = True,
     to_xarray: bool = False,
 ) -> pd.DataFrame | xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
@@ -252,8 +247,6 @@ def get_bycoords(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
-    ssl : bool, optional
-        Whether to verify SSL certification, defaults to ``True``.
     to_xarray : bool, optional
         Return the data as an ``xarray.Dataset``. Defaults to ``False``.
 
@@ -289,7 +282,7 @@ def get_bycoords(
         dates_itr = daymet.years_tolist(dates)
 
     lon, lat = _get_lon_lat(coords, coords_id, crs, to_xarray)
-    points = Coordinates(lon, lat, daymet.region_bbox[region].bounds).points
+    points = utils.validate_coords(zip(lon, lat), daymet.region_bbox[region].bounds)
     n_pts = len(points)
     if n_pts == 0 or n_pts != len(lon):
         raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
@@ -303,9 +296,8 @@ def get_bycoords(
         pet_params=pet_params,
         snow=snow,
         snow_params=snow_params,
-        ssl=ssl,
     )
-    clm_list = itertools.starmap(by_coord, zip(points.x, points.y))
+    clm_list = itertools.starmap(by_coord, zip(*points.T))
 
     idx = list(coords_id) if coords_id is not None else [f"P{i}" for i in range(n_pts)]
     if to_xarray:
@@ -337,8 +329,8 @@ def _gridded_urls(
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> Generator[tuple[str, dict[str, dict[str, str]]], None, None]:
-    """Generate an iterable URL list for downloading Daymet data.
+) -> list[str]:
+    """Generate a list of URLs for downloading Daymet data.
 
     Parameters
     ----------
@@ -365,40 +357,39 @@ def _gridded_urls(
 
     Returns
     -------
-    generator
-        An iterator of generated URLs.
+    list
+        A list of generated URLs.
     """
     time_scale = _get_filename(region)
-
     west, south, east, north = bounds
-    base_url = f"{ServiceURL().restful.daymet}/{code}"
-    return (
-        (
-            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc",
-            {
-                "params": {
-                    "var": v,
-                    "north": f"{north:0.6f}",
-                    "west": f"{west:0.6f}",
-                    "east": f"{east:0.6f}",
-                    "south": f"{south:0.6f}",
-                    "disableProjSubset": "on",
-                    "horizStride": "1",
-                    "time_start": s.strftime(DATE_FMT),
-                    "time_end": e.strftime(DATE_FMT),
-                    "timeStride": "1",
-                    "addLatLon": "true",
-                    "accept": "netcdf",
-                }
-            },
-        )
-        for v, (s, e) in itertools.product(variables, dates)
-    )
+    base_url = f"{URL}/{code}"
+    base_url = f"{URL}/{code}"
+    urls = []
+
+    for v, (s, e) in itertools.product(variables, dates):
+        params = {
+            "var": v,
+            "north": f"{north:0.6f}",
+            "west": f"{west:0.6f}",
+            "east": f"{east:0.6f}",
+            "south": f"{south:0.6f}",
+            "disableProjSubset": "on",
+            "horizStride": "1",
+            "time_start": s.strftime(DATE_FMT),
+            "time_end": e.strftime(DATE_FMT),
+            "timeStride": "1",
+            "addLatLon": "true",
+            "accept": "netcdf",
+        }
+        encoded_params = urlencode(params)
+        urls.append(f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?{encoded_params}")
+
+    return urls
 
 
 def _open_dataset(f: Path) -> xr.Dataset:
     """Open a dataset using ``xarray``."""
-    with xr.open_dataset(f, engine="scipy") as ds:
+    with xr.open_dataset(f) as ds:
         return ds.load()
 
 
@@ -415,7 +406,6 @@ def get_bygeom(
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
-    ssl: bool = True,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -479,8 +469,6 @@ def get_bygeom(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
-    ssl : bool, optional
-        Whether to verify SSL certification, defaults to ``True``.
 
     Returns
     -------
@@ -510,31 +498,21 @@ def get_bygeom(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    crs = ogc.validate_crs(crs)
-    _geometry = geoutils.geo2polygon(geometry, crs, 4326)
+    crs = utils.validate_crs(crs)
+    _geometry = utils.to_geometry(geometry, crs, 4326)
 
     if not _geometry.intersects(daymet.region_bbox[region]):
         raise InputRangeError("geometry", f"within {daymet.region_bbox[region].bounds}")
 
-    urls, kwds = zip(
-        *_gridded_urls(
-            daymet.time_codes[time_scale],
-            _geometry.bounds,
-            daymet.region,
-            daymet.variables,
-            dates_itr,
-        )
+    urls = _gridded_urls(
+        daymet.time_codes[time_scale],
+        _geometry.bounds,
+        daymet.region,
+        daymet.variables,
+        dates_itr,
     )
-    urls = cast("list[str]", list(urls))
-    kwds = cast("list[dict[str, dict[str, str]]]", list(kwds))
 
-    clm_files = ogc.streaming_download(
-        urls,
-        kwds,
-        file_extention="nc",
-        ssl=ssl,
-        n_jobs=MAX_CONN,
-    )
+    clm_files = utils.download_files(urls, "nc")
     clm_files = [f for f in clm_files if f is not None]
     try:
         # open_mfdataset can run into too many open files error so we use merge
@@ -568,9 +546,8 @@ def get_bygeom(
         clm[v].rio.write_nodata(np.nan, inplace=True)
     if "spatial_ref" in clm:
         clm = clm.drop_vars("spatial_ref")
-    clm = geoutils.xd_write_crs(clm, crs, "lambert_conformal_conic")
-    clm = cast("xr.Dataset", clm)
-    clm = geoutils.xarray_geomask(clm, _geometry, 4326)
+    clm = utils.write_crs(clm, crs)
+    clm = utils.clip_dataset(clm, _geometry, 4326)
     clm = clm.rio.reproject(crs.replace("units=km", "units=m"), resolution=1000)
 
     if snow:
@@ -679,8 +656,6 @@ def get_bystac(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
-    ssl : bool, optional
-        Whether to verify SSL certification, defaults to ``True``.
 
     Returns
     -------
@@ -717,8 +692,8 @@ def get_bystac(
 
     daymet = Daymet(variables, pet, snow, time_scale, region)
 
-    crs = ogc.validate_crs(crs)
-    if not geoutils.geo2polygon(geometry, crs, 4326).intersects(daymet.region_bbox[region]):
+    crs = utils.validate_crs(crs)
+    if not utils.to_geometry(geometry, crs, 4326).intersects(daymet.region_bbox[region]):
         raise InputRangeError("geometry", f"within {daymet.region_bbox[region].bounds}")
 
     if not isinstance(res_km, int) or res_km < 1:
@@ -744,7 +719,7 @@ def get_bystac(
     store = fsspec.get_mapper(asset.href)
     ds = xr.open_zarr(store, decode_coords="all", **asset.extra_fields["xarray:open_kwargs"])
 
-    _geometry = geoutils.geo2polygon(geometry, crs, ds.rio.crs)
+    _geometry = utils.to_geometry(geometry, crs, ds.rio.crs)
 
     with dask.config.set(**{"array.slicing.split_large_chunks": True}):
         if res_km > 1:
@@ -759,7 +734,7 @@ def get_bystac(
         else:
             clm = ds[daymet.variables].sel(time=time_slice).rio.clip_box(*_geometry.bounds).load()
     ds.close()
-    clm = geoutils.xarray_geomask(clm, _geometry, ds.rio.crs)
+    clm = utils.clip_dataset(clm, _geometry, ds.rio.crs)
 
     lat = clm["lat"].values
     lon = clm["lon"].values
