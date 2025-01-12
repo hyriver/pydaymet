@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, fields
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -15,12 +16,11 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import rasterio
 import xarray as xr
 from pyproj import CRS
 
-import py3dep
-import pygeoogc as ogc
-import pygeoutils as geoutils
+import pydaymet._utils as utils
 from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemError
 
 if TYPE_CHECKING:
@@ -291,6 +291,21 @@ def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index)
         raise MissingItemError(missing)
 
 
+@lru_cache
+def _get_location_elevation(coords: tuple[float, float], crs: int) -> float:
+    """Get the elevation of the location."""
+    url = "/".join(
+        (
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation",
+            "13/TIFF/USGS_Seamless_DEM_13.vrt",
+        )
+    )
+    with rasterio.open(url) as src:
+        xy = utils.transform_coords([coords], crs, src.crs.to_epsg())
+        elev = np.array(list(utils.sample_window(src, xy, 33))).ravel()
+    return elev[0]
+
+
 @dataclass(frozen=True)
 class PetParams:
     soil_heat_flux: float = 0.0
@@ -341,8 +356,8 @@ class PETCoords:
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
-        self.crs = ogc.validate_crs(crs)
-        self.coords = ogc.match_crs([coords], self.crs, 4326)[0]
+        self.crs = utils.validate_crs(crs)
+        self.coords = utils.transform_coords([coords], self.crs, 4326)[0]
         self.method = method
         valid_methods = ("penman_monteith", "hargreaves_samani", "priestley_taylor")
         if self.method not in valid_methods:
@@ -395,7 +410,7 @@ class PETCoords:
         check_requirements(self.req_vars["penman_monteith"], self.clm_vars)
 
         vp_slope = vapor_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords(self.coords)
+        elevation = _get_location_elevation(self.coords, self.crs)
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -447,7 +462,7 @@ class PETCoords:
 
         self.tmean = 0.5 * (self.clm[self.tmax] + self.clm[self.tmin])
         vp_slope = vapor_slope(self.tmean)
-        elevation = py3dep.elevation_bycoords(self.coords, source="tep")
+        elevation = _get_location_elevation(self.coords, self.crs)
 
         # Latent Heat of Vaporization [MJ/kg]
         lmbda = 2.501 - 0.002361 * self.tmean
@@ -541,7 +556,7 @@ class PETGridded:
         grid = zip(lon[mask], lat[mask])
         elev = np.full_like(lon, np.nan)
         with rasterio.open(url) as src:
-            elev[mask] = np.array(list(geoutils.sample_window(src, grid, 33))).ravel()
+            elev[mask] = np.array(list(utils.sample_window(src, grid, 33))).ravel()
         self.clm["elevation"] = self.clm["lon"].copy(data=elev.reshape(self.clm["lon"].shape))
         dtype = self.clm["lon"].dtype
         self.clm["elevation"] = self.clm["elevation"].astype(dtype)
@@ -565,9 +580,10 @@ class PETGridded:
         if params is None:
             self.params = PetParams()
         else:
-            if any(k not in PetParams.fields() for k in params):
-                raise InputValueError("params", PetParams.fields())
-            self.params = PetParams(**params)
+            try:
+                self.params = PetParams(**params)
+            except TypeError as e:
+                raise InputValueError("params", PetParams.fields()) from e
 
         self.res_m = abs(self.clm.rio.resolution()[0])
         self.crs = CRS(self.clm.rio.crs)
