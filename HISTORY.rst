@@ -2,8 +2,29 @@
 History
 =======
 
-0.18.1 (2024-XX-XX)
+0.19.0 (2024-XX-XX)
 -------------------
+
+This release is a major refactoring of the package to make it more lightweight
+and independent. The package now uses ``urllib3.HTTPSConnectionPool`` for handling
+all server requests, which avoids hammering the server with multiple requests and
+improves the performance and reliability of the package. The package no longer
+depends on other HyRiver libraries, making it more lightweight and faster.
+
+New Features
+~~~~~~~~~~~~
+- Add a new function to get Daymet tile IDs for a given geometry called
+  ``daymet_tiles``.
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Remove dependency on other HyRiver libraries to make the package more
+  lightweight and independent. 
+- Use ``urllib3.HTTPSConnectionPool`` for handling all server requests.
+  This avoids hammering the server with multiple requests and improves
+  the performance and reliablity of the package.
+- Remove dependency on ``geopandas`` and use ``shapely`` only for handling
+  geometries. This makes the package more lightweight and faster.
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
@@ -11,6 +32,8 @@ Breaking Changes
   to the climate dataset for computing PET. We now directly use 30-m
   elevation data from 3DEP and resample it to the climate data resolution
   by averaging each cell within a 1-km window.
+- Remove the option to disable SSL in all functions. Now, SSL verification
+  is always enabled.
 
 0.18.0 (2024-10-05)
 -------------------
