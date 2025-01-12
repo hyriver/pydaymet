@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypeVar
+from typing import TYPE_CHECKING, Literal
 
 import click
-import geopandas as gpd
 import pandas as pd
 import shapely
 
@@ -25,8 +24,6 @@ if TYPE_CHECKING:
 
     from shapely import MultiPolygon, Point, Polygon
 
-    DFType = TypeVar("DFType", pd.DataFrame, gpd.GeoDataFrame)
-
 
 def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
     """Parse the snow dataframe."""
@@ -38,7 +35,7 @@ def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
     return target_df
 
 
-def get_target_df(tdf: DFType, req_cols: list[str]) -> DFType:
+def get_target_df(tdf: pd.DataFrame, req_cols: list[str]) -> pd.DataFrame:
     """Check if all required columns exists in the dataframe.
 
     It also re-orders the columns based on req_cols order.
@@ -70,12 +67,6 @@ def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
     raise InputRangeError(geo_id, f"within\n{bbox_range}")
 
 
-def get_region(geodf: gpd.GeoDataFrame) -> list[str]:
-    """Get the Daymer region of a geo-dataframe."""
-    id_geo = geodf[["id", "geometry"]].itertuples(index=False, name=None)
-    return list(itertools.starmap(_get_region, id_geo))
-
-
 variables_opt = click.option(
     "--variables",
     "-v",
@@ -97,10 +88,6 @@ save_dir_opt = click.option(
     ),
 )
 
-ssl_opt = click.option(
-    "--disable_ssl", is_flag=True, help="Pass to disable SSL certification verification."
-)
-
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
@@ -113,14 +100,12 @@ def cli() -> None:
 @click.argument("fpath", type=click.Path(exists=True))
 @variables_opt
 @save_dir_opt
-@ssl_opt
 def coords(
     fpath: Path,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
     | None = None,
     save_dir: str | Path = "clm_daymet",
-    disable_ssl: bool = False,
 ) -> None:
     """Retrieve climate data for a list of coordinates.
 
@@ -148,10 +133,8 @@ def coords(
         raise InputTypeError("file", ".csv")
 
     target_df = get_target_df(pd.read_csv(fpath), ["id", "start", "end", "lon", "lat"])
-    points = gpd.GeoDataFrame(
-        target_df.id, geometry=gpd.points_from_xy(target_df.lon, target_df.lat), crs=4326
-    )
-    target_df["region"] = get_region(points)
+    points = shapely.points(list(zip(target_df["lon"], target_df["lat"])))
+    target_df["region"] = list(itertools.starmap(_get_region, zip(target_df["id"], points)))
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
     target_df["coords"] = list(target_df[["lon", "lat"]].itertuples(index=False, name=None))
     if "snow" in target_df:
@@ -174,7 +157,7 @@ def coords(
             if fname.exists():
                 continue
             kwrgs = dict(zip(req_cols[1:], args))
-            clm = daymet.get_bycoords(**kwrgs, variables=variables, ssl=not disable_ssl)
+            clm = daymet.get_bycoords(**kwrgs, variables=variables)
             clm.to_csv(fname, index=False)
     click.echo("Done.")
 
@@ -183,14 +166,12 @@ def coords(
 @click.argument("fpath", type=click.Path(exists=True))
 @variables_opt
 @save_dir_opt
-@ssl_opt
 def geometry(
     fpath: Path,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
     | None = None,
     save_dir: str | Path = "clm_daymet",
-    disable_ssl: bool = False,
 ) -> None:
     """Retrieve climate data for a dataframe of geometries.
 
@@ -210,6 +191,11 @@ def geometry(
     Examples:
         $ pydaymet geometry geo.gpkg -v prcp -v tmin
     """  # noqa: D301
+    try:
+        import geopandas as gpd
+    except ImportError as e:
+        raise ImportError("This command requires geopandas") from e
+
     fpath = Path(fpath)
     if fpath.suffix not in (".shp", ".gpkg"):
         raise InputTypeError("file", ".shp or .gpkg")
@@ -222,7 +208,9 @@ def geometry(
         raise MissingCRSError
 
     target_df = get_target_df(target_df, ["id", "start", "end", "geometry"])
-    target_df["region"] = get_region(target_df)
+    target_df["region"] = list(
+        itertools.starmap(_get_region, zip(target_df["id"], target_df["geometry"]))
+    )
     target_df["dates"] = list(target_df[["start", "end"]].itertuples(index=False, name=None))
     req_cols = get_required_cols("geometry", target_df.columns)
     target_df = target_df[req_cols]
@@ -245,7 +233,6 @@ def geometry(
                 **kwrgs,
                 crs=target_df.crs,
                 variables=variables,
-                ssl=not disable_ssl,
             )
             clm.to_netcdf(fname)
     click.echo("Done.")
