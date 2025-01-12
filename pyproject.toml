@@ -38,17 +38,18 @@ dynamic = [
 ]
 dependencies = [
   "click>=0.7",
+  "netcdf4",
   "numpy>=2",
   "pandas>=1",
   "pyproj>=3.0.1",
   "rasterio",
   "rioxarray>=0.15",
-  "scipy",
   "shapely>=2",
+  "urllib3",
   "xarray>=2024.7",
 ]
 optional-dependencies.jit = [
-  "numba>=0.57",
+  "numba>=0.60",
 ]
 optional-dependencies.stac = [
   "dask",
@@ -185,6 +186,8 @@ lint.per-file-ignores."tests/*.py" = [
   "S101",
 ]
 lint.extend-safe-fixes = [
+  # break down assert
+  "PT018",
   # Move third-party import
   "TC002",
   # Move import out of type-checking block
