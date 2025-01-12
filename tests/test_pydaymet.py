@@ -14,7 +14,6 @@ import pytest
 from shapely import Polygon
 
 import pydaymet as daymet
-from pydaymet._utils import daymet_tiles
 from pydaymet.cli import cli
 
 GEOM = Polygon(
@@ -34,7 +33,7 @@ def assert_close(a: float, b: float, rtol: float = 1e-3) -> None:
 
 
 def test_tiles():
-    tiles = daymet_tiles(GEOM)
+    tiles = daymet.daymet_tiles(GEOM)
     assert tiles.shape[0] == 1
     assert tiles[0] == "12116"
 
