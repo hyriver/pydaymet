@@ -6,7 +6,6 @@ import io
 import shutil
 from pathlib import Path
 
-import cytoolz.curried as tlz
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -141,7 +140,7 @@ class TestCLI:
             [
                 "geometry",
                 str(geo_gpkg),
-                *list(tlz.concat([["-v", v] for v in VAR])),
+                *[item for v in VAR for item in ["-v", v]],
                 "-s",
                 save_dir,
             ],
@@ -175,7 +174,7 @@ class TestCLI:
             [
                 "coords",
                 coord_csv,
-                *list(tlz.concat([["-v", v] for v in VAR])),
+                *[item for v in VAR for item in ["-v", v]],
                 "-s",
                 save_dir,
             ],
@@ -185,7 +184,7 @@ class TestCLI:
             [
                 "coords",
                 coord_csv,
-                *list(tlz.concat([["-v", v] for v in VAR])),
+                *[item for v in VAR for item in ["-v", v]],
                 "-s",
                 save_dir,
             ],
