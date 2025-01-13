@@ -11,7 +11,7 @@ from functools import lru_cache
 from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 import pyproj
@@ -78,7 +78,7 @@ def transform_coords(
 ) -> list[tuple[float, float]]:
     """Transform coordinates from one CRS to another."""
     try:
-        pts = shapely.points(coords)
+        pts = shapely.points(np.atleast_2d(coords))
     except (TypeError, AttributeError, ValueError) as ex:
         raise InputTypeError("coords", "a list of tuples") from ex
     x, y = shapely.get_coordinates(pts).T
@@ -101,7 +101,7 @@ def validate_coords(
     except (TypeError, AttributeError, ValueError) as ex:
         raise InputTypeError("coords", "a list of tuples") from ex
     if shapely.contains(shapely.box(*bounds), pts).all():
-        return shapely.get_coordinates(pts)
+        return shapely.get_coordinates(pts).round(6)
     raise InputRangeError("coords", f"within {bounds}")
 
 
@@ -246,7 +246,16 @@ def _download(url: str, fname: Path, http: urllib3.HTTPSConnectionPool) -> None:
     fname.write_bytes(http.request("GET", path).data)
 
 
-def download_files(url_list: list[str], file_extension: str, rewrite: bool = False) -> list[Path]:
+def _get_prefix(url: str) -> str:
+    """Get the file prefix for creating a unique filename from a URL."""
+    query = urlparse(url).query
+    var = parse_qs(query).get("var", ["var"])[0]
+    lat = parse_qs(query).get("latitude", ["grid"])[0]
+    lon = parse_qs(query).get("longitude", ["grid"])[0]
+    return f"{lon}_{lat}_{var}"
+
+
+def download_files(url_list: list[str], f_ext: str, rewrite: bool = False) -> list[Path]:
     """Download multiple files concurrently."""
     hr_cache = os.getenv("HYRIVER_CACHE_NAME")
     cache_dir = Path(hr_cache).parent if hr_cache else Path("cache")
@@ -265,7 +274,7 @@ def download_files(url_list: list[str], file_extension: str, rewrite: bool = Fal
     )
 
     file_list = [
-        Path(cache_dir, f"{hashlib.sha256(url.encode()).hexdigest()}.{file_extension}")
+        Path(cache_dir, f"{_get_prefix(url)}_{hashlib.sha256(url.encode()).hexdigest()}.{f_ext}")
         for url in url_list
     ]
     if rewrite:
