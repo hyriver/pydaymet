@@ -2,14 +2,14 @@
 History
 =======
 
-0.19.0 (2024-XX-XX)
+0.19.0 (2025-XX-XX)
 -------------------
 
 This release is a major refactoring of the package to make it more lightweight
 and independent. The package now uses ``urllib3.HTTPSConnectionPool`` for handling
 all server requests, which avoids hammering the server with multiple requests and
 improves the performance and reliability of the package. The package no longer
-depends on other HyRiver libraries, making it more lightweight and faster.
+depends on other HyRiver libraries, making it more lightweight and faster to load.
 
 New Features
 ~~~~~~~~~~~~
@@ -19,10 +19,10 @@ New Features
 Internal Changes
 ~~~~~~~~~~~~~~~~
 - Remove dependency on other HyRiver libraries to make the package more
-  lightweight and independent. 
+  lightweight and independent.
 - Use ``urllib3.HTTPSConnectionPool`` for handling all server requests.
   This avoids hammering the server with multiple requests and improves
-  the performance and reliablity of the package.
+  the performance and reliability of the package.
 - Remove dependency on ``geopandas`` and use ``shapely`` only for handling
   geometries. This makes the package more lightweight and faster.
 
