@@ -3,7 +3,6 @@
 # pyright: reportArgumentType=false,reportCallIssue=false,reportReturnType=false
 from __future__ import annotations
 
-import functools
 import itertools
 import re
 from typing import TYPE_CHECKING, Callable, Literal
@@ -53,7 +52,7 @@ def _get_filename(
 
 def _coord_urls(
     code: int,
-    coord: tuple[float, float],
+    coords_list: Iterable[tuple[float, float]],
     region: str,
     variables: Iterable[str],
     dates: list[tuple[pd.Timestamp, pd.Timestamp]],
@@ -89,33 +88,29 @@ def _coord_urls(
         A list of list of generated URLs.
     """
     time_scale = _get_filename(region)
-
-    lon, lat = coord
-    base_url = f"{URL}/{code}"
     return [
-        [
-            f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?"
-            + urlencode(
-                {
-                    "var": v,
-                    "longitude": f"{lon:0.6f}",
-                    "latitude": f"{lat:0.6f}",
-                    "time_start": s.strftime(DATE_FMT),
-                    "time_end": e.strftime(DATE_FMT),
-                    "accept": "csv",
-                }
-            )
-            for s, e in dates
-        ]
-        for v in variables
+        f"{URL}/{code}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?"
+        + urlencode(
+            {
+                "var": v,
+                "longitude": f"{lon:0.6f}",
+                "latitude": f"{lat:0.6f}",
+                "time_start": s.strftime(DATE_FMT),
+                "time_end": e.strftime(DATE_FMT),
+                "accept": "csv",
+            }
+        )
+        for lon, lat in coords_list
+        for v, (s, e) in itertools.product(variables, dates)
     ]
 
 
 def _get_lon_lat(
     coords: list[tuple[float, float]] | tuple[float, float],
-    coords_id: Sequence[str | int] | None = None,
-    crs: CRSTYPE = 4326,
-    to_xarray: bool = False,
+    bounds: tuple[float, float, float, float],
+    coords_id: Sequence[str | int] | None,
+    crs: CRSTYPE,
+    to_xarray: bool,
 ) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
     coords_list = utils.transform_coords(coords, crs, 4326)
@@ -123,33 +118,23 @@ def _get_lon_lat(
     if to_xarray and coords_id is not None and len(coords_id) != len(coords_list):
         raise InputTypeError("coords_id", "list with the same length as of coords")
 
-    lon, lat = zip(*coords_list)
-    return list(lon), list(lat)
+    lon, lat = utils.validate_coords(coords_list, bounds).T
+    return lon.tolist(), lat.tolist()
 
 
 def _by_coord(
-    lon: float,
-    lat: float,
-    daymet: Daymet,
-    time_scale: str,
-    dates: list[tuple[pd.Timestamp, pd.Timestamp]],
+    coords: tuple[float, float],
+    csv_files: dict[str, list[Path]],
     pet: PET_METHODS | None,
     pet_params: dict[str, float] | None,
     snow: bool,
     snow_params: dict[str, float] | None,
 ) -> pd.DataFrame:
     """Get climate data for a coordinate and return as a DataFrame."""
-    coords = (lon, lat)
-    urls = _coord_urls(
-        daymet.time_codes[time_scale], coords, daymet.region, daymet.variables, dates
-    )
     clm = pd.concat(
         (
-            pd.concat(
-                pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0])
-                for f in utils.download_files(u_list, "csv")
-            )
-            for u_list in urls
+            pd.concat(pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0]) for f in files)
+            for _, files in csv_files.items()
         ),
         axis=1,
     )
@@ -281,28 +266,34 @@ def get_bycoords(
     else:
         dates_itr = daymet.years_tolist(dates)
 
-    lon, lat = _get_lon_lat(coords, coords_id, crs, to_xarray)
-    points = utils.validate_coords(zip(lon, lat), daymet.region_bbox[region].bounds)
-    n_pts = len(points)
-    if n_pts == 0 or n_pts != len(lon):
-        raise InputRangeError("coords", f"within {daymet.region_bbox[region].bounds}")
+    lon, lat = _get_lon_lat(coords, daymet.region_bbox[region].bounds, coords_id, crs, to_xarray)
+    n_pts = len(lon)
 
-    by_coord = functools.partial(
-        _by_coord,
-        daymet=daymet,
-        time_scale=time_scale,
-        dates=dates_itr,
-        pet=pet,
-        pet_params=pet_params,
-        snow=snow,
-        snow_params=snow_params,
+    urls = _coord_urls(
+        daymet.time_codes[time_scale], zip(lon, lat), daymet.region, daymet.variables, dates_itr
     )
-    clm_list = itertools.starmap(by_coord, zip(*points.T))
+    # group based on lon, lat, and variable, i.e, dict of dict of list
+    grouped_files = {}
+    for file in utils.download_files(urls, "csv"):
+        x, y, v = file.name.split("_")[:3]
+        x, y = float(x), float(y)
+        if (x, y) not in grouped_files:
+            grouped_files[(x, y)] = {}
+        if v not in grouped_files[(x, y)]:
+            grouped_files[(x, y)][v] = []
 
-    idx = list(coords_id) if coords_id is not None else [f"P{i}" for i in range(n_pts)]
+        grouped_files[(x, y)][v].append(file)
+
+    idx = list(coords_id) if coords_id is not None else list(range(n_pts))
+    idx = dict(zip(zip(lon, lat), idx))
+    clm_list = {
+        idx[c]: _by_coord(c, files, pet, pet_params, snow, snow_params)
+        for c, files in grouped_files.items()
+    }
     if to_xarray:
         clm_ds = xr.concat(
-            (xr.Dataset.from_dataframe(clm) for clm in clm_list), dim=pd.Index(idx, name="id")
+            (xr.Dataset.from_dataframe(clm) for clm in clm_list.values()),
+            dim=pd.Index(list(clm_list), name="id"),
         )
         clm_ds = clm_ds.rename(
             {n: re.sub(r"\([^\)]*\)", "", str(n)).strip() for n in clm_ds.data_vars}
@@ -315,12 +306,8 @@ def get_bycoords(
         return clm_ds
 
     if n_pts == 1:
-        clm = next(iter(clm_list), pd.DataFrame())
-    else:
-        clm = pd.concat(clm_list, keys=idx, axis=1)
-        clm = clm.columns.set_names(["id", "variable"])
-    clm = clm.set_index(pd.DatetimeIndex(pd.to_datetime(clm.index).date))
-    return clm
+        return next(iter(clm_list.values()), pd.DataFrame())
+    return pd.concat(clm_list.values(), keys=list(clm_list), axis=1, names=["id", "variable"])
 
 
 def _gridded_urls(
@@ -362,29 +349,26 @@ def _gridded_urls(
     """
     time_scale = _get_filename(region)
     west, south, east, north = bounds
-    base_url = f"{URL}/{code}"
-    base_url = f"{URL}/{code}"
-    urls = []
-
-    for v, (s, e) in itertools.product(variables, dates):
-        params = {
-            "var": v,
-            "north": f"{north:0.6f}",
-            "west": f"{west:0.6f}",
-            "east": f"{east:0.6f}",
-            "south": f"{south:0.6f}",
-            "disableProjSubset": "on",
-            "horizStride": "1",
-            "time_start": s.strftime(DATE_FMT),
-            "time_end": e.strftime(DATE_FMT),
-            "timeStride": "1",
-            "addLatLon": "true",
-            "accept": "netcdf",
-        }
-        encoded_params = urlencode(params)
-        urls.append(f"{base_url}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?{encoded_params}")
-
-    return urls
+    return [
+        f"{URL}/{code}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?"
+        + urlencode(
+            {
+                "var": v,
+                "north": f"{north:0.6f}",
+                "west": f"{west:0.6f}",
+                "east": f"{east:0.6f}",
+                "south": f"{south:0.6f}",
+                "disableProjSubset": "on",
+                "horizStride": "1",
+                "time_start": s.strftime(DATE_FMT),
+                "time_end": e.strftime(DATE_FMT),
+                "timeStride": "1",
+                "addLatLon": "true",
+                "accept": "netcdf",
+            }
+        )
+        for v, (s, e) in itertools.product(variables, dates)
+    ]
 
 
 def _open_dataset(f: Path) -> xr.Dataset:
@@ -513,7 +497,6 @@ def get_bygeom(
     )
 
     clm_files = utils.download_files(urls, "nc")
-    clm_files = [f for f in clm_files if f is not None]
     try:
         # open_mfdataset can run into too many open files error so we use merge
         # https://docs.xarray.dev/en/stable/user-guide/io.html#reading-multi-file-datasets
