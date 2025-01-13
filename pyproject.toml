@@ -48,6 +48,9 @@ dependencies = [
   "urllib3",
   "xarray>=2024.7",
 ]
+optional-dependencies.cli = [
+  "geopandas>=1",
+]
 optional-dependencies.jit = [
   "numba>=0.60",
 ]
@@ -188,10 +191,8 @@ lint.per-file-ignores."tests/*.py" = [
 lint.extend-safe-fixes = [
   # break down assert
   "PT018",
-  # Move third-party import
-  "TC002",
-  # Move import out of type-checking block
-  "TC004",
+  # Move imports
+  "TC",
   # absolute imports
   "TID252",
 ]
