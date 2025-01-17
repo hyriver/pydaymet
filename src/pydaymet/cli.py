@@ -22,7 +22,7 @@ from pydaymet.exceptions import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from shapely import MultiPolygon, Point, Polygon
+    from shapely import Point, Polygon
 
 
 def parse_snow(target_df: pd.DataFrame) -> pd.DataFrame:
@@ -52,7 +52,7 @@ def get_required_cols(geom_type: str, columns: pd.Index) -> list[str]:
     return req_cols + list({"time_scale", "pet", "snow"}.intersection(columns))
 
 
-def _get_region(gid: str, geom: Polygon | MultiPolygon | Point) -> str:
+def _get_region(gid: str, geom: Polygon | Point) -> str:
     """Get the Daymer region of an input geometry (point or polygon)."""
     region_bbox = {
         "na": shapely.box(-136.8989, 6.0761, -6.1376, 69.077),

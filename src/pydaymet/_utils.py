@@ -1,43 +1,43 @@
 """Some utilities for PyDaymet."""
 
+# pyright: reportMissingTypeArgument=false
 from __future__ import annotations
 
 import hashlib
 import json
 import os
 from collections.abc import Generator, Iterable, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
+from urllib.request import urlopen
 
 import numpy as np
 import pyproj
 import shapely
-import urllib3
 from pyproj import Transformer
 from pyproj.exceptions import CRSError as ProjCRSError
 from rasterio.enums import MaskFlags, Resampling
 from rasterio.transform import rowcol
 from rasterio.windows import Window
 from rioxarray.exceptions import OneDimensionalRaster
-from shapely import MultiPolygon, Polygon, STRtree, ops
+from shapely import Polygon, STRtree, ops
 from shapely.geometry import shape
-from urllib3.exceptions import HTTPError
 
+from pydaymet._streaming import stream_write
 from pydaymet.exceptions import DownloadError, InputRangeError, InputTypeError
 
 if TYPE_CHECKING:
     import xarray as xr
     from numpy.typing import NDArray
     from rasterio.io import DatasetReader
-    from shapely.geometry.base import BaseGeometry
 
-    CRSTYPE = int | str | pyproj.CRS
-    POLYTYPE = Polygon | MultiPolygon | tuple[float, float, float, float]
-    NUMBER = int | float | np.number
+    CRSType = int | str | pyproj.CRS
+    PolyType = Polygon | tuple[float, float, float, float]
+    Number = int | float | np.number
 
 __all__ = [
     "clip_dataset",
@@ -50,11 +50,11 @@ __all__ = [
     "validate_crs",
     "write_crs",
 ]
-CHUNK_SIZE = 1048576  # 1 MB
+
 TransformerFromCRS = lru_cache(Transformer.from_crs)
 
 
-def validate_crs(crs: CRSTYPE) -> str:
+def validate_crs(crs: CRSType) -> str:
     """Validate a CRS.
 
     Parameters
@@ -74,7 +74,7 @@ def validate_crs(crs: CRSTYPE) -> str:
 
 
 def transform_coords(
-    coords: Sequence[tuple[float, float]], in_crs: CRSTYPE, out_crs: CRSTYPE
+    coords: Sequence[tuple[float, float]], in_crs: CRSType, out_crs: CRSType
 ) -> list[tuple[float, float]]:
     """Transform coordinates from one CRS to another."""
     try:
@@ -86,7 +86,7 @@ def transform_coords(
     return list(zip(x_proj, y_proj))
 
 
-def _geo_transform(geom: BaseGeometry, in_crs: CRSTYPE, out_crs: CRSTYPE) -> BaseGeometry:
+def _geo_transform(geom: Polygon, in_crs: CRSType, out_crs: CRSType) -> Polygon:
     """Transform a geometry from one CRS to another."""
     project = TransformerFromCRS(in_crs, out_crs, always_xy=True).transform
     return ops.transform(project, geom)
@@ -106,10 +106,10 @@ def validate_coords(
 
 
 def to_geometry(
-    geometry: BaseGeometry | tuple[float, float, float, float],
-    geo_crs: CRSTYPE | None = None,
-    crs: CRSTYPE | None = None,
-) -> BaseGeometry:
+    geometry: Polygon | tuple[float, float, float, float],
+    geo_crs: CRSType | None = None,
+    crs: CRSType | None = None,
+) -> Polygon:
     """Return a Shapely geometry and optionally transformed to a new CRS.
 
     Parameters
@@ -123,7 +123,7 @@ def to_geometry(
 
     Returns
     -------
-    shapely.geometry.base.BaseGeometry
+    shapely.Polygon
         A shapely geometry object.
     """
     is_geom = np.atleast_1d(shapely.is_geometry(geometry))
@@ -133,7 +133,7 @@ def to_geometry(
         geom = shapely.box(*geometry)
     else:
         raise InputTypeError("geometry", "a shapley geometry or tuple of length 4")
-
+    geom = cast("Polygon", geom)
     if geo_crs is not None and crs is not None:
         return _geo_transform(geom, geo_crs, crs)
     elif geo_crs is None and crs is not None:
@@ -234,18 +234,6 @@ def sample_window(
             yield nodata
 
 
-def _download(url: str, fname: Path, http: urllib3.HTTPSConnectionPool) -> None:
-    """Download a file from a URL."""
-    parsed_url = urlparse(url)
-    path = f"{parsed_url.path}?{parsed_url.query}"
-    head = http.request("HEAD", path)
-    fsize = int(head.headers.get("Content-Length", -1))
-    if fname.exists() and fname.stat().st_size == fsize:
-        return
-    fname.unlink(missing_ok=True)
-    fname.write_bytes(http.request("GET", path).data)
-
-
 def _get_prefix(url: str) -> str:
     """Get the file prefix for creating a unique filename from a URL."""
     query = urlparse(url).query
@@ -261,49 +249,23 @@ def download_files(url_list: list[str], f_ext: str, rewrite: bool = False) -> li
     cache_dir = Path(hr_cache).parent if hr_cache else Path("cache")
     cache_dir.mkdir(exist_ok=True, parents=True)
 
-    http = urllib3.HTTPSConnectionPool(
-        urlparse(url_list[0]).netloc,
-        maxsize=10,
-        block=True,
-        retries=urllib3.Retry(
-            total=5,
-            backoff_factor=0.5,
-            status_forcelist=[500, 502, 504],
-            allowed_methods=["HEAD", "GET"],
-        ),
-    )
-
     file_list = [
         Path(cache_dir, f"{_get_prefix(url)}_{hashlib.sha256(url.encode()).hexdigest()}.{f_ext}")
         for url in url_list
     ]
     if rewrite:
         _ = [f.unlink(missing_ok=True) for f in file_list]
-    max_workers = min(4, os.cpu_count() or 1, len(url_list))
-    if max_workers == 1:
-        _ = [_download(url, path, http) for url, path in zip(url_list, file_list)]
-        return file_list
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {
-            executor.submit(_download, url, path, http): url
-            for url, path in zip(url_list, file_list)
-        }
-        for future in as_completed(future_to_url):
-            try:
-                future.result()
-            except Exception as e:  # noqa: PERF203
-                raise DownloadError(future_to_url[future], e) from e
+    stream_write(url_list, file_list)
     return file_list
 
 
-def write_crs(ds: xr.Dataset, crs: CRSTYPE) -> xr.Dataset:
+def write_crs(ds: xr.Dataset, crs: CRSType) -> xr.Dataset:
     """Write geo reference info into a dataset or dataarray."""
     ds = ds.rio.write_transform()
     if "spatial_ref" in ds.coords:
         ds = ds.drop_vars("spatial_ref")
-    if "grid_mapping" in ds.coords:
-        ds = ds.drop_vars("grid_mapping")
+    for v in ds.data_vars:
+        _ = ds[v].attrs.pop("grid_mapping", None)
     ds = ds.rio.write_crs(crs, grid_mapping_name="lambert_conformal_conic")
     ds = ds.rio.write_coordinate_system()
     return ds
@@ -311,8 +273,8 @@ def write_crs(ds: xr.Dataset, crs: CRSTYPE) -> xr.Dataset:
 
 def clip_dataset(
     ds: xr.Dataset,
-    geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
-    crs: CRSTYPE,
+    geometry: Polygon | tuple[float, float, float, float],
+    crs: CRSType,
 ) -> xr.Dataset:
     """Mask a ``xarray.Dataset`` based on a geometry."""
     attrs = {v: ds[v].attrs for v in ds}
@@ -320,7 +282,7 @@ def clip_dataset(
     geom = to_geometry(geometry, crs, ds.rio.crs)
     try:
         ds = ds.rio.clip_box(*geom.bounds, auto_expand=True)
-        if isinstance(geometry, (Polygon, MultiPolygon)):
+        if isinstance(geometry, Polygon):
             ds = ds.rio.clip([geom])
     except OneDimensionalRaster:
         ds = ds.rio.clip([geom], all_touched=True)
@@ -331,25 +293,16 @@ def clip_dataset(
 
 
 @lru_cache(maxsize=10)
-def _fetch_geojson(url: str) -> dict[str, Any]:
+def _fetch_geojson(url: str) -> list[dict[str, Any]]:
     """Fetch Daymet tiles from a GeoJSON file."""
     try:
-        resp = urllib3.request(
-            "GET",
-            url,
-            retries=urllib3.Retry(
-                total=5,
-                backoff_factor=0.5,
-                status_forcelist=[500, 502, 504],
-                allowed_methods=["GET"],
-            ),
-        )
+        with urlopen(url) as response:
+            return json.loads(response.read())["features"]
     except HTTPError as e:
         raise DownloadError(url, e) from e
-    return json.loads(resp.data)["features"]
 
 
-def daymet_tiles(geometry: POLYTYPE, geo_crs: CRSTYPE = 4326) -> NDArray[np.str_]:
+def daymet_tiles(geometry: PolyType, geo_crs: CRSType = 4326) -> NDArray[np.str_]:
     """Retrieve Daymet tiles from a GeoJSON file."""
     url = "/".join(
         (

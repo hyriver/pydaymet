@@ -27,10 +27,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import pyproj
-    from shapely import MultiPolygon, Polygon
+    from shapely import Polygon
 
-    CRSTYPE = int | str | pyproj.CRS
-    PET_METHODS = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
+    CRSType = int | str | pyproj.CRS
+    PETMethods = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
 
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -109,7 +109,7 @@ def _get_lon_lat(
     coords: list[tuple[float, float]] | tuple[float, float],
     bounds: tuple[float, float, float, float],
     coords_id: Sequence[str | int] | None,
-    crs: CRSTYPE,
+    crs: CRSType,
     to_xarray: bool,
 ) -> tuple[list[float], list[float]]:
     """Get longitude and latitude from a list of coordinates."""
@@ -125,7 +125,7 @@ def _get_lon_lat(
 def _by_coord(
     coords: tuple[float, float],
     csv_files: dict[str, list[Path]],
-    pet: PET_METHODS | None,
+    pet: PETMethods | None,
     pet_params: dict[str, float] | None,
     snow: bool,
     snow_params: dict[str, float] | None,
@@ -160,13 +160,13 @@ def get_bycoords(
     coords: list[tuple[float, float]] | tuple[float, float],
     dates: tuple[str, str] | int | list[int],
     coords_id: Sequence[str | int] | None = None,
-    crs: CRSTYPE = 4326,
+    crs: CRSType = 4326,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
     | None = None,
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
-    pet: PET_METHODS | None = None,
+    pet: PETMethods | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -378,15 +378,15 @@ def _open_dataset(f: Path) -> xr.Dataset:
 
 
 def get_bygeom(
-    geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
+    geometry: Polygon | tuple[float, float, float, float],
     dates: tuple[str, str] | int | list[int],
-    crs: CRSTYPE = 4326,
+    crs: CRSType = 4326,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
     | None = None,
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
-    pet: PET_METHODS | None = None,
+    pet: PETMethods | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -395,8 +395,9 @@ def get_bygeom(
 
     Parameters
     ----------
-    geometry : Polygon, MultiPolygon, or bbox
-        The geometry of the region of interest.
+    geometry : Polygon or tuple
+        The geometry of the region of interest. It can be a shapely Polygon or a tuple
+        of length 4 representing the bounding box (minx, miny, maxx, maxy).
     dates : tuple or list
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
     crs : str, int, or pyproj.CRS, optional
@@ -545,16 +546,16 @@ def get_bygeom(
 
 
 def get_bystac(
-    geometry: Polygon | MultiPolygon | tuple[float, float, float, float],
+    geometry: Polygon | tuple[float, float, float, float],
     dates: tuple[str, str],
-    crs: CRSTYPE = 4326,
+    crs: CRSType = 4326,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
     | None = None,
     region: Literal["na", "hi", "pr"] = "na",
     time_scale: Literal["daily", "monthly", "annual"] = "daily",
     res_km: int = 1,
-    pet: PET_METHODS | None = None,
+    pet: PETMethods | None = None,
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
@@ -578,8 +579,9 @@ def get_bystac(
 
     Parameters
     ----------
-    geometry : Polygon, MultiPolygon, or bbox
-        The geometry of the region of interest.
+    geometry : Polygon or tuple
+        The geometry of the region of interest. It can be a shapely Polygon or a tuple
+        of length 4 representing the bounding box (minx, miny, maxx, maxy).
     dates : tuple
         Start and end dates as a tuple (start, end) or a list of years [2001, 2010, ...].
     crs : str, int, or pyproj.CRS, optional

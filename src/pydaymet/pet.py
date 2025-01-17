@@ -1,5 +1,6 @@
 """Core class for the Daymet functions."""
 
+# pyright: reportArgumentType=false
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -9,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Literal,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -26,13 +26,9 @@ from pydaymet.exceptions import InputTypeError, InputValueError, MissingItemErro
 if TYPE_CHECKING:
     from collections.abc import Hashable, KeysView
 
-    from numpy.typing import NDArray
-
-    FloatArray = NDArray[np.float64]
-    CRSTYPE = Union[int, str, CRS]
-    DF = TypeVar("DF", pd.DataFrame, xr.Dataset)
-    DS = TypeVar("DS", pd.Series, xr.DataArray)
-    PET_METHODS = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
+    CRSType = int | str | CRS
+    DataArray = TypeVar("DataArray", pd.Series, xr.DataArray)
+    PETMethods = Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"]
 
 __all__ = ["potential_et"]
 
@@ -52,7 +48,7 @@ NAME_MAP = {
 }
 
 
-def saturation_vapor(temperature: DS) -> DS:
+def saturation_vapor(temperature: DataArray) -> DataArray:
     """Compute saturation vapor pressure :footcite:t:`Allen_1998` Eq. 11 [kPa].
 
     Parameters
@@ -69,10 +65,10 @@ def saturation_vapor(temperature: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))
+    return 0.6108 * np.exp(17.27 * temperature / (temperature + 237.3))  # pyright: ignore[reportReturnType]
 
 
-def actual_vapor_pressure(tmin_c: DS, arid_correction: bool) -> DS:
+def actual_vapor_pressure(tmin_c: DataArray, arid_correction: bool) -> DataArray:
     """Compute actual vapor pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Notes
@@ -104,7 +100,7 @@ def actual_vapor_pressure(tmin_c: DS, arid_correction: bool) -> DS:
     return saturation_vapor(tmin_c)
 
 
-def vapor_pressure(tmax_c: DS, tmin_c: DS) -> DS:
+def vapor_pressure(tmax_c: DataArray, tmin_c: DataArray) -> DataArray:
     """Compute saturation and actual vapor pressure :footcite:t:`Allen_1998` Eq. 12 [kPa].
 
     Parameters
@@ -124,7 +120,7 @@ def vapor_pressure(tmax_c: DS, tmin_c: DS) -> DS:
     .. footbibliography::
     """
     e_s = (saturation_vapor(tmax_c) + saturation_vapor(tmin_c)) * 0.5
-    return cast("DS", e_s)
+    return cast("DataArray", e_s)
 
 
 @overload
@@ -161,7 +157,7 @@ def extraterrestrial_radiation(
     delta_r = 0.409 * np.sin(jp - 1.39)
     phi = lat * np.pi / 180.0
     w_s = np.arccos(-np.tan(phi) * np.tan(delta_r))
-    return (
+    return (  # pyright: ignore[reportReturnType]
         24.0
         * 60.0
         / np.pi
@@ -172,15 +168,15 @@ def extraterrestrial_radiation(
 
 
 def net_radiation(
-    srad: DS,
-    dayl: DS,
+    srad: DataArray,
+    dayl: DataArray,
     elevation: float | xr.DataArray,
-    tmax: DS,
-    tmin: DS,
-    e_a: DS,
+    tmax: DataArray,
+    tmin: DataArray,
+    e_a: DataArray,
     rad_a: pd.Series | xr.DataArray,
     albedo: float,
-) -> DS:
+) -> DataArray:
     """Compute net radiation using :footcite:t:`Allen_1998` Eq. 40 [MJ m^-2 day^-1].
 
     Parameters
@@ -213,7 +209,7 @@ def net_radiation(
     """
     r_surf = srad * dayl * 1e-6
     rad_s = (0.75 + 2e-5 * elevation) * rad_a
-    rad_s = cast("DS", rad_s)
+    rad_s = cast("DataArray", rad_s)
     rad_ns = (1.0 - albedo) * r_surf
     rad_nl = (
         4.903e-9
@@ -222,11 +218,11 @@ def net_radiation(
         * (1.35 * r_surf / rad_s - 0.35)
     )
     rad_net = rad_ns - rad_nl
-    rad_net = cast("DS", rad_net)
+    rad_net = cast("DataArray", rad_net)
     return rad_net
 
 
-def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
+def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DataArray) -> DataArray:
     """Compute the psychrometric constant :footcite:t:`Allen_1998` Eq. 8 [kPa °C^-1]..
 
     Parameters
@@ -249,11 +245,11 @@ def psychrometric_constant(elevation: float | xr.DataArray, lmbda: DS) -> DS:
     pa = 101.3 * np.power((293.15 - 0.0065 * elevation) / 293.15, 9.80665 / (0.0065 * 286.9))
     pa = cast("float | xr.DataArray", pa)
     gamma = 1.013e-3 * pa / (0.622 * lmbda)
-    gamma = cast("DS", gamma)
+    gamma = cast("DataArray", gamma)
     return gamma
 
 
-def vapor_slope(tmean_c: DS) -> DS:
+def vapor_slope(tmean_c: DataArray) -> DataArray:
     """Compute slope of saturation vapor pressure :footcite:t:`Allen_1998` Eq. 1 [kPa/°C].
 
     Parameters
@@ -270,7 +266,7 @@ def vapor_slope(tmean_c: DS) -> DS:
     ----------
     .. footbibliography::
     """
-    return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)
+    return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)  # pyright: ignore[reportReturnType]
 
 
 def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
@@ -351,8 +347,8 @@ class PETCoords:
         self,
         clm: pd.DataFrame,
         coords: tuple[float, float],
-        method: PET_METHODS,
-        crs: CRSTYPE = 4326,
+        method: PETMethods,
+        crs: CRSType = 4326,
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
@@ -568,7 +564,7 @@ class PETGridded:
     def __init__(
         self,
         clm: xr.Dataset,
-        method: PET_METHODS,
+        method: PETMethods,
         params: dict[str, float] | None = None,
     ) -> None:
         self.clm = clm
@@ -768,7 +764,7 @@ class PETGridded:
 def potential_et(
     clm: pd.DataFrame,
     coords: tuple[float, float],
-    crs: CRSTYPE,
+    crs: CRSType,
     method: Literal["penman_monteith", "priestley_taylor", "hargreaves_samani"] = ...,
     params: dict[str, float] | None = ...,
 ) -> pd.DataFrame: ...
@@ -787,7 +783,7 @@ def potential_et(
 def potential_et(
     clm: pd.DataFrame | xr.Dataset,
     coords: tuple[float, float] | None = None,
-    crs: CRSTYPE | None = 4326,
+    crs: CRSType | None = 4326,
     method: Literal[
         "penman_monteith", "priestley_taylor", "hargreaves_samani"
     ] = "hargreaves_samani",
