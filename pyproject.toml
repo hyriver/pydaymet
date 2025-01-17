@@ -189,6 +189,8 @@ lint.per-file-ignores."tests/*.py" = [
   "S101",
 ]
 lint.extend-safe-fixes = [
+  # module level imports
+  "E402",
   # break down assert
   "PT018",
   # Move imports
