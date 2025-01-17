@@ -6,8 +6,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import aiofiles
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
-from aiohttp.client_exceptions import ClientResponseError
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -37,25 +36,22 @@ class ServiceError(Exception):
 
 async def _stream_file(session: ClientSession, url: str, filepath: Path) -> None:
     """Stream the response to a file, skipping if already downloaded."""
-    try:
-        async with session.get(url) as response:
-            remote_size = int(response.headers.get("Content-Length", -1))
-            if filepath.exists() and filepath.stat().st_size == remote_size:
-                return
+    async with session.get(url) as response:
+        if response.status != 200:
+            raise ServiceError(await response.text(), str(response.url))
+        remote_size = int(response.headers.get("Content-Length", -1))
+        if filepath.exists() and filepath.stat().st_size == remote_size:
+            return
 
-            async with aiofiles.open(filepath, "wb") as file:
-                async for chunk in response.content.iter_chunked(CHUNK_SIZE):
-                    await file.write(chunk)
-    except (ClientResponseError, ValueError) as ex:
-        filepath.unlink(missing_ok=True)
-        raise ServiceError(await response.text(), str(response.url)) from ex
+        async with aiofiles.open(filepath, "wb") as file:
+            async for chunk in response.content.iter_chunked(CHUNK_SIZE):
+                await file.write(chunk)
 
 
 async def _stream_session(urls: Sequence[str], files: Sequence[Path]) -> None:
     """Download files concurrently."""
     async with ClientSession(
         connector=TCPConnector(limit_per_host=MAX_HOSTS),
-        raise_for_status=True,
         timeout=ClientTimeout(TIMEOUT),
     ) as session:
         tasks = [_stream_file(session, url, filepath) for url, filepath in zip(urls, files)]
