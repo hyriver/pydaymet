@@ -2,12 +2,13 @@
 History
 =======
 
-0.19.0 (2025-XX-XX)
+0.19.0 (2025-01-17)
 -------------------
 
 This release is a major refactoring of the package to make it more lightweight
-and independent. The package now uses ``urllib3.HTTPSConnectionPool`` for handling
-all server requests, which avoids hammering the server with multiple requests and
+and independent. The package now uses ``aiohttp`` and ``aiofiles`` with a limit
+on the number of simulnatious connections to the host, for handling
+all server requests. This avoids hammering the server with multiple requests and
 improves the performance and reliability of the package. The package no longer
 depends on other HyRiver libraries, making it more lightweight and faster to load.
 
@@ -20,7 +21,7 @@ Internal Changes
 ~~~~~~~~~~~~~~~~
 - Remove dependency on other HyRiver libraries to make the package more
   lightweight and independent.
-- Use ``urllib3.HTTPSConnectionPool`` for handling all server requests.
+- Use ``aiohttp`` and ``aiofiles`` for handling all server requests.
   This avoids hammering the server with multiple requests and improves
   the performance and reliability of the package.
 - Remove dependency on ``geopandas`` and use ``shapely`` only for handling
