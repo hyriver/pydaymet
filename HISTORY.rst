@@ -2,7 +2,7 @@
 History
 =======
 
-0.19.0 (2025-01-17)
+0.19.1 (2025-01-17)
 -------------------
 
 This release is a major refactoring of the package to make it more lightweight
