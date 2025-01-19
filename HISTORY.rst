@@ -2,6 +2,16 @@
 History
 =======
 
+0.19.3 (2025-XX-XX)
+-------------------
+
+Internal Changes
+~~~~~~~~~~~~~~~~
+- Refactor the package to run in Jupyter notebooks without using
+  ``nest_asyncio``. This is done by creating and initializing a
+  single global event loop thread dedicated to only running the
+  asynchronous parts of this package.
+
 0.19.1 (2025-01-17)
 -------------------
 
