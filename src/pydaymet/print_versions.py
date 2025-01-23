@@ -102,7 +102,7 @@ def show_versions(file: TextIO = sys.stdout) -> None:
         "aiosqlite",
         "brotli",
         "cytoolz",
-        "ujson",
+        "orjson",
         # hydrosignatures
         "numpy",
         "pandas",
