@@ -3,14 +3,13 @@
 # pyright: reportMissingTypeArgument=false
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Generator, Iterable, Sequence
 from functools import lru_cache
 from itertools import islice
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
@@ -18,6 +17,7 @@ from urllib.request import urlopen
 import numpy as np
 import pyproj
 import shapely
+import tiny_retriever as terry
 from pyproj import Transformer
 from pyproj.exceptions import CRSError as ProjCRSError
 from rasterio.enums import MaskFlags, Resampling
@@ -27,7 +27,6 @@ from rioxarray.exceptions import OneDimensionalRaster
 from shapely import Polygon, STRtree, ops
 from shapely.geometry import shape
 
-from pydaymet._streaming import stream_write
 from pydaymet.exceptions import DownloadError, InputRangeError, InputTypeError
 
 if TYPE_CHECKING:
@@ -234,28 +233,36 @@ def sample_window(
             yield nodata
 
 
-def _get_prefix(url: str) -> str:
+def _get_prefix(url: str, with_var: bool) -> str:
     """Get the file prefix for creating a unique filename from a URL."""
     query = urlparse(url).query
-    var = parse_qs(query).get("var", ["var"])[0]
     lat = parse_qs(query).get("latitude", ["grid"])[0]
     lon = parse_qs(query).get("longitude", ["grid"])[0]
-    return f"{lon}_{lat}_{var}"
+    if with_var:
+        var = parse_qs(query).get("var", ["var"])[0]
+        return f"{lon}_{lat}_{var}"
+    return f"{lon}_{lat}"
 
 
-def download_files(url_list: list[str], f_ext: str, rewrite: bool = False) -> list[Path]:
+def download_files(
+    url_list: list[str], f_ext: Literal["csv", "nc"], rewrite: bool = False, timeout: int = 1000
+) -> list[Path]:
     """Download multiple files concurrently."""
     hr_cache = os.getenv("HYRIVER_CACHE_NAME")
     cache_dir = Path(hr_cache).parent if hr_cache else Path("cache")
     cache_dir.mkdir(exist_ok=True, parents=True)
 
+    with_var = f_ext == "nc"
     file_list = [
-        Path(cache_dir, f"{_get_prefix(url)}_{hashlib.sha256(url.encode()).hexdigest()}.{f_ext}")
+        Path(
+            cache_dir,
+            terry.unique_filename(url, prefix=_get_prefix(url, with_var), file_extension=f_ext),
+        )
         for url in url_list
     ]
     if rewrite:
         _ = [f.unlink(missing_ok=True) for f in file_list]
-    stream_write(url_list, file_list)
+    terry.download(url_list, file_list, timeout=timeout)
     return file_list
 
 
