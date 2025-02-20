@@ -50,61 +50,6 @@ def _get_filename(
     }
 
 
-def _coord_urls(
-    code: int,
-    coords_list: Iterable[tuple[float, float]],
-    region: str,
-    variables: Iterable[str],
-    dates: list[tuple[pd.Timestamp, pd.Timestamp]],
-) -> list[list[str]]:
-    """Generate an list of list of URLs for downloading Daymet data.
-
-    Parameters
-    ----------
-    code : int
-        Endpoint code which should be one of the following:
-
-        * 2129: Daily
-        * 2131: Monthly average
-        * 2130: Annual average
-
-    coord : tuple of length 2
-        Coordinates in EPSG:4326 CRS (lon, lat)
-    region : str
-        Region in the US. Acceptable values are:
-
-        * ``na``: Continental North America
-        * ``hi``: Hawaii
-        * ``pr``: Puerto Rico
-
-    variables : list
-        A list of Daymet variables
-    dates : list
-        A list of dates
-
-    Returns
-    -------
-    list
-        A list of list of generated URLs.
-    """
-    time_scale = _get_filename(region)
-    return [
-        f"{URL}/{code}/daymet_v4_{time_scale[code](v)}_{s.year}.nc?"
-        + urlencode(
-            {
-                "var": v,
-                "longitude": f"{lon:0.6f}",
-                "latitude": f"{lat:0.6f}",
-                "time_start": s.strftime(DATE_FMT),
-                "time_end": e.strftime(DATE_FMT),
-                "accept": "csv",
-            }
-        )
-        for lon, lat in coords_list
-        for v, (s, e) in itertools.product(variables, dates)
-    ]
-
-
 def _get_lon_lat(
     coords: list[tuple[float, float]] | tuple[float, float],
     bounds: tuple[float, float, float, float],
@@ -124,27 +69,20 @@ def _get_lon_lat(
 
 def _by_coord(
     coords: tuple[float, float],
-    csv_files: dict[str, list[Path]],
+    csv_file: Path,
     pet: PETMethods | None,
     pet_params: dict[str, float] | None,
     snow: bool,
     snow_params: dict[str, float] | None,
 ) -> pd.DataFrame:
     """Get climate data for a coordinate and return as a DataFrame."""
-    clm = pd.concat(
-        (
-            pd.concat(pd.read_csv(f, parse_dates=[0], usecols=[0, 3], index_col=[0]) for f in files)
-            for _, files in csv_files.items()
-        ),
-        axis=1,
+    clm = pd.read_csv(csv_file, skiprows=6)
+    clm["time"] = pd.to_datetime(
+        clm["year"].astype(str) + "-" + clm["yday"].astype(str), format="%Y-%j"
     )
-    clm.columns = [c.replace('[unit="', " (").replace('"]', ")") for c in clm.columns]
-
-    if "prcp (mm)" in clm:
-        clm = clm.rename(columns={"prcp (mm)": "prcp (mm/day)"})
-
-    clm = clm.set_index(pd.to_datetime(clm.index.strftime("%Y-%m-%d")))
+    clm = clm.drop(columns=["year", "yday"]).set_index("time")
     clm = clm.where(clm > -9999)
+    clm.columns = clm.columns.str.replace("deg c", "degrees C").str.replace("^", "")
 
     if snow:
         params = {"t_rain": T_RAIN, "t_snow": T_SNOW} if snow_params is None else snow_params
@@ -152,7 +90,6 @@ def _by_coord(
 
     if pet is not None:
         clm = potential_et(clm, coords, method=pet, params=pet_params)
-    clm.index.name = "time"
     return clm
 
 
@@ -171,6 +108,7 @@ def get_bycoords(
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
     to_xarray: bool = False,
+    conn_timeout: int = 1000,
 ) -> pd.DataFrame | xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -234,6 +172,8 @@ def get_bycoords(
         https://doi.org/10.5194/gmd-11-1077-2018.
     to_xarray : bool, optional
         Return the data as an ``xarray.Dataset``. Defaults to ``False``.
+    conn_timeout : int, optional
+        Connection timeout in seconds, defaults to 1000.
 
     Returns
     -------
@@ -262,33 +202,37 @@ def get_bycoords(
     daymet.check_dates(dates)
 
     if isinstance(dates, tuple):
-        dates_itr = daymet.dates_tolist(dates)
+        # dates_itr = daymet.dates_tolist(dates)
+        req_start = pd.to_datetime(dates[0]).strftime(DATE_FMT)
+        req_end = pd.to_datetime(dates[1]).strftime(DATE_FMT)
+        req_years = None
     else:
-        dates_itr = daymet.years_tolist(dates)
+        # dates_itr = daymet.years_tolist(dates)
+        dates = [dates] if isinstance(dates, int) else dates
+        req_years = ",".join(map(str, dates))
+        req_start, req_end = None, None
 
-    lon, lat = _get_lon_lat(coords, daymet.region_bbox[region].bounds, coords_id, crs, to_xarray)
-    n_pts = len(lon)
+    lons, lats = _get_lon_lat(coords, daymet.region_bbox[region].bounds, coords_id, crs, to_xarray)
+    n_pts = len(lons)
 
-    urls = _coord_urls(
-        daymet.time_codes[time_scale], zip(lon, lat), daymet.region, daymet.variables, dates_itr
-    )
-    # group based on lon, lat, and variable, i.e, dict of dict of list
-    grouped_files = {}
-    for file in utils.download_files(urls, "csv"):
-        x, y, v = file.name.split("_")[:3]
-        x, y = float(x), float(y)
-        if (x, y) not in grouped_files:
-            grouped_files[(x, y)] = {}
-        if v not in grouped_files[(x, y)]:
-            grouped_files[(x, y)][v] = []
-
-        grouped_files[(x, y)][v].append(file)
+    req_vars = ",".join(daymet.variables)
+    if req_years is None:
+        base_url = (
+            "https://daymet.ornl.gov/single-pixel/api/data?lat={}&lon={}&vars={}&start={}&end={}"
+        )
+        urls = [
+            base_url.format(lat, lon, req_vars, req_start, req_end) for lat, lon in zip(lats, lons)
+        ]
+    else:
+        base_url = "https://daymet.ornl.gov/single-pixel/api/data?lat={}&lon={}&vars={}&years={}"
+        urls = [base_url.format(lat, lon, req_vars, req_years) for lat, lon in zip(lats, lons)]
 
     idx = list(coords_id) if coords_id is not None else list(range(n_pts))
-    idx = dict(zip(zip(lon, lat), idx))
+    idx = dict(zip(zip(lons, lats), idx))
+    csv_files = utils.download_files(urls, "csv", timeout=conn_timeout)
     clm_list = {
-        idx[c]: _by_coord(c, files, pet, pet_params, snow, snow_params)
-        for c, files in grouped_files.items()
+        idx[c]: _by_coord(c, f, pet, pet_params, snow, snow_params)
+        for c, f in zip(zip(lons, lats), csv_files)
     }
     if to_xarray:
         clm_ds = xr.concat(
@@ -390,6 +334,7 @@ def get_bygeom(
     pet_params: dict[str, float] | None = None,
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
+    conn_timeout: int = 1000,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -454,6 +399,8 @@ def get_bygeom(
         ``t_snow`` (deg C) which is the threshold for temperature for considering snow.
         The default values are ``{'t_rain': 2.5, 't_snow': 0.6}`` that are adopted from
         https://doi.org/10.5194/gmd-11-1077-2018.
+    conn_timeout : int, optional
+        Connection timeout in seconds, defaults to 1000.
 
     Returns
     -------
@@ -497,7 +444,7 @@ def get_bygeom(
         dates_itr,
     )
 
-    clm_files = utils.download_files(urls, "nc")
+    clm_files = utils.download_files(urls, "nc", timeout=conn_timeout)
     try:
         # open_mfdataset can run into too many open files error so we use merge
         # https://docs.xarray.dev/en/stable/user-guide/io.html#reading-multi-file-datasets

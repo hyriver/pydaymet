@@ -269,7 +269,7 @@ def vapor_slope(tmean_c: DataArray) -> DataArray:
     return 4098 * saturation_vapor(tmean_c) / np.square(tmean_c + 237.3)  # pyright: ignore[reportReturnType]
 
 
-def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index) -> None:
+def check_requirements(reqs: Iterable[str], cols: KeysView[Hashable] | pd.Index[str]) -> None:
     """Check for all the required data.
 
     Parameters
