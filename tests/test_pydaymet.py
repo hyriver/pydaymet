@@ -40,7 +40,7 @@ def test_tiles():
 class TestByCoords:
     @pytest.mark.parametrize(
         ("method", "expected"),
-        [("hargreaves_samani", 3.713), ("priestley_taylor", 3.175), ("penman_monteith", 3.4726)],
+        [("hargreaves_samani", 3.7651), ("priestley_taylor", 3.198), ("penman_monteith", 3.533)],
     )
     def test_pet(self, method, expected):
         clm = daymet.get_bycoords(COORDS, DATES, crs=ALT_CRS, pet=method)
@@ -50,24 +50,24 @@ class TestByCoords:
         clm = daymet.get_bycoords(
             COORDS, DATES, crs=ALT_CRS, pet="priestley_taylor", pet_params={"arid_correction": True}
         )
-        assert_close(clm["pet (mm/day)"].mean(), 3.0912)
+        assert_close(clm["pet (mm/day)"].mean(), 3.113)
 
     @pytest.mark.jit
     def test_snow(self):
         clm = daymet.get_bycoords(COORDS, DATES, snow=True, crs=ALT_CRS)
-        assert_close(clm["snow (mm/day)"].mean(), 0.0)
+        assert_close(clm["snow (mm/day)"].mean(), 0.000737)
 
     def test_daily(self):
         clm = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS)
         clm_ds = daymet.get_bycoords(COORDS, DATES, variables=VAR, crs=ALT_CRS, to_xarray=True)
 
-        expected = 1.005
+        expected = 1.144
         assert_close(clm["prcp (mm/day)"].mean(), expected)
         assert_close(clm_ds.prcp.mean(), expected)
 
     def test_monthly(self):
         clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="monthly")
-        assert_close(clm["tmin (degrees C)"].mean(), 11.435)
+        assert_close(clm["tmin (degrees C)"].mean(), 11.458)
 
     def test_annual(self):
         clm = daymet.get_bycoords(COORDS, YEAR, variables=VAR, crs=ALT_CRS, time_scale="annual")

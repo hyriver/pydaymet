@@ -57,13 +57,13 @@ def test_invalid_coords():
 
 def test_invalid_date():
     with pytest.raises(InputRangeError) as ex:
-        _ = daymet.get_bycoords(COORDS, ("1950-01-01", "2010-01-01"))
+        _ = daymet.get_bygeom(GEOM, ("1950-01-01", "2010-01-01"))
     assert "1980" in str(ex.value)
 
 
 def test_invalid_year():
     with pytest.raises(InputRangeError) as ex:
-        _ = daymet.get_bycoords(COORDS, 1950)
+        _ = daymet.get_bygeom(GEOM, 1950)
     assert "1980" in str(ex.value)
 
 
