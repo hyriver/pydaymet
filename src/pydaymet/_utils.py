@@ -17,7 +17,6 @@ from urllib.request import urlopen
 import numpy as np
 import pyproj
 import shapely
-import tiny_retriever as terry
 from pyproj import Transformer
 from pyproj.exceptions import CRSError as ProjCRSError
 from rasterio.enums import MaskFlags, Resampling
@@ -27,6 +26,7 @@ from rioxarray.exceptions import OneDimensionalRaster
 from shapely import Polygon, STRtree, ops
 from shapely.geometry import shape
 
+import tiny_retriever as terry
 from pydaymet.exceptions import DownloadError, InputRangeError, InputTypeError
 
 if TYPE_CHECKING:
