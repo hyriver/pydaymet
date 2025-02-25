@@ -2,14 +2,23 @@
 History
 =======
 
-0.19.3 (2025-XX-XX)
+0.19.3 (2025-02-24)
 -------------------
+
+New Features
+~~~~~~~~~~~~
+- Improve the performance of ``get_bycoords`` function by using
+  the single-pixel API of the Daymet server.
+- Add a new argument to both ``get_bygeom`` and ``get_bycoords``
+  functions called ``conn_timeout`` for setting the connection
+  timeout in seconds. The default value is 5 minutes.
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
 - Use [TinyRetriever](https://github.com/cheginit/tiny-retriever) for
   all server requests. It offers the same functionalities as the previous
-  ``_streaming`` module and has the same dependencies.
+  ``_streaming`` module and has the same dependencies. It has a more robust
+  handling of async threads and is more efficient.
 
 0.19.1 (2025-01-17)
 -------------------
