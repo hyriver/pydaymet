@@ -297,7 +297,7 @@ class Daymet:
             )
 
     @staticmethod
-    def check_dates(dates: tuple[str, str] | int | list[int]) -> None:
+    def check_dates(dates: tuple[str, str] | int | list[int] | range) -> None:
         """Check if input dates are in correct format and valid."""
         if not isinstance(dates, (tuple, list, int, range)):
             raise InputTypeError(

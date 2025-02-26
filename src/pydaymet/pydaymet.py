@@ -331,7 +331,7 @@ def _open_dataset(f: Path) -> xr.Dataset:
 
 def get_bygeom(
     geometry: Polygon | tuple[float, float, float, float],
-    dates: tuple[str, str] | int | list[int],
+    dates: tuple[str, str] | int | list[int] | range,
     crs: CRSType = 4326,
     variables: Iterable[Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]]
     | Literal["tmin", "tmax", "prcp", "srad", "vp", "swe", "dayl"]
