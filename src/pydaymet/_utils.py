@@ -245,7 +245,7 @@ def _get_prefix(url: str, with_var: bool) -> str:
 
 
 def download_files(
-    url_list: list[str], f_ext: Literal["csv", "nc"], rewrite: bool = False, timeout: int = 1000
+    url_list: list[str], f_ext: Literal["csv", "nc"], validate_filesize: bool, timeout: int
 ) -> list[Path]:
     """Download multiple files concurrently."""
     hr_cache = os.getenv("HYRIVER_CACHE_NAME")
@@ -260,8 +260,8 @@ def download_files(
         )
         for url in url_list
     ]
-    if rewrite:
-        _ = [f.unlink(missing_ok=True) for f in file_list]
+    if not validate_filesize and all(f.exists() and f.stat().st_size > 0 for f in file_list):
+        return file_list
     terry.download(url_list, file_list, timeout=timeout)
     return file_list
 

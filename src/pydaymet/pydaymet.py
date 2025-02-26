@@ -109,6 +109,7 @@ def get_bycoords(
     snow_params: dict[str, float] | None = None,
     to_xarray: bool = False,
     conn_timeout: int = 1000,
+    validate_filesize: bool = True,
 ) -> pd.DataFrame | xr.Dataset:
     """Get point-data from the Daymet database at 1-km resolution.
 
@@ -174,6 +175,13 @@ def get_bycoords(
         Return the data as an ``xarray.Dataset``. Defaults to ``False``.
     conn_timeout : int, optional
         Connection timeout in seconds, defaults to 1000.
+    validate_filesize : bool, optional
+        When set to ``True``, the function checks the file size of the previously
+        cached files and will re-download if the local filesize does not match
+        that of the remote. Defaults to ``True``. Setting this to ``False``
+        can be useful when you are sure that the cached files are not corrupted and just
+        want to get the combined dataset more quickly. This is faster because it avoids
+        web requests that are necessary for getting the file sizes.
 
     Returns
     -------
@@ -229,7 +237,7 @@ def get_bycoords(
 
     idx = list(coords_id) if coords_id is not None else list(range(n_pts))
     idx = dict(zip(zip(lons, lats), idx))
-    csv_files = utils.download_files(urls, "csv", timeout=conn_timeout)
+    csv_files = utils.download_files(urls, "csv", validate_filesize, conn_timeout)
     clm_list = {
         idx[c]: _by_coord(c, f, pet, pet_params, snow, snow_params)
         for c, f in zip(zip(lons, lats), csv_files)
@@ -335,6 +343,7 @@ def get_bygeom(
     snow: bool = False,
     snow_params: dict[str, float] | None = None,
     conn_timeout: int = 1000,
+    validate_filesize: bool = True,
 ) -> xr.Dataset:
     """Get gridded data from the Daymet database at 1-km resolution.
 
@@ -401,6 +410,13 @@ def get_bygeom(
         https://doi.org/10.5194/gmd-11-1077-2018.
     conn_timeout : int, optional
         Connection timeout in seconds, defaults to 1000.
+    validate_filesize : bool, optional
+        When set to ``True``, the function checks the file size of the previously
+        cached files and will re-download if the local filesize does not match
+        that of the remote. Defaults to ``True``. Setting this to ``False``
+        can be useful when you are sure that the cached files are not corrupted and just
+        want to get the combined dataset more quickly. This is faster because it avoids
+        web requests that are necessary for getting the file sizes.
 
     Returns
     -------
@@ -444,7 +460,7 @@ def get_bygeom(
         dates_itr,
     )
 
-    clm_files = utils.download_files(urls, "nc", timeout=conn_timeout)
+    clm_files = utils.download_files(urls, "nc", validate_filesize, conn_timeout)
     try:
         # open_mfdataset can run into too many open files error so we use merge
         # https://docs.xarray.dev/en/stable/user-guide/io.html#reading-multi-file-datasets
