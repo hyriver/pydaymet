@@ -12,6 +12,14 @@ New Features
 - Add a new argument to both ``get_bygeom`` and ``get_bycoords``
   functions called ``conn_timeout`` for setting the connection
   timeout in seconds. The default value is 5 minutes.
+- Add a new argument to both ``get_bygeom`` and ``get_bycoords`` functions
+  called ``validate_filesize``. When set to ``True``, the
+  function checks the file size of the previously
+  cached files and will re-download if the local filesize does not match
+  that of the remote. Defaults to ``True``. Setting this to ``False``
+  can be useful when you are sure that the cached files are not corrupted and just
+  want to get the combined dataset more quickly. This is faster because it avoids
+  web requests that are necessary for getting the file sizes.
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
