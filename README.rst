@@ -159,23 +159,24 @@ areas, you can pass ``{"arid_correction": True, ...}`` to subtract 2 °C from th
 minimum temperature for computing the actual vapor pressure.
 
 Both ``get_bygeom`` and ``get_bycoords`` functions save the intermediate files
-retunred by the web service in a local cache folder (``./cache`` in the current
+returned by the web service in a local cache folder (``./cache`` in the current
 directory). The cache folder is created automatically when the functions are
 called for the first time. The cache folder is used to store the intermediate
 files to avoid re-downloading them. These two functions allow modifying the
 web service calls via two options:
+
 - ``conn_timeout``: Sets the connection timeout in seconds. The default value
-    is 5 minutes. This can be increaseed for larger requests. If running these
-    functions fails with a connection timeout error, try increasing this value.
+  is 5 minutes. This can be increaseed for larger requests. If running these
+  functions fails with a connection timeout error, try increasing this value.
 - ``validate_filesize``: If ``True``, the functions compares the file size
-    of the previously cached files in the ``./cache`` folder, if they exist, with
-    their size on the remote server. If the sizes do not match, the cached files are
-    removed and they will be re-download. By default this is set to ``False`` since
-    the files on the server rarely change. So, if a request has already been cached
-    there shouldn't be a need for re-donwloading them from scratch. However, if you
-    suspect that the files on the server have changed or the functions fails to process
-    the cached files, you can set this to ``True`` or manually delete the cached
-    files in the ``./cache`` folder.
+  of the previously cached files in the ``./cache`` folder, if they exist, with
+  their size on the remote server. If the sizes do not match, the cached files are
+  removed and they will be re-download. By default this is set to ``False`` since
+  the files on the server rarely change. So, if a request has already been cached
+  there shouldn't be a need for re-donwloading them from scratch. However, if you
+  suspect that the files on the server have changed or the functions fails to process
+  the cached files, you can set this to ``True`` or manually delete the cached
+  files in the ``./cache`` folder.
 
 You can find some example notebooks
 `here <https://github.com/hyriver/HyRiver-examples>`__.
