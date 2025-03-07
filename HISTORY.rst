@@ -23,7 +23,7 @@ New Features
 
 Internal Changes
 ~~~~~~~~~~~~~~~~
-- Use [TinyRetriever](https://github.com/cheginit/tiny-retriever) for
+- Use `TinyRetriever <https://github.com/cheginit/tiny-retriever>`__ for
   all server requests. It offers the same functionalities as the previous
   ``_streaming`` module and has the same dependencies. It has a more robust
   handling of async threads and is more efficient.
