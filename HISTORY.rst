@@ -2,7 +2,7 @@
 History
 =======
 
-0.19.3 (2025-03-01)
+0.19.3 (2025-03-07)
 -------------------
 
 New Features
@@ -16,7 +16,7 @@ New Features
   called ``validate_filesize``. When set to ``True``, the
   function checks the file size of the previously
   cached files and will re-download if the local filesize does not match
-  that of the remote. Defaults to ``True``. Setting this to ``False``
+  that of the remote. Defaults to ``False``. Setting this to ``False``
   can be useful when you are sure that the cached files are not corrupted and just
   want to get the combined dataset more quickly. This is faster because it avoids
   web requests that are necessary for getting the file sizes.
