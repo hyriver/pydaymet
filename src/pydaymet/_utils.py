@@ -22,7 +22,7 @@ from pyproj.exceptions import CRSError as ProjCRSError
 from rasterio.enums import MaskFlags, Resampling
 from rasterio.transform import rowcol
 from rasterio.windows import Window
-from rioxarray.exceptions import OneDimensionalRaster
+from rioxarray.exceptions import NoDataInBounds, OneDimensionalRaster
 from shapely import Polygon, STRtree, ops
 from shapely.geometry import shape
 
@@ -291,7 +291,7 @@ def clip_dataset(
         ds = ds.rio.clip_box(*geom.bounds, auto_expand=True)
         if isinstance(geometry, Polygon):
             ds = ds.rio.clip([geom])
-    except OneDimensionalRaster:
+    except (OneDimensionalRaster, NoDataInBounds):
         ds = ds.rio.clip([geom], all_touched=True)
 
     _ = [ds[v].rio.update_attrs(attrs[v], inplace=True) for v in ds]
