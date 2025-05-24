@@ -2,6 +2,17 @@
 History
 =======
 
+0.19.4 (2025-05-24)
+-------------------
+
+Bug Fixes
+~~~~~~~~~
+- Fix an issue in the ``get_bygeom`` function where if the input
+  geometry is smaller than 1 km, the function would fail to
+  clip the data. This version returns all pixels that the
+  geometry intersects with, even if the geometry is smaller
+  than 1 km.
+
 0.19.3 (2025-03-07)
 -------------------
 
